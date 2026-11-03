@@ -1,0 +1,11 @@
+{
+  "name": "sous",
+  "version": "0.1.0",
+  "description": "Sous runs Linear tickets through spec, build, review, and merge with Claude Code, and stops at the pass for chef.",
+  "author": {
+    "name": "Theo van Oostrum",
+    "url": "https://github.com/vanoostrum"
+  },
+  "repository": "https://github.com/vanoostrum/sous",
+  "license": "UNLICENSED"
+}

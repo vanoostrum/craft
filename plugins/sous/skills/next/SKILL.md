@@ -1,0 +1,63 @@
+---
+name: next
+description: Sous picker. Pick the next Linear ticket for the spec lane and the build lane, and start both lanes in parallel. Also holds the replan check and the milestone checkpoint. Use after a plan pass, a spec pass, or a merge, or when chef asks sous to pick up the next ticket.
+model: haiku
+---
+
+# sous:next
+
+Load the `sous:rules` skill first, and follow it.
+
+Sous works in two lanes. The **spec lane** needs chef: grill, design, and the spec pass. The **build lane** runs on its own: build, test, review, up to the merge pass. This skill picks the next ticket for each lane and starts the lanes in parallel, so chef answers grills while earlier tickets build.
+
+## Input
+
+None, or a Linear project. Without a project, use every open ticket in the Linear team from the config.
+
+## Lanes
+
+| Lane | Takes a ticket when | Limit | Runs |
+|---|---|---|---|
+| Spec | It is in **Todo**, and each ticket that blocks it is in **Ready to build**, **Building**, **In Review**, or **Done**. | One ticket in **Specifying**, and at most 4 tickets in **Ready to build**. | `sous:spec`, in a new session for each ticket. |
+| Build | It is in **Ready to build**, and each ticket that blocks it is **Done**. | One ticket in **Building**. A ticket in **In Review** does not count. | `sous:build`, then `sous:review`, in a new session. |
+
+"Blocks" means a Linear "blocked by" relation. A blocked ticket is never picked. A ticket can be grilled before its blockers are built, because the grill needs their decisions, not their code.
+
+## Steps
+
+1. **Read the board.** List the open tickets with their state, priority, and blocking relations. Skip tickets in **Needs human** and plan tickets.
+2. **Sort** the candidates of each lane by Linear priority, then by the build order in the plan ticket's `## Plan` table.
+3. **Build lane.** If the lane has room and a ticket is ready, start a new Claude Code session for it with this prompt: `Run sous:build on <key>, then sous:review. Stop at the merge pass.` Use what the environment offers. In a claude.ai project, ask the coordinator for a new thread. In a terminal, run `claude -p "<prompt>"` in a background shell. A build must not run in a spec session, because the grill there waits on chef.
+4. **Spec lane.** If the lane has room and a ticket is ready, start a new Claude Code session for it, so that each grill starts with a fresh context. The new session reads `GLOSSARY.md` and `docs/adr/` for the shared conventions and decisions. It gets one more thing from this session: a brief of the tickets that this ticket depends on.
+   - **Write the brief.** For each ticket that blocks this ticket, read its `## Spec` and write two to four lines: the key and title, the goal, and the decisions and domain docs that this ticket builds on. Leave out the rest. If no ticket blocks it, the brief is `none`.
+   - **Start the session** with this prompt: `Run sous:spec on <key>. Brief: <brief>` In a claude.ai project, ask the coordinator for a new thread. In a terminal, a background shell cannot grill, so give chef the command `claude "<prompt>"` to run in a new terminal.
+   - Tell chef in chat in one line that a grill is waiting, with the ticket link and where it runs.
+5. **Nothing to pick.** If neither lane can take a ticket, say why in one line: what each lane waits on.
+
+## Replan check
+
+`sous:spec` runs this after chef approves a spec. `sous:merge` runs it after a merge. It keeps the backlog in step with what sous has learned.
+
+1. Read what is new: the decisions and domain docs of the approved spec, or the glossary terms, ADRs, and code of the merged PR.
+2. Read the open tickets in the same Linear project, with their goals and gallery pages.
+3. For each ticket that the new facts affect, propose one change: rewrite the goal, split, drop, add a ticket, change a blocker, or reorder. Do not propose details that the ticket's own grill will settle.
+4. **Gallery pages.** For each open `ui` ticket, check its gallery pages against the new facts:
+   - A change to the look lives in `design/gallery.css` or, from gallery stage 2, `design/components/`. Every page follows. Propose no redraw. Name the pages to look at again in their next screenshots.
+   - A change to a screen, such as a field, a state, or the copy, does not follow on its own. Propose to mark the page stale. Do not redraw it now: `sous:design` redraws it when that ticket is grilled.
+5. Post the proposals with the pass or the merge message, as the calling step says. They need chef's approval. One approval covers the pass and the proposals.
+6. **After approval**, apply each change in Linear. Mark a stale page with a ticket comment `🤖 replan: stale <page> — <the decision that changed it>`. A change to a ticket in **Ready to build** moves it back to **Todo**, so the spec lane grills it again.
+7. Comment on each changed ticket `🤖 replan: success — <one line>`.
+
+If nothing is affected, say "No replan changes" in the pass or merge message.
+
+## Milestone checkpoint
+
+`sous:merge` runs this when the merged ticket was the last open ticket of a Linear milestone.
+
+1. Post on the plan ticket, and tell chef in chat: what shipped in the milestone, with links to the PRs and the app screenshots, and the decisions made.
+2. Ask chef to reorder the priorities in Linear if needed. For a bigger change of direction, offer `sous:plan` for the next increment.
+3. Run the Steps above only after chef replies.
+
+## Done when
+
+Each lane has a ticket, or chef knows what each lane waits on.
