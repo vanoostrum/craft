@@ -35,23 +35,23 @@ Then ask for approval and stop.
 
 Approval applies only to that specific cluster. Do not reuse earlier approval.
 
-## In a factory step
+## In a sous step
 
-The factory runs without the human between its gates, so a question stalls the
-ticket. Inside a `factory-*` step:
+Sous runs without chef between the passes, so a question stalls the
+ticket. Inside a `sous:*` step:
 
 * Never create a cluster. Do not ask for one either: use the parent agent or
   one focused helper, and go on.
-* The single-purpose subagents that the factory steps name (verify, app driver,
+* The single-purpose subagents that the sous steps name (verify, app driver,
   CI polling, fresh reviewer) are not a cluster. Each one has its own goal.
 * If a cluster would clearly change the result, say so in the step's Linear
-  comment, so the human can ask for it at the next gate.
+  comment, so chef can ask for it at the next pass.
 
 ## Writing
 
 For every text a human reads (chat messages, Linear comments, specs, PR bodies,
-review comments, commit messages, docs), use the project's
-`clear-technical-prose` skill. Do not load pstack's `technical-writing` or
+review comments, commit messages, docs), use the
+`sous:clear-technical-prose` skill. Do not load pstack's `technical-writing` or
 `unslop` for these texts, even where poteto-mode says to. Two style guides for
 one text cost tokens and conflict.
 

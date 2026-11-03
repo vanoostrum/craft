@@ -1,36 +1,36 @@
 # Models
 
-Which model runs each part of the factory and of pstack. Change a model here, in a PR. Model names are the Claude Code family names: `opus`, `fable`, `sonnet`, `haiku`.
+Which model runs each part of sous and of pstack. Change a model here, in a PR to sous. Model names are the Claude Code family names: `opus`, `fable`, `sonnet`, `haiku`.
 
-## Factory steps
+## Steps
 
-Each `factory-*` skill has the same model in its `model:` header, and Claude Code runs the step on it. A test fails CI when a header and this table differ.
+Each `sous:*` step skill has the same model in its `model:` header, and Claude Code runs the step on it. A test fails CI when a header and this table differ.
 
 | Step | Skill | Model |
 |---|---|---|
-| Plan | `factory-plan` | opus |
-| Spec | `factory-spec` | opus |
-| Design | `factory-design` | opus |
-| Build | `factory-build` | sonnet |
-| Review | `factory-review` | opus |
-| Merge | `factory-merge` | haiku |
-| Next | `factory-next` | haiku |
+| Plan | `sous:plan` | opus |
+| Spec | `sous:spec` | opus |
+| Design | `sous:design` | opus |
+| Build | `sous:build` | sonnet |
+| Review | `sous:review` | opus |
+| Merge | `sous:merge` | haiku |
+| Next | `sous:next` | haiku |
 
-## Factory subagents
+## Subagents
 
-A factory step starts each of these subagents with the model in this table.
+A sous step starts each of these subagents with the model in this table.
 
 | Subagent | Started by | Model |
 |---|---|---|
-| verify | `factory-build` | sonnet |
-| app driver | `factory-build` | sonnet |
-| CI polling and log reading | `factory-build` | haiku |
-| fresh reviewer | `factory-review` | opus |
-| plan reviewer | `factory-plan` | opus |
+| verify | `sous:build` | sonnet |
+| app driver | `sous:build` | sonnet |
+| CI polling and log reading | `sous:build` | haiku |
+| fresh reviewer | `sous:review` | opus |
+| plan reviewer | `sous:plan` | opus |
 
 ## pstack roles
 
-pstack reads the lines below, in the format of its `setup-pstack` skill. `inherit-parent` runs the role on the model of the step that calls it. A panel role starts one subagent per list entry, and bstack asks before it starts more than one.
+pstack reads the lines below, in the format of its `setup-pstack` skill, once `sous:rules` has read this file into the session. `inherit-parent` runs the role on the model of the step that calls it. A panel role starts one subagent per list entry, and bstack asks before it starts more than one.
 
 feature, refactoring: inherit-parent
 bug-fix: inherit-parent

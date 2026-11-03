@@ -1,6 +1,6 @@
 # Vendored skills
 
-The skills in this table come from other repositories. The pstack skills are not vendored: `.claude/settings.json` installs the whole pstack plugin from [michael-denyer/pstack-claude](https://github.com/michael-denyer/pstack-claude), pinned to tag `v0.9.102`. Its skills carry the `pstack:` prefix. To update it, change the `ref` in `.claude/settings.json`. The local `bstack` skill limits pstack's subagent fan-out.
+The skills in this table come from other repositories. The pstack skills are not vendored: the sous marketplace in `.claude-plugin/marketplace.json` lists the whole pstack plugin from [michael-denyer/pstack-claude](https://github.com/michael-denyer/pstack-claude), pinned to tag `v0.9.102`. Its skills carry the `pstack:` prefix. To update it, change the `ref` in `.claude-plugin/marketplace.json`. The `sous:bstack` skill limits pstack's subagent fan-out.
 
 For each vendored skill, the first commit that added it is a literal copy. Later commits hold the local edits, so `git log -p -- <skill dir>` shows every change.
 
@@ -12,7 +12,8 @@ For each vendored skill, the first commit that added it is a literal copy. Later
 
 ## Local edits
 
-- `grill-with-docs`: removed `disable-model-invocation: true`, so `factory-spec` can call it.
+- `grill-with-docs`: removed `disable-model-invocation: true`, so `sous:spec` can call it.
+- `grill-with-docs`: calls `sous:grilling` and `sous:domain-modeling`, the names these skills have in the plugin.
 
 ## Update a skill
 

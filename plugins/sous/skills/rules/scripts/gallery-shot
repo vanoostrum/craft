@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Copyright (C) 2026 Theo van Oostrum
+# Take a screenshot of a gallery page for one platform.
+# Usage: gallery-shot <page> <platform> <out dir>
+#   page      a page under design/, such as design/pages/search/empty.html
+#   platform  desktop, mobile, ios, or android, as in the gallery rules
+#   out dir   where to save gallery_<page>_<platform>.png, such as the app driver's evidence folder
+# Run it from the kitchen's root. It opens the page from a file and needs no server.
+# SOUS_BROWSER names the Chrome or Chromium binary when the script does not find one.
+set -euo pipefail
+
+die() { echo "gallery-shot: $*" >&2; exit 1; }
+
+page="${1:?usage: gallery-shot <page> <platform> <out dir>}"
+platform="${2:?usage: gallery-shot <page> <platform> <out dir>}"
+out="${3:?usage: gallery-shot <page> <platform> <out dir>}"
+
+case "$platform" in
+  desktop) size="1280,800" ;;
+  mobile) size="390,844" ;;
+  ios) size="393,852" ;;
+  android) size="412,915" ;;
+  *) die "unknown platform '$platform'. Use desktop, mobile, ios, or android." ;;
+esac
+
+page="${page#./}"
+page="${page#design/}"
+file="$PWD/design/$page"
+[[ -f "$file" ]] || die "no gallery page design/$page. Run this from the kitchen's root."
+
+browser=""
+for candidate in "${SOUS_BROWSER:-}" /opt/pw-browsers/chromium \
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+  "$(command -v chromium || true)" "$(command -v google-chrome || true)"; do
+  if [[ -n "$candidate" && -x "$candidate" ]]; then browser="$candidate"; break; fi
+done
+[[ -n "$browser" ]] || die "no Chrome or Chromium found. Set SOUS_BROWSER to its binary."
+
+mkdir -p "$out"
+name="gallery_$(echo "${page%.html}" | tr -c 'A-Za-z0-9\n' '_')_$platform"
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+"$browser" --headless=new --no-sandbox --disable-gpu --hide-scrollbars \
+  --window-size="$size" --screenshot="$out/$name.png" "file://$file" > "$log" 2>&1 \
+  || { cat "$log" >&2; die "browser failed"; }
+[[ -s "$out/$name.png" ]] || die "no screenshot written"
+echo "screenshot: $out/$name.png"

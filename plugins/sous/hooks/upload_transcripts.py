@@ -1,15 +1,16 @@
 # Copyright (C) 2026 Theo van Oostrum
 """Stop, SubagentStop, and SessionEnd hook: copy transcripts to Google Cloud Storage.
 
-Proof of concept for the factory dashboard. `FACTORY_GCS_BUCKET` names the
-bucket. The hook signs in to Google Cloud in one of two ways, and does nothing
-when neither is there:
+Proof of concept for the sous dashboard. `SOUS_GCS_BUCKET` names the bucket.
+For one release, each `SOUS_GCS_*` variable falls back to its old
+`FACTORY_GCS_*` name. The hook signs in to Google Cloud in one of two ways,
+and does nothing when neither is there:
 
 - In a cloud session, a "GCP access token" network secret for
   `storage.googleapis.com` lets the proxy add the access token. The sandbox
   marks this with `CLOUDSDK_AUTH_ACCESS_TOKEN=proxy-injected`. The key never
   enters the container.
-- Elsewhere, `FACTORY_GCS_KEY` holds a service account key, as JSON or base64
+- Elsewhere, `SOUS_GCS_KEY` holds a service account key, as JSON or base64
   JSON.
 
 The hook returns at once and uploads in a background process, so a turn does
@@ -21,24 +22,26 @@ folder, so the bucket always holds the latest state:
         subagents/<agent>.jsonl.gz
         metadata.json
 
-`metadata.json` splits the session into segments. Each `factory-*` Skill call
-starts a segment. A segment has its step, its ticket, its start and end time,
-its tokens per model, and its subagents with their own tokens.
+`metadata.json` splits the session into segments. Each Skill call of a sous
+step, such as `sous:build`, starts a segment. The names from before the
+plugin, such as `factory-build`, count too. A segment has its step, its
+ticket, its start and end time, its tokens per model, and its subagents with
+their own tokens.
 
-- The ticket of a segment comes from the Skill arguments, such as `LIBRAG-12`,
-  or else from the branch name, such as `librag-12/version-endpoint`.
+- The ticket of a segment comes from the Skill arguments, such as `ABC-12`,
+  or else from the branch name, such as `abc-12/version-endpoint`.
 - A subagent belongs to the segment whose `Agent` call started it. When the
   transcript does not link the two, it belongs to the segment that was running
   when the subagent wrote its first line.
 - A Stop upload is skipped when the last upload of the session is less than
-  `FACTORY_GCS_STOP_INTERVAL` seconds old (default 300). SubagentStop and
+  `SOUS_GCS_STOP_INTERVAL` seconds old (default 300). SubagentStop and
   SessionEnd always upload.
 - One upload per session runs at a time. The next one waits for it.
 - The gzip files have a fixed timestamp, so an unchanged file has the same
   bytes, and `gcloud storage rsync` skips it.
 
 Secret environment values are replaced before upload. The background process
-logs each upload, or its error, to `factory-transcripts/upload.log` in the
+logs each upload, or its error, to `sous-transcripts/upload.log` in the
 temp folder.
 
 The service account needs only the Storage Object User role on the bucket.
@@ -62,16 +65,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-BUCKET_ENV = "FACTORY_GCS_BUCKET"
-KEY_ENV = "FACTORY_GCS_KEY"
+BUCKET_ENV = "SOUS_GCS_BUCKET"
+KEY_ENV = "SOUS_GCS_KEY"
 TOKEN_ENV = "CLOUDSDK_AUTH_ACCESS_TOKEN"  # noqa: S105 - a variable name.
 PROXY_TOKEN = "proxy-injected"  # noqa: S105 - a marker, not a secret.
-INTERVAL_ENV = "FACTORY_GCS_STOP_INTERVAL"
+INTERVAL_ENV = "SOUS_GCS_STOP_INTERVAL"
+OLD_PREFIX = "FACTORY_GCS_"
 DEFAULT_STOP_INTERVAL = 300.0
 UPLOAD_FLAG = "--upload"
 TICKET_BRANCH = re.compile(r"^([a-z]+)-(\d+)/")
 TICKET_KEY = re.compile(r"\b[A-Z][A-Z0-9]*-\d+\b")
-FACTORY_SKILL = re.compile(r"^factory[-:]([a-z]+)$")
+STEP_SKILL = re.compile(
+    r"^(?:sous:|factory[-:])(plan|spec|design|build|review|merge|next)$"
+)
 SECRET_NAME = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", re.IGNORECASE)
 MIN_SECRET_LENGTH = 8
 AGENT_TOOLS = {"Agent", "Task"}
@@ -87,9 +93,15 @@ Tokens = dict[str, dict[str, int]]
 
 def state_dir() -> Path:
     """Return the folder for the log, the locks, and the last upload times."""
-    folder = Path(tempfile.gettempdir()) / "factory-transcripts"
+    folder = Path(tempfile.gettempdir()) / "sous-transcripts"
     folder.mkdir(exist_ok=True)
     return folder
+
+
+def setting(name: str) -> str:
+    """Return a `SOUS_GCS_*` variable, or else its old `FACTORY_GCS_*` name."""
+    old = OLD_PREFIX + name.removeprefix("SOUS_GCS_")
+    return os.environ.get(name, "") or os.environ.get(old, "")
 
 
 def git(cwd: str, *args: str) -> str:
@@ -104,7 +116,7 @@ def git(cwd: str, *args: str) -> str:
 
 
 def ticket_of(branch: str) -> str | None:
-    """Return the ticket key of a factory branch, or None."""
+    """Return the ticket key of a ticket branch, or None."""
     match = TICKET_BRANCH.match(branch)
     if match is None:
         return None
@@ -208,7 +220,7 @@ class Subagent:
 
 @dataclass
 class Segment:
-    """The part of a session that one factory step ran."""
+    """The part of a session that one sous step ran."""
 
     step: str | None
     ticket: str | None
@@ -243,7 +255,7 @@ def segment_starts(path: Path, branch_ticket: str | None) -> list[Segment]:
                 continue
             tool_input = block.get("input") or {}
             if block.get("name") == "Skill":
-                match = FACTORY_SKILL.match(str(tool_input.get("skill") or ""))
+                match = STEP_SKILL.match(str(tool_input.get("skill") or ""))
                 if match and str(block.get("id")) not in failed:
                     found = TICKET_KEY.search(str(tool_input.get("args") or ""))
                     ticket = found.group(0) if found else branch_ticket
@@ -385,14 +397,14 @@ def gcloud(config: Path, *args: str, keep_token: bool) -> None:
 
 def upload(event: dict[str, Any]) -> None:
     """Stage the session and copy it to the bucket."""
-    bucket = os.environ[BUCKET_ENV]
-    with tempfile.TemporaryDirectory(prefix="factory-transcripts-") as tmp:
+    bucket = setting(BUCKET_ENV)
+    with tempfile.TemporaryDirectory(prefix="sous-transcripts-") as tmp:
         work = Path(tmp)
         out = work / "out"
         out.mkdir()
         prefix = stage(event, out)
         config = work / "gcloud"
-        raw_key = os.environ.get(KEY_ENV, "")
+        raw_key = setting(KEY_ENV)
         if raw_key:
             key = work / "key.json"
             key.write_text(key_json(raw_key), encoding="utf-8")
@@ -433,7 +445,7 @@ def session_file(session: str, suffix: str) -> Path:
 def recently_uploaded(session: str) -> bool:
     """Return whether the session's last upload is newer than the Stop interval."""
     try:
-        interval = float(os.environ.get(INTERVAL_ENV, "") or DEFAULT_STOP_INTERVAL)
+        interval = float(setting(INTERVAL_ENV) or DEFAULT_STOP_INTERVAL)
         last = float(session_file(session, "last").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return False
@@ -457,9 +469,9 @@ def upload_locked(event: dict[str, Any]) -> None:
 
 def main() -> None:
     """Start a background upload, or run it when called with the upload flag."""
-    if not os.environ.get(BUCKET_ENV, ""):
+    if not setting(BUCKET_ENV):
         return
-    if not (os.environ.get(KEY_ENV, "") or proxy_auth()):
+    if not (setting(KEY_ENV) or proxy_auth()):
         return
     if sys.argv[1:2] == [UPLOAD_FLAG]:
         upload_locked(json.loads(sys.argv[2]))

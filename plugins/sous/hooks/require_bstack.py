@@ -2,8 +2,9 @@
 """PreToolUse hook: block pstack skills until bstack is loaded in the session.
 
 Claude Code runs this before every Skill tool call and passes the call as JSON
-on stdin. A `pstack:` skill is denied unless the transcript shows that `bstack`
-was loaded after the last compaction, by the Skill tool or by `/bstack`.
+on stdin. A `pstack:` skill is denied unless the transcript shows that
+`sous:bstack` was loaded after the last compaction, by the Skill tool or by
+`/sous:bstack`. The name `bstack`, from before the plugin, counts too.
 """
 
 import json
@@ -11,9 +12,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-BUDGET_SKILL = "bstack"
+BUDGET_SKILL = "sous:bstack"
+BUDGET_SKILLS = (BUDGET_SKILL, "bstack")
 GATED_PREFIX = "pstack:"
-SLASH_COMMAND = f"<command-name>/{BUDGET_SKILL}</command-name>"
+SLASH_COMMANDS = tuple(
+    f"<command-name>/{name}</command-name>" for name in BUDGET_SKILLS
+)
 REASON = (
     f"Load the {BUDGET_SKILL} skill with the Skill tool first, follow it, "
     "then retry this pstack skill."
@@ -25,18 +29,18 @@ def loads_budget_skill(entry: dict[str, Any]) -> bool:
     content = (entry.get("message") or {}).get("content")
     if entry.get("type") == "user":
         if isinstance(content, str):
-            return SLASH_COMMAND in content
+            return any(command in content for command in SLASH_COMMANDS)
         texts = [
             block.get("text") or ""
             for block in content or []
             if block.get("type") == "text"
         ]
-        return any(SLASH_COMMAND in text for text in texts)
+        return any(command in text for text in texts for command in SLASH_COMMANDS)
     if entry.get("type") == "assistant" and isinstance(content, list):
         return any(
             block.get("type") == "tool_use"
             and block.get("name") == "Skill"
-            and (block.get("input") or {}).get("skill") == BUDGET_SKILL
+            and (block.get("input") or {}).get("skill") in BUDGET_SKILLS
             for block in content
         )
     return False

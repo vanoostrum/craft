@@ -1,0 +1,58 @@
+[project]
+name = "sous"
+version = "0.1.0"
+description = "Tests for the sous Claude Code plugin."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "ty",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812", # Conflicts with the Ruff formatter (missing-trailing-comma).
+    "COM819", # Conflicts with the Ruff formatter (prohibited-trailing-comma).
+    "D203", # Conflicts with the Ruff formatter and with D211 (blank line before class).
+    "D206", # Conflicts with the Ruff formatter (docstring-tab-indentation).
+    "D213", # Conflicts with D212 (multi-line docstring summary on the first line).
+    "D300", # Conflicts with the Ruff formatter (triple-single-quotes).
+    "E111", # Conflicts with the Ruff formatter (indentation-with-invalid-multiple).
+    "E114", # Conflicts with the Ruff formatter (indentation-with-invalid-multiple-comment).
+    "E117", # Conflicts with the Ruff formatter (over-indented).
+    "Q000", # Conflicts with the Ruff formatter (bad-quotes-inline-string).
+    "Q001", # Conflicts with the Ruff formatter (bad-quotes-multiline-string).
+    "Q002", # Conflicts with the Ruff formatter (bad-quotes-docstring).
+    "Q003", # Conflicts with the Ruff formatter (avoidable-escaped-quote).
+    "Q004", # Conflicts with the Ruff formatter (unnecessary-escaped-quote).
+    "W191", # Conflicts with the Ruff formatter (tab-indentation).
+]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest relies on assert. S101 is limited to tests.
+"tests/**/*.py" = ["S101"]
+# Claude Code runs hook scripts as standalone files, not as a package.
+"plugins/sous/hooks/*.py" = ["INP001"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.rules]
+# Fail on every diagnostic, not only on errors.
+all = "error"
+
+[tool.pytest.ini_options]
+# The hooks run as subprocesses, as Claude Code runs them, so coverage would
+# not see them; there is no coverage report.
+testpaths = ["tests"]
