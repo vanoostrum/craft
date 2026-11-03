@@ -21,13 +21,13 @@ A ticket in **Ready to build** whose spec pass is approved.
    - If a check fails for another reason, stop and say so.
    Then move the ticket to **Building**.
 2. **Branch.** Create or check out the branch from the naming rule, based on the latest base branch.
-3. **Domain docs.** If the spec has **Domain docs**, write them to `GLOSSARY.md` and `docs/adr/` as the spec says. Commit them with the `Factory-Issue` trailer.
+3. **Domain docs.** If the spec has **Domain docs**, write them to `GLOSSARY.md` and `docs/adr/` as the spec says. Commit them with the `Sous-Issue` trailer.
 4. **Per task in the plan:**
    1. Write a failing test for it, at the test seam from the spec.
    2. Make it pass with the smallest change.
       For a `ui` ticket, build each screen to match its gallery page in the spec, on each platform in `Platforms` in `design/README.md`: the same structure, states, copy, and look. Write the app's own styles; do not link `design/gallery.css`. Do not change `design/` in this step, except for a polish fix from the merge pass (see The pass in `sous:rules`).
    3. Run the full verify (see the verify skill from the config) in a subagent on the `verify` model from `models.md` from `sous:rules`. Fix until green. A red verify here is part of the work, not a failed attempt. If it is still red after 3 fixes for the same task, count it as a failed attempt.
-   4. Commit with the `Factory-Issue` trailer.
+   4. Commit with the `Sous-Issue` trailer.
 5. **Check the acceptance criteria.** Each one must be covered by a test, or explain in the PR why it cannot be. Read the coverage report: a new line or branch under `Missing` needs a test or a reason in the PR.
 6. **Prove it in the running app** with the app driver skill from the config. Run it in a subagent on the `app driver` model from `models.md` from `sous:rules`.
    - If the ticket adds or changes an entry point, as the app driver skill defines it, first add or update its file in the skill's feature map.
