@@ -30,7 +30,7 @@ One of:
    - Stop when chef says the screens are right. Do not reopen identity decisions in ticket mode unless chef asks.
 5. **Freeze into the gallery.** Write the result as static HTML in `design/pages/`, as `gallery.md` describes. One file per screen state, covering every platform. Use only `design/gallery.css` for styles. A page that the ticket changes must show the change; a page that it does not touch stays as it is.
 6. **Take screenshots.** Run `<rules>/scripts/gallery-shot <page> <platform> <evidence dir>` for each new or changed page, on each platform, with an evidence folder outside the repo, such as a temporary folder. Open each image and compare it with the prototype. Fix the HTML until they match.
-7. **Commit** to the ticket branch from the naming rule (in project mode, the plan ticket's branch) with the `Factory-Issue` trailer. Push. Attach the screenshots to the Linear ticket.
+7. **Commit** to the ticket branch from the naming rule (in project mode, the plan ticket's branch) with the `Sous-Issue` trailer. Push. Attach the screenshots to the Linear ticket.
 8. **Return** to the calling step: the platforms, the list of gallery pages with one line each, and any gaps found in project mode.
 
 ## Rollout

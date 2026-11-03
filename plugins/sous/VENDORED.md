@@ -14,6 +14,8 @@ For each vendored skill, the first commit that added it is a literal copy. Later
 
 - `grill-with-docs`: removed `disable-model-invocation: true`, so `sous:spec` can call it.
 - `grill-with-docs`: calls `sous:grilling` and `sous:domain-modeling`, the names these skills have in the plugin.
+- `grill-with-docs`: the description says when to use it and no longer says the docs are written as the grill goes. The body says how the two skills combine and that the caller decides where the docs go.
+- `domain-modeling`: the ADR conditions are listed only in `ADR-FORMAT.md`; `SKILL.md` links to them.
 
 ## Update a skill
 

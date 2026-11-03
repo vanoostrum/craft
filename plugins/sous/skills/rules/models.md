@@ -27,6 +27,7 @@ A sous step starts each of these subagents with the model in this table.
 | CI polling and log reading | `sous:build` | haiku |
 | fresh reviewer | `sous:review` | opus |
 | plan reviewer | `sous:plan` | opus |
+| replan check | `sous:merge` | opus |
 
 ## pstack roles
 

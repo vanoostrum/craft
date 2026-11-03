@@ -26,7 +26,7 @@ This repository is a plugin marketplace with two plugins: `sous`, and `pstack` p
 
   ```json
   "extraKnownMarketplaces": {
-    "sous": { "source": { "source": "github", "repo": "vanoostrum/sous", "ref": "v0.1.0" } }
+    "sous": { "source": { "source": "github", "repo": "vanoostrum/sous", "ref": "v1.1.0" } }
   },
   "enabledPlugins": { "sous@sous": true, "pstack@sous": true }
   ```

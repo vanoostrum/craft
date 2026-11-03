@@ -36,7 +36,7 @@ None, or a Linear project. Without a project, use every open ticket in the Linea
 
 ## Replan check
 
-`sous:spec` runs this after chef approves a spec. `sous:merge` runs it after a merge. It keeps the backlog in step with what sous has learned.
+`sous:spec` runs this after chef approves a spec. `sous:merge` runs it after a merge, in a subagent on the `replan check` model from `models.md`, because the merge step runs on a small model. It keeps the backlog in step with what sous has learned.
 
 1. Read what is new: the decisions and domain docs of the approved spec, or the glossary terms, ADRs, and code of the merged PR.
 2. Read the open tickets in the same Linear project, with their goals and gallery pages.
