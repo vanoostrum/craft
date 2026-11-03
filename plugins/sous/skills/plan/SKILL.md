@@ -32,7 +32,7 @@ A project spec or a feature description from chef, as text, a file, or a link. O
    - Write the glossary terms and ADRs directly to `GLOSSARY.md` and `docs/adr/` in step 6. They are the decisions every ticket of the plan shares.
 4. **Slice the work** into vertical tickets. Each ticket delivers something a client can see and test on its own. Give each one a title, a goal of one or two sentences, its dependencies, a Linear priority, and a milestone. A milestone is a set of tickets that gives chef something to try in the app. Give the `ui` label to each ticket that adds or changes a screen. Put the tickets in build order.
 5. **Design pass.** If any ticket has the `ui` label, run `sous:design` in project mode with the main flows and the plan ticket key. It reads `design-variants`, `platforms`, and the notes from the plan ticket's `## Steering`, and settles the platforms. It sets the visual identity if there is none, and draws one rough page per main flow. For an increment, it extends the existing gallery and lists each existing page that changes. Add a ticket for each missing screen that it finds, and repeat this step for the new flows.
-6. **Commit** the domain docs to the plan ticket's branch, next to the gallery commits from step 5, with the `Factory-Issue` trailer. Open a PR against the base branch, as `sous:build` step 7 describes. Its body has the plan.
+6. **Commit** the domain docs to the plan ticket's branch, next to the gallery commits from step 5, with the `Factory-Issue` trailer. Open a PR against the base branch, with the `gh api` calls from **Open the PR** in `sous:build`. Its body has a one-line summary, the plan ticket link, and the plan. It has no acceptance criteria or app evidence.
 7. **Write the plan** into the plan ticket description, under `## Plan`, with the `sous:clear-technical-prose` skill:
    - **Goal:** one or two sentences.
    - **Scope** and **Out of scope.**
@@ -63,7 +63,7 @@ After 3 failed attempts (review or CI), follow Refires in `sous:rules`.
 
 ## After approval
 
-1. Wait for the required checks on the PR to be green, as `sous:build` step 8 describes. The plan pass approval is also the merge approval for this PR. Merge it with steps 2 to 4 of `sous:merge`. No commits may have been pushed after the `🤖 Pass: plan` comment; if there were, ask for approval again.
+1. Wait for the required checks on the PR to be green, as **Wait for CI** in `sous:build` describes. The plan pass approval is also the merge approval for this PR. Merge it with **Check CI**, **Merge**, and **Check the branch is gone** in `sous:merge`. No commits may have been pushed after the `🤖 Pass: plan` comment; if there were, ask for approval again.
 2. Create the milestones in the Linear project. Create each ticket from the table in **Todo**. Each ticket gets its goal, the decisions it depends on, links to its gallery pages, its priority and milestone, the `ui` label where set, a copy of the plan ticket's `## Steering`, and blocking relations for its dependencies. Create the `ui` label in the team if it does not exist.
 3. Move the plan ticket to **Done**. Comment `🤖 plan: success — <n> tickets in <project link>`. Tell chef in chat in one line.
 4. Run `sous:next`. Do not stop after step 3. `sous:next` picks the tickets in priority and build order, and runs the spec lane and the build lane in parallel. Each ticket's grill reads the plan's decisions first and asks only what the plan left open.

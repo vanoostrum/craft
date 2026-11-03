@@ -18,12 +18,12 @@ Follow the rules below. Drop a single rule when it makes that sentence harder to
 
 ## Scope
 
-Use this skill for explanations, summaries, and procedures in the user-facing reply.
+Use this skill for explanations, summaries, and procedures that a person reads: replies, comments, PR bodies, reviews, specs, and docs.
 
 Leave these unchanged:
 
 - Fenced code, diffs, file paths, test IDs, and quoted errors
-- A format the user requested, such as a commit message, a review, or a table
+- The shape of a requested format, such as a commit message, a review, or a table. The prose inside it follows these rules.
 - The user's words when you quote them
 - Safety requirements, citation format, and project code style
 

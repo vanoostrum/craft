@@ -48,8 +48,8 @@ A kitchen without a gallery has no `design/README.md` yet. `sous:design` creates
 
 ## Who changes the gallery
 
-- `sous:design` adds and changes pages, with chef, before the spec gate.
-- `sous:build` does not change the gallery, except for polish fixes asked at the merge gate. A polish fix changes the code and the gallery in the same PR.
+- `sous:design` adds and changes pages, with chef, before the spec pass.
+- `sous:build` does not change the gallery, except for polish fixes asked at the merge pass. A polish fix changes the code and the gallery in the same PR.
 - Feedback that changes the design, not only polishes it, goes back to `sous:design`.
 - The replan check in `sous:next` marks the pages of later tickets stale when a decision changes their screen. `sous:design` redraws a stale page when its ticket is grilled.
 

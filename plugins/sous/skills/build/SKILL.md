@@ -26,7 +26,7 @@ A ticket in **Ready to build** whose spec pass is approved.
    1. Write a failing test for it, at the test seam from the spec.
    2. Make it pass with the smallest change.
       For a `ui` ticket, build each screen to match its gallery page in the spec, on each platform in `Platforms` in `design/README.md`: the same structure, states, copy, and look. Write the app's own styles; do not link `design/gallery.css`. Do not change `design/` in this step, except for a polish fix from the merge pass (see The pass in `sous:rules`).
-   3. Run the full verify (see the verify skill from the config) in a subagent on the `verify` model from `models.md` from `sous:rules`. Fix until green.
+   3. Run the full verify (see the verify skill from the config) in a subagent on the `verify` model from `models.md` from `sous:rules`. Fix until green. A red verify here is part of the work, not a failed attempt. If it is still red after 3 fixes for the same task, count it as a failed attempt.
    4. Commit with the `Factory-Issue` trailer.
 5. **Check the acceptance criteria.** Each one must be covered by a test, or explain in the PR why it cannot be. Read the coverage report: a new line or branch under `Missing` needs a test or a reason in the PR.
 6. **Prove it in the running app** with the app driver skill from the config. Run it in a subagent on the `app driver` model from `models.md` from `sous:rules`.
@@ -43,7 +43,7 @@ A ticket in **Ready to build** whose spec pass is approved.
    - an **App evidence** section with the transcripts in fenced blocks, and links to the screenshots on the Linear ticket.
    - for a `ui` ticket, a **Gallery** table: screen state and platform → gallery page → app screenshot and gallery screenshot.
    - the domain docs that the PR adds or changes, if any.
-8. **Wait for CI** in a subagent on the `CI polling and log reading` model from `models.md` from `sous:rules`. It polls `gh api repos/<repo>/commits/<head sha>/check-runs` about every 30 seconds until each required check has completed. If a check failed, the subagent reads the job log with `gh api repos/<repo>/actions/jobs/<job id>/logs` and returns the error. Fix and push. That counts as a failed attempt.
+8. **Wait for CI** in a subagent on the `CI polling and log reading` model from `models.md` from `sous:rules`. It polls `gh api repos/<repo>/commits/<head sha>/check-runs` about every 30 seconds until each required check has completed, for at most 30 minutes. A required check that has not completed by then, or has not started, counts as failed. If a check failed, the subagent reads the job log with `gh api repos/<repo>/actions/jobs/<job id>/logs` and returns the error. Fix and push. That counts as a failed attempt.
 9. Comment `🤖 build: success — PR <url>` on the ticket. Tell chef in chat in one line, with the PR link.
 
 ## Done when
@@ -52,7 +52,7 @@ The PR is open, each required check is green on its latest commit, every accepta
 
 ## Escalation
 
-After 3 failed attempts (verify or CI), follow Refires in `sous:rules`.
+After 3 failed attempts (app driver, CI, or a review FAIL from `sous:review`), follow Refires in `sous:rules`.
 
 ## Next
 
