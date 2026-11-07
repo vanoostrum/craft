@@ -74,3 +74,7 @@ A kitchen gives sous these things:
 - Release with a tag, and bump `ref` in each kitchen in its own PR.
 
 `plugins/sous/VENDORED.md` lists the skills that come from other repositories.
+
+## Possible new names
+
+- workshop
