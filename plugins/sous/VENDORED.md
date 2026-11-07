@@ -10,6 +10,15 @@ For each vendored skill, the first commit that added it is a literal copy. Later
 | `domain-modeling` | [mattpocock/skills](https://github.com/mattpocock/skills), `skills/engineering/` | `49dd158d1076134a641b33efb035946536778336` | MIT, Copyright (c) 2026 Matt Pocock |
 | `grilling` | [mattpocock/skills](https://github.com/mattpocock/skills), `skills/productivity/` | `49dd158d1076134a641b33efb035946536778336` | MIT, Copyright (c) 2026 Matt Pocock |
 
+## Adapted ideas
+
+These sous skills are not copies, but they take ideas from other repositories:
+
+| Skill | Ideas from | Commit | License |
+|---|---|---|---|
+| `brainstorm` | [obra/superpowers](https://github.com/obra/superpowers), `skills/brainstorming/`: open questions first, playback, directions, the builder check | `22f0b463e7a5e579904dd6211a520321035526f7` | MIT, Copyright (c) 2025 Jesse Vincent |
+| `plan`, `spec`, `review` | [obra/superpowers](https://github.com/obra/superpowers), `skills/writing-plans/`: task right-sizing, interfaces between tasks, verbatim constraints, review focus | `22f0b463e7a5e579904dd6211a520321035526f7` | MIT, Copyright (c) 2025 Jesse Vincent |
+
 ## Local edits
 
 - `grill-with-docs`: removed `disable-model-invocation: true`, so `sous:spec` can call it.

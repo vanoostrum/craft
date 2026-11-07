@@ -61,6 +61,7 @@ Load `sous:bstack` with the Skill tool before any `pstack:` skill. A hook blocks
 
 | Step | Skill | Lane | Linear state |
 |---|---|---|---|
+| Brainstorm an idea into a brief, with a fresh-agent check | `sous:brainstorm` | — | — |
 | Plan, once per project or increment, with a fresh-agent review | `sous:plan` | — | Plan ticket: Specifying |
 | 🚦 The pass: plan | — | — | Plan ticket: Specifying |
 | Pick the next ticket for each lane | `sous:next` | — | Todo, or Ready to build |
@@ -74,14 +75,14 @@ Load `sous:bstack` with the Skill tool before any `pstack:` skill. A hook blocks
 
 Sous works in two lanes, in parallel. The spec lane needs chef and runs up to four tickets ahead. The build lane runs on its own, up to the merge pass. `sous:next` picks the ticket for each lane and holds the lane rules, the replan check, and the milestone checkpoint.
 
-When asked to "work on" a ticket or a feature, run the steps in order from wherever the ticket is. Stop at each pass. Start at `sous:plan` for a project spec, or for new work that spans more than one or two tickets or adds a new user flow. Otherwise start at `sous:spec`. `sous:spec` runs `sous:design` itself. When asked to "work on the plan" or to "pick up the next ticket", run `sous:next`.
+When asked to "work on" a ticket or a feature, run the steps in order from wherever the ticket is. Stop at each pass. Start at `sous:brainstorm` for an idea that is not yet clear: what it is for, for whom, and why. It ends with a brief and starts `sous:plan` on it. Start at `sous:plan` for a brief, a project spec, or new work that spans more than one or two tickets or adds a new user flow. Otherwise start at `sous:spec`. `sous:spec` runs `sous:design` itself. When asked to "work on the plan" or to "pick up the next ticket", run `sous:next`.
 
 ## Rules for every step
 
 - **Linear is the source of truth.** Read the ticket's current state and comments before acting. Do not rely on memory of earlier sessions.
 - **Sous comments.** Every comment sous writes in Linear starts with `🤖`. Comments without it are from chef. Each step adds one comment when it ends: `🤖 <step>: <success|failed|escalated> — <one line>`.
 - **Dependencies.** A ticket with a Linear "blocked by" relation is not built until each ticket that blocks it is Done. `sous:next` and `sous:build` check this.
-- **Steering.** `sous:plan` and `sous:spec` take optional arguments after their input, as `key=value`. Scope is not an argument: `sous:plan` decides from the repo whether the work is a new project or an increment.
+- **Steering.** `sous:plan` and `sous:spec` take optional arguments after their input, as `key=value`. `sous:brainstorm` takes only `note=`, and writes it into the brief for `sous:plan`. Scope is not an argument: `sous:plan` decides from the repo whether the work is a new project or an increment.
 
   | Argument | Default | Effect |
   |---|---|---|
@@ -100,7 +101,7 @@ When asked to "work on" a ticket or a feature, run the steps in order from where
   Any other reply from chef is feedback: go back to the step before the pass and use it.
 - **UI feedback at the merge pass.** For a ticket with the `ui` label, the merge pass is one polish pass against the gallery. A polish fix goes back to `sous:build`, which changes the code and the gallery page in the same PR. Feedback that changes the design goes back to `sous:design` in ticket mode, then through the spec pass again.
 - **Writing for humans.** Write every chat message, Linear comment, spec, PR body, review comment, and doc with the `sous:clear-technical-prose` skill. The fixed formats in these rules keep their shape. The prose inside them follows the skill.
-- **Chat.** Send a chat message only at the end of a step, at a pass, when blocked, or for a grill or design round in `sous:plan`, `sous:spec`, or `sous:design`. The message gives the result, what you need from chef, and a link. The details go to the Linear ticket and the PR. Do not describe tool calls or progress in chat.
+- **Chat.** Send a chat message only at the end of a step, at a pass, when blocked, or for a grill or design round in `sous:plan`, `sous:spec`, or `sous:design`, or for a question in `sous:brainstorm`. The message gives the result, what you need from chef, and a link. The details go to the Linear ticket and the PR. Do not describe tool calls or progress in chat.
 - **Models.** Each step runs on the model in its `model:` header, and each subagent on the model in `models.md`. Read `models.md` now.
 - **Subagents.** Run verify, CI polling, and log reading in a subagent, on the model from `models.md`. The subagent returns pass or fail. For a fail it returns the error and the file. Do not paste tool output into chat.
 - **Refires.** A step gets at most 3 failed attempts. A failed attempt is a check that fails after the step thinks its work is done: the app driver or CI in `sous:build`, a FAIL from the fresh reviewer in `sous:plan` or `sous:review`, or a failed merge. A red test or verify while the step is still working is not a failed attempt. `sous:build` and `sous:review` share one count per ticket, because a review FAIL sends the ticket back to `sous:build`. Each new try after a failure is a refire, and its comment says which one, such as `🤖 build: refire 1 of 2 — the pass failed on lint`. After the third failure, move the ticket to **Needs human**, comment what was tried and what blocks, and tell chef.

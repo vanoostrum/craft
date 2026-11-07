@@ -8,6 +8,7 @@ Each `sous:*` step skill has the same model in its `model:` header, and Claude C
 
 | Step | Skill | Model |
 |---|---|---|
+| Brainstorm | `sous:brainstorm` | opus |
 | Plan | `sous:plan` | opus |
 | Spec | `sous:spec` | opus |
 | Design | `sous:design` | opus |
@@ -26,6 +27,7 @@ A sous step starts each of these subagents with the model in this table.
 | app driver | `sous:build` | sonnet |
 | CI polling and log reading | `sous:build` | haiku |
 | fresh reviewer | `sous:review` | opus |
+| brief reviewer | `sous:brainstorm` | opus |
 | plan reviewer | `sous:plan` | opus |
 | replan check | `sous:merge` | opus |
 
