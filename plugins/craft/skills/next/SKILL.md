@@ -55,7 +55,7 @@ If nothing is affected, say "No replan changes" in the gate or merge message.
 `craft:merge` runs this when the merged ticket was the last open ticket of a Linear milestone.
 
 1. Post on the plan ticket, and tell the owner in chat: what shipped in the milestone, with links to the PRs and the app screenshots, and the decisions made.
-2. Ask the owner to reorder the priorities in Linear if needed. For a bigger change of direction, offer `craft:plan` for the next increment.
+2. Ask the owner to reorder the priorities in Linear if needed. For a bigger change of direction, offer `craft:plan` for the next increment. If the project has no `Brief: Staging and production` yet, ask whether this milestone is v1, the version for real users, and if so offer `craft:setup deploy`.
 3. Run the Steps above only after the owner replies.
 
 ## Done when

@@ -37,7 +37,7 @@ To upload transcripts to Google Cloud Storage, set `CRAFT_GCS_BUCKET` in the clo
 
 ## Set up a project
 
-Run `craft:setup dev` in the project, after `craft:brainstorm` for a new idea. It works out with you how each part of the project runs locally, on cloud agents, and in CI, writes `Brief: Dev environment`, opens a PR with `.claude/craft.md`, and starts `craft:plan` on the brief. The first ticket of that plan is a walking skeleton that adds the verify skill, the app driver skill, and the required checks. After v1, run `craft:setup deploy` for staging and production. Your hosting preferences are in `plugins/craft/skills/setup/preferences.md`.
+Run `craft:setup dev` in the project, after `craft:brainstorm` for a new idea. It works out with you how each part of the project runs locally, on cloud agents, and in CI, writes `Brief: Dev environment`, and starts `craft:plan` on the brief. The plan's PR writes `.claude/craft.md`, and its first ticket is a walking skeleton that adds the verify skill, the app driver skill, and the required checks. When the skeleton is merged, craft plans the product brief. At v1, the milestone checkpoint offers `craft:setup deploy` for staging and production. Your hosting preferences are in `plugins/craft/skills/setup/preferences.md`.
 
 When it is done, a project gives craft these things:
 
