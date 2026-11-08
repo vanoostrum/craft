@@ -3,7 +3,7 @@
 
 Proof of concept for the craft dashboard. `CRAFT_GCS_BUCKET` names the bucket.
 For one release, each `CRAFT_GCS_*` variable falls back to its old
-`FACTORY_GCS_*` name. The hook signs in to Google Cloud in one of two ways,
+`SOUS_GCS_*` name. The hook signs in to Google Cloud in one of two ways,
 and does nothing when neither is there:
 
 - In a cloud session, a "GCP access token" network secret for
@@ -70,7 +70,7 @@ KEY_ENV = "CRAFT_GCS_KEY"
 TOKEN_ENV = "CLOUDSDK_AUTH_ACCESS_TOKEN"  # noqa: S105 - a variable name.
 PROXY_TOKEN = "proxy-injected"  # noqa: S105 - a marker, not a secret.
 INTERVAL_ENV = "CRAFT_GCS_STOP_INTERVAL"
-OLD_PREFIX = "FACTORY_GCS_"
+OLD_PREFIX = "SOUS_GCS_"
 DEFAULT_STOP_INTERVAL = 300.0
 UPLOAD_FLAG = "--upload"
 TICKET_BRANCH = re.compile(r"^([a-z]+)-(\d+)/")
@@ -99,7 +99,7 @@ def state_dir() -> Path:
 
 
 def setting(name: str) -> str:
-    """Return a `CRAFT_GCS_*` variable, or else its old `FACTORY_GCS_*` name."""
+    """Return a `CRAFT_GCS_*` variable, or else its old `SOUS_GCS_*` name."""
     old = OLD_PREFIX + name.removeprefix("CRAFT_GCS_")
     return os.environ.get(name, "") or os.environ.get(old, "")
 

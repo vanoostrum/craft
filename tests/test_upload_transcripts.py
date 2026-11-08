@@ -153,7 +153,7 @@ def fake_env(tmp_path: Path, **extra: str) -> dict[str, str]:
     env = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith(("CRAFT_GCS_", "FACTORY_GCS_"))
+        if not key.startswith(("CRAFT_GCS_", "SOUS_GCS_"))
     }
     env.update(
         PATH=f"{bin_dir}{os.pathsep}{env['PATH']}",
@@ -450,8 +450,8 @@ def test_does_nothing_without_a_bucket(
 def test_reads_the_old_variable_names(
     tmp_path: Path, project: Path, transcript: Path
 ) -> None:
-    """For one release, the names from before the plugin still configure the upload."""
-    env = fake_env(tmp_path, FACTORY_GCS_BUCKET="factory-logs")
+    """For one release, the names from before craft 2.0 still configure the upload."""
+    env = fake_env(tmp_path, SOUS_GCS_BUCKET="factory-logs")
     run_hook(env, transcript, project)
     wait_for_uploads(tmp_path, 1)
 
