@@ -31,7 +31,7 @@ An idea that is not yet clear, with no answer yet to what it is for and why, sta
 
 ## Steps
 
-1. **Plan ticket.** For a brief, use the Linear project that holds it. Otherwise, create a Linear project for this plan, or for this increment of an existing app. Create a plan ticket in it, titled `Plan: <name>`, with the input in its description (for a brief, its link) and the steering arguments under `## Steering`. Move it to **Specifying**. Tell the owner the key. Pass comments and the plan go on this ticket.
+1. **Plan ticket.** For a brief, use the Linear project that holds it. Otherwise, create a Linear project for this plan, or for this increment of an existing app. Create a plan ticket in it, titled `Plan: <name>`, with the input in its description (for a brief, its link) and the steering arguments under `## Steering`. Move it to **Specifying**. Tell the owner the key. Gate comments and the plan go on this ticket.
 2. **Read what exists.** For an increment, read the code, `GLOSSARY.md`, `docs/adr/`, `design/`, and the open tickets in the Linear team first. For a new project, read whatever the repo already has. Read the files and links in the notes under `## Steering`.
 3. **Helicopter grill.** Run the `craft:grill-with-docs` skill with craft rules from `craft:spec`, with these changes:
    - For a brief, read it first. Ask only what it left open, as `craft:spec` does with the plan. Do not reopen its Intent, Goals, Directions, or Decisions. If the code or the slicing conflicts with one of them, ask the owner, and name the brief section.

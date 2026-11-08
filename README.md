@@ -42,7 +42,7 @@ A project gives craft these things:
 1. **`.claude/craft.md`**, imported from `CLAUDE.md` with `@.claude/craft.md`:
 
    ```markdown
-   # Project config
+   # Craft config
 
    | Key | Value |
    |---|---|
