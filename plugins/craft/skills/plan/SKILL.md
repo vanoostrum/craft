@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Craft step 0. Turn a brief from craft:brainstorm, a project spec, or a set of features for a working app, into an approved plan of Linear tickets and a rough gallery, then stop at the plan gate. Use for new work that spans more than one or two tickets or adds a new user flow.
+description: Craft step 0. Turn a brief from craft:brainstorm or craft:setup, a project spec, or a set of features for a working app, into an approved plan of Linear tickets and a rough gallery, then stop at the plan gate. Use for new work that spans more than one or two tickets or adds a new user flow.
 model: opus
 argument-hint: "<brief, spec, file, or link> [design-variants=<n>] [platforms=<list>] [note=<text, file, or link>]..."
 ---
@@ -23,6 +23,7 @@ A feature that fits in one or two tickets skips this step and starts at `craft:s
 One of:
 
 - a brief from `craft:brainstorm`: a link to a Linear document titled `Brief: <name>`;
+- an environment brief from `craft:setup`: a link to `Brief: Dev environment` or `Brief: Staging and production`;
 - a project spec or a feature description from the owner, as text, a file, or a link.
 
 Optional steering arguments follow it, as Steering in `craft:rules` describes. A brief's `Steering` section counts as arguments; arguments given here replace its values.
@@ -37,9 +38,11 @@ An idea that is not yet clear, with no answer yet to what it is for and why, sta
    - For a brief, read it first. Ask only what it left open, as `craft:spec` does with the plan. Do not reopen its Intent, Goals, Directions, or Decisions. If the code or the slicing conflicts with one of them, ask the owner, and name the brief section.
    - Keep the frontier coarse: users, main flows, boundaries, out of scope, big risks, and constraints. Leave exact states, edge cases, and copy to the grill of each ticket.
    - For an increment, ask only about the new scope and its effect on the existing app: migrations, flows that change, and what must keep working.
+   - For an environment brief, the questions are technical, and the brief already settles most of them. Ask only what its **Open for the plan** lists, and what the builder check could not settle.
    - Write the glossary terms and ADRs directly to `GLOSSARY.md` and `docs/adr/` in step 6. They are the decisions every ticket of the plan shares.
 4. **Slice the work** into vertical tickets. Each ticket delivers something a client can see and test on its own.
-   - **Size.** Split a slice only where the owner could reject one part at the gate and approve the other. If the owner would only judge two parts together, they are one ticket. Fold setup, configuration, and docs into the ticket that needs them; they are never a ticket of their own.
+   - **Size.** Split a slice only where the owner could reject one part at the gate and approve the other. If the owner would only judge two parts together, they are one ticket. Fold setup, configuration, and docs into the ticket that needs them; they are never a ticket of their own. An environment brief is the exception, as **Environment tickets** says.
+   - **Environment tickets.** For an environment brief, the client of each ticket is the owner and the agents that build the project, and the setup is the deliverable. A ticket is done when someone can see it work in the places the brief names, such as "a fresh cloud agent runs the tests and they pass". For `Brief: Dev environment`, the first ticket is a walking skeleton: the smallest app with every part, running locally, on a cloud agent, and in CI. It produces the required checks, the verify skill, and the app driver skill, and it fills their `none yet` values in `.claude/craft.md`. Every other ticket depends on it. Items on the brief's **Owner checklist** are not tickets: copy each one into the description of the first ticket that needs it, under **Owner first**. Write each `(ADR)` decision of the brief to `docs/adr/` in step 6.
    - **Interfaces.** For each ticket, name what it **Consumes** from the tickets it depends on, and what it **Produces** for later tickets: the routes, models, events, glossary terms, or screens that another ticket builds on, by their exact names.
    - **Fields.** Give each one a title, a goal of one or two sentences, its dependencies, a Linear priority, and a milestone. A milestone is a set of tickets that gives the owner something to try in the app. Give the `ui` label to each ticket that adds or changes a screen. Put the tickets in build order.
 5. **Design pass.** If any ticket has the `ui` label, run `craft:design` in project mode with the main flows, the plan ticket key, and the brief's **Look** section, if there is one. It reads `design-variants`, `platforms`, and the notes from the plan ticket's `## Steering`, and settles the platforms. It sets the visual identity if there is none, and draws one rough page per main flow. For an increment, it extends the existing gallery and lists each existing page that changes. Add a ticket for each missing screen that it finds, and repeat this step for the new flows.
@@ -57,7 +60,8 @@ An idea that is not yet clear, with no answer yet to what it is for and why, sta
    > Load the `craft:bstack` skill first. Read the input and the `## Plan` of the Linear ticket, and the PR diff. Check that:
    > - every flow and requirement in the input is covered by a ticket, and nothing out of scope is in a ticket;
    > - each ticket is a vertical slice that a client can see and test on its own;
-   > - each ticket is split only where the owner could reject one part and approve the other, and no ticket is only setup, configuration, or docs;
+   > - each ticket is split only where the owner could reject one part and approve the other, and no ticket is only setup, configuration, or docs, unless the input is an environment brief;
+   > - for a `Brief: Dev environment`, the first ticket is a walking skeleton that every other ticket depends on, and each ticket says how an agent in a fresh cloud session sees it work;
    > - the dependencies have no cycles, and the build order respects them;
    > - each name in a ticket's Consumes is in the Produces of a ticket it depends on, spelled the same, and each name in a Produces is consumed by a later ticket or is visible to a client;
    > - the Constraints are word for word as in the input or the brief;
@@ -79,6 +83,6 @@ After 3 failed attempts (review or CI), follow Retries in `craft:rules`.
 ## After approval
 
 1. Wait for the required checks on the PR to be green, as **Wait for CI** in `craft:build` describes. The plan gate approval is also the merge approval for this PR. Merge it with **Check CI**, **Merge**, and **Check the branch is gone** in `craft:merge`. No commits may have been pushed after the `🤖 Gate: plan` comment; if there were, ask for approval again.
-2. Create the milestones in the Linear project. Create each ticket from the table in **Todo**. Each ticket gets its goal, its Consumes and Produces, the Constraints word for word, the decisions it depends on, links to its gallery pages, its priority and milestone, the `ui` label where set, a copy of the plan ticket's `## Steering`, and blocking relations for its dependencies. Create the `ui` label in the team if it does not exist.
+2. Create the milestones in the Linear project. Create each ticket from the table in **Todo**. Each ticket gets its goal, its Consumes and Produces, the Constraints word for word, the decisions it depends on, links to its gallery pages, its priority and milestone, the `ui` label where set, its **Owner first** items, a copy of the plan ticket's `## Steering`, and blocking relations for its dependencies. Create the `ui` label in the team if it does not exist.
 3. Move the plan ticket to **Done**. Comment `🤖 plan: success — <n> tickets in <project link>`. Tell the owner in chat in one line.
 4. Run `craft:next`. Do not stop after step 3. `craft:next` picks the tickets in priority and build order, and runs the spec lane and the build lane in parallel. Each ticket's grill reads the plan's decisions first and asks only what the plan left open.

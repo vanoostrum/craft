@@ -4,7 +4,7 @@ A software factory for AI-assisted software engineering.
 
 Craft is a Claude Code plugin that runs software work for the owner. It takes a Linear ticket through **spec → build → test → review → merge**, and stops at a gate for the owner's approval: after the spec, and before the merge.
 
-Before the tickets, craft can brainstorm an idea with the owner into a brief (`craft:brainstorm`), and plan the brief into tickets (`craft:plan`).
+Before the tickets, craft can brainstorm an idea with the owner into a brief (`craft:brainstorm`), describe the project's environments into a brief (`craft:setup`), and plan a brief into tickets (`craft:plan`).
 
 ## Terms
 
@@ -17,7 +17,7 @@ Before the tickets, craft can brainstorm an idea with the owner into a brief (`c
 | retry | Another try after a step fails. |
 | note | A `note=` argument on a ticket. |
 
-The steps keep plain names: `craft:brainstorm`, `craft:plan`, `craft:spec`, `craft:design`, `craft:build`, `craft:review`, `craft:merge`, and `craft:next`. `craft:rules` holds the rules that every step loads first.
+The steps keep plain names: `craft:brainstorm`, `craft:setup`, `craft:plan`, `craft:spec`, `craft:design`, `craft:build`, `craft:review`, `craft:merge`, and `craft:next`. `craft:rules` holds the rules that every step loads first.
 
 ## Install
 
@@ -28,7 +28,7 @@ This repository is a plugin marketplace with two plugins: `craft`, and `pstack` 
 
   ```json
   "extraKnownMarketplaces": {
-    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.0.0" } }
+    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.1.0" } }
   },
   "enabledPlugins": { "craft@craft": true, "pstack@craft": true }
   ```
@@ -37,7 +37,9 @@ To upload transcripts to Google Cloud Storage, set `CRAFT_GCS_BUCKET` in the clo
 
 ## Set up a project
 
-A project gives craft these things:
+Run `craft:setup dev` in the project, after `craft:brainstorm` for a new idea. It works out with you how each part of the project runs locally, on cloud agents, and in CI, writes `Brief: Dev environment`, opens a PR with `.claude/craft.md`, and starts `craft:plan` on the brief. The first ticket of that plan is a walking skeleton that adds the verify skill, the app driver skill, and the required checks. After v1, run `craft:setup deploy` for staging and production. Your hosting preferences are in `plugins/craft/skills/setup/preferences.md`.
+
+When it is done, a project gives craft these things:
 
 1. **`.claude/craft.md`**, imported from `CLAUDE.md` with `@.claude/craft.md`:
 

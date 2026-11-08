@@ -55,7 +55,7 @@ Ask the owner in chat to approve the brief, with its link, by 👍 on the messag
 
 ## After approval
 
-Start `craft:plan` in a new session, so that the plan starts with a fresh context and the brief is all it knows of the brainstorm. Use this prompt: `Run craft:plan on <brief link>.` In a claude.ai project, ask the coordinator for a new thread. In a terminal, give the owner the command `claude "<prompt>"` to run in a new terminal. Tell the owner in chat in one line.
+Start `craft:plan` in a new session, so that the plan starts with a fresh context and the brief is all it knows of the brainstorm. Use this prompt: `Run craft:plan on <brief link>.` For a new project, or a project with no `.claude/craft.md`, use `Run craft:setup dev on <brief link>.` instead: the dev environment comes first, and its plan runs before the plan of this brief. In a claude.ai project, ask the coordinator for a new thread. In a terminal, give the owner the command `claude "<prompt>"` to run in a new terminal. Tell the owner in chat in one line.
 
 ## Done when
 
