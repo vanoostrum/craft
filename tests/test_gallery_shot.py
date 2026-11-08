@@ -5,14 +5,14 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "plugins" / "sous" / "skills" / "rules" / "scripts" / "gallery-shot"
+SCRIPT = ROOT / "plugins" / "craft" / "skills" / "rules" / "scripts" / "gallery-shot"
 
 
-def run_script(kitchen: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    """Run the script from a kitchen's root."""
+def run_script(project: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run the script from a project's root."""
     return subprocess.run(  # noqa: S603 - runs the script under test.
         [str(SCRIPT), *args],
-        cwd=kitchen,
+        cwd=project,
         capture_output=True,
         text=True,
         check=False,
@@ -27,7 +27,7 @@ def test_rejects_an_unknown_platform(tmp_path: Path) -> None:
 
 
 def test_rejects_a_missing_page(tmp_path: Path) -> None:
-    """A page that is not in the kitchen's design/ is an error."""
+    """A page that is not in the project's design/ is an error."""
     result = run_script(tmp_path, "pages/a/default.html", "mobile", str(tmp_path))
     assert result.returncode != 0
     assert "no gallery page design/pages/a/default.html" in result.stderr

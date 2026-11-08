@@ -1,7 +1,7 @@
 [project]
-name = "sous"
-version = "1.1.0"
-description = "Tests for the sous Claude Code plugin."
+name = "craft"
+version = "2.0.0"
+description = "Tests for the craft Claude Code plugin."
 requires-python = ">=3.12"
 dependencies = []
 
@@ -43,7 +43,7 @@ ignore = [
 # pytest relies on assert. S101 is limited to tests.
 "tests/**/*.py" = ["S101"]
 # Claude Code runs hook scripts as standalone files, not as a package.
-"plugins/sous/hooks/*.py" = ["INP001"]
+"plugins/craft/hooks/*.py" = ["INP001"]
 
 [tool.ty.environment]
 python-version = "3.12"
