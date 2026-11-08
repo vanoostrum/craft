@@ -9,6 +9,7 @@ Each `craft:*` step skill has the same model in its `model:` header, and Claude 
 | Step | Skill | Model |
 |---|---|---|
 | Brainstorm | `craft:brainstorm` | opus |
+| Setup | `craft:setup` | opus |
 | Plan | `craft:plan` | opus |
 | Spec | `craft:spec` | opus |
 | Design | `craft:design` | opus |
@@ -27,7 +28,7 @@ A craft step starts each of these subagents with the model in this table.
 | app driver | `craft:build` | sonnet |
 | CI polling and log reading | `craft:build` | haiku |
 | fresh reviewer | `craft:review` | opus |
-| brief reviewer | `craft:brainstorm` | opus |
+| brief reviewer | `craft:brainstorm`, `craft:setup` | opus |
 | plan reviewer | `craft:plan` | opus |
 | replan check | `craft:merge` | opus |
 

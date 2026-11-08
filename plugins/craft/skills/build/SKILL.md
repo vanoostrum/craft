@@ -17,6 +17,7 @@ A ticket in **Ready to build** whose spec gate is approved.
 1. **Check that the ticket is ready.**
    - The spec gate must be approved.
    - Each ticket that blocks it must be **Done**.
+   - **Owner first.** If the ticket lists **Owner first** items, such as a secret or a cloud environment setting, check each one you can, for example that the secret is set. For one you cannot check, or that is missing, comment `🤖 build: escalated — owner first: <item>`, tell the owner in chat what to do and where, and stop.
    - **Stale spec.** Read the glossary terms, ADRs, and code merged since the `🤖 Gate: spec` comment. If they contradict the spec, do not guess. Move the ticket to **Todo**, comment `🤖 build: escalated — stale spec: <what changed>`, and tell the owner. The spec lane grills only the decisions that changed.
    - If a check fails for another reason, stop and say so.
    Then move the ticket to **Building**.

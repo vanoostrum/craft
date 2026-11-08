@@ -31,6 +31,8 @@ Read `.claude/craft.md` in the project first. It holds these keys:
 | Verify skill | The project skill that installs, lints, type-checks, and tests, as the required checks do. |
 | App driver skill | The project skill that launches the app, drives each entry point, and saves evidence and screenshots. |
 
+A key with the value `none yet` waits for the ticket that creates it, such as the walking skeleton from a `Brief: Dev environment`. Until then, a step skips the work that needs it and says so in its step comment.
+
 Its `## Standing notes` section holds notes for every ticket. Follow them as if each ticket had them under `## Steering`.
 
 These paths and names are fixed in every project:
@@ -62,6 +64,7 @@ Load `craft:bstack` with the Skill tool before any `pstack:` skill. A hook block
 | Step | Skill | Lane | Linear state |
 |---|---|---|---|
 | Brainstorm an idea into a brief, with a fresh-agent check | `craft:brainstorm` | — | — |
+| Describe the environments into a brief: dev at the start, deploy after v1 | `craft:setup` | — | — |
 | Plan, once per project or increment, with a fresh-agent review | `craft:plan` | — | Plan ticket: Specifying |
 | 🚦 The gate: plan | — | — | Plan ticket: Specifying |
 | Pick the next ticket for each lane | `craft:next` | — | Todo, or Ready to build |
@@ -75,14 +78,14 @@ Load `craft:bstack` with the Skill tool before any `pstack:` skill. A hook block
 
 Craft works in two lanes, in parallel. The spec lane needs the owner and runs up to four tickets ahead. The build lane runs on its own, up to the merge gate. `craft:next` picks the ticket for each lane and holds the lane rules, the replan check, and the milestone checkpoint.
 
-When asked to "work on" a ticket or a feature, run the steps in order from wherever the ticket is. Stop at each gate. Start at `craft:brainstorm` for an idea that is not yet clear: what it is for, for whom, and why. It ends with a brief and starts `craft:plan` on it. Start at `craft:plan` for a brief, a project spec, or new work that spans more than one or two tickets or adds a new user flow. Otherwise start at `craft:spec`. `craft:spec` runs `craft:design` itself. When asked to "work on the plan" or to "pick up the next ticket", run `craft:next`.
+When asked to "work on" a ticket or a feature, run the steps in order from wherever the ticket is. Stop at each gate. Start at `craft:brainstorm` for an idea that is not yet clear: what it is for, for whom, and why. It ends with a brief and starts `craft:plan` on it, or `craft:setup` first for a new project. Start at `craft:setup` to describe the dev environment of a new project or of a project that is new to craft, and later to describe staging and production. Start at `craft:plan` for a brief, a project spec, or new work that spans more than one or two tickets or adds a new user flow. Otherwise start at `craft:spec`. `craft:spec` runs `craft:design` itself. When asked to "work on the plan" or to "pick up the next ticket", run `craft:next`.
 
 ## Rules for every step
 
 - **Linear is the source of truth.** Read the ticket's current state and comments before acting. Do not rely on memory of earlier sessions.
 - **Craft comments.** Every comment craft writes in Linear starts with `🤖`. Comments without it are from the owner. Each step adds one comment when it ends: `🤖 <step>: <success|failed|escalated> — <one line>`.
 - **Dependencies.** A ticket with a Linear "blocked by" relation is not built until each ticket that blocks it is Done. `craft:next` and `craft:build` check this.
-- **Steering.** `craft:plan` and `craft:spec` take optional arguments after their input, as `key=value`. `craft:brainstorm` takes only `note=`, and writes it into the brief for `craft:plan`. Scope is not an argument: `craft:plan` decides from the repo whether the work is a new project or an increment.
+- **Steering.** `craft:plan` and `craft:spec` take optional arguments after their input, as `key=value`. `craft:brainstorm` and `craft:setup` take only `note=`, and write it into the brief for `craft:plan`. Scope is not an argument: `craft:plan` decides from the repo whether the work is a new project or an increment.
 
   | Argument | Default | Effect |
   |---|---|---|
