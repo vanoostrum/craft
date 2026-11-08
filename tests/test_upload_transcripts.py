@@ -19,7 +19,7 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-HOOKS = ROOT / "plugins" / "sous" / "hooks"
+HOOKS = ROOT / "plugins" / "craft" / "hooks"
 HOOK = HOOKS / "upload_transcripts.py"
 SESSION = "0b1c2d3e-session"
 SECRET = "sk-test-0123456789abcdef"  # noqa: S105 - a fake secret to redact.
@@ -117,9 +117,9 @@ def transcript(tmp_path: Path) -> Path:
             },
             # One reply written as two lines, each with the same usage.
             reply(1, "m1", SONNET, 100, {"type": "text", "text": "Building."}),
-            reply(1, "m1", SONNET, 100, skill("sous:build", "LIBRAG-12")),
-            # Loading the rules, or any other sous skill, starts no segment.
-            reply(1, "m1", SONNET, 100, skill("sous:rules")),
+            reply(1, "m1", SONNET, 100, skill("craft:build", "LIBRAG-12")),
+            # Loading the rules, or any other craft skill, starts no segment.
+            reply(1, "m1", SONNET, 100, skill("craft:rules")),
             reply(2, "m2", SONNET, 20, agent_call),
             {
                 "type": "user",
@@ -129,8 +129,8 @@ def transcript(tmp_path: Path) -> Path:
                     "content": [{"type": "tool_result", "tool_use_id": "call-agent"}]
                 },
             },
+            # The names from before craft 2.0 and before the plugin still count.
             reply(10, "m3", OPUS, 300, skill("sous:review", "LIBRAG-12")),
-            # The name from before the plugin still starts a segment.
             reply(20, "m4", OPUS, 7, skill("factory-merge")),
             reply(21, "m5", OPUS, 5, {"type": "text", "text": "Merged."}),
         ],
@@ -153,7 +153,7 @@ def fake_env(tmp_path: Path, **extra: str) -> dict[str, str]:
     env = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith(("SOUS_GCS_", "FACTORY_GCS_"))
+        if not key.startswith(("CRAFT_GCS_", "FACTORY_GCS_"))
     }
     env.update(
         PATH=f"{bin_dir}{os.pathsep}{env['PATH']}",
@@ -169,7 +169,7 @@ def fake_env(tmp_path: Path, **extra: str) -> dict[str, str]:
 
 def configured_env(tmp_path: Path, key: str = json.dumps(KEY)) -> dict[str, str]:
     """Return an environment with a bucket and a service account key."""
-    return fake_env(tmp_path, SOUS_GCS_BUCKET="factory-logs", SOUS_GCS_KEY=key)
+    return fake_env(tmp_path, CRAFT_GCS_BUCKET="factory-logs", CRAFT_GCS_KEY=key)
 
 
 def run_hook(
@@ -194,7 +194,7 @@ def run_hook(
 
 def wait_for_uploads(tmp_path: Path, count: int) -> None:
     """Wait until the background process has logged `count` uploads."""
-    upload_log = tmp_path / "tmp" / "sous-transcripts" / "upload.log"
+    upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
     deadline = time.monotonic() + 20
     while True:
         text = upload_log.read_text("utf-8") if upload_log.exists() else ""
@@ -257,10 +257,10 @@ def test_uploads_the_session_transcripts(
     assert data["event"] == "Stop"
 
 
-def test_splits_the_session_into_sous_steps(
+def test_splits_the_session_into_craft_steps(
     tmp_path: Path, project: Path, transcript: Path
 ) -> None:
-    """A sous step's Skill call starts a segment with its ticket, times, tokens."""
+    """A craft step's Skill call starts a segment with its ticket, times, tokens."""
     run_hook(configured_env(tmp_path), transcript, project)
     wait_for_uploads(tmp_path, 1)
 
@@ -303,7 +303,7 @@ def test_assigns_subagents_to_their_step(
 def test_failed_skill_call_starts_no_segment(tmp_path: Path, project: Path) -> None:
     """A Skill call that returns an error, such as an unknown skill, is no step."""
     session = tmp_path / "failed.jsonl"
-    call = skill("sous:next")
+    call = skill("craft:next")
     error = {
         "type": "user",
         "timestamp": stamp(2),
@@ -313,7 +313,7 @@ def test_failed_skill_call_starts_no_segment(tmp_path: Path, project: Path) -> N
                     "type": "tool_result",
                     "tool_use_id": call["id"],
                     "is_error": True,
-                    "content": "Unknown skill: sous:next",
+                    "content": "Unknown skill: craft:next",
                 }
             ]
         },
@@ -327,7 +327,7 @@ def test_failed_skill_call_starts_no_segment(tmp_path: Path, project: Path) -> N
 
 
 def test_session_without_a_ticket(tmp_path: Path, project: Path) -> None:
-    """Outside sous, the session is one segment without a step or ticket."""
+    """Outside craft, the session is one segment without a step or ticket."""
     subprocess.run(  # noqa: S603
         ["git", "-C", str(project), "checkout", "-q", "-b", "claude/thread"],  # noqa: S607
         check=True,
@@ -355,7 +355,7 @@ def test_skips_a_stop_soon_after_an_upload(
     wait_for_uploads(tmp_path, 2)
     time.sleep(1)
 
-    upload_log = tmp_path / "tmp" / "sous-transcripts" / "upload.log"
+    upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
     uploads = upload_log.read_text("utf-8").count(" uploaded ")
     assert uploads == len(["first Stop", "SubagentStop"])
     assert metadata(tmp_path)["event"] == "SubagentStop"
@@ -366,7 +366,7 @@ def test_stop_uploads_again_after_the_interval(
 ) -> None:
     """With an interval of 0, every Stop uploads."""
     env = configured_env(tmp_path)
-    env["SOUS_GCS_STOP_INTERVAL"] = "0"
+    env["CRAFT_GCS_STOP_INTERVAL"] = "0"
     run_hook(env, transcript, project)
     wait_for_uploads(tmp_path, 1)
     run_hook(env, transcript, project)
@@ -414,7 +414,7 @@ def test_uses_the_proxy_token_without_a_key(
     tmp_path: Path, project: Path, transcript: Path
 ) -> None:
     """In a cloud session without a key, gcloud uses the token the proxy adds."""
-    env = fake_env(tmp_path, SOUS_GCS_BUCKET="factory-logs")
+    env = fake_env(tmp_path, CRAFT_GCS_BUCKET="factory-logs")
     run_hook(env, transcript, project)
     wait_for_uploads(tmp_path, 1)
 
@@ -429,7 +429,7 @@ def test_does_nothing_without_a_way_to_sign_in(
     tmp_path: Path, project: Path, transcript: Path
 ) -> None:
     """With a bucket but no key and no proxy token, the hook calls no Google tool."""
-    env = fake_env(tmp_path, SOUS_GCS_BUCKET="factory-logs")
+    env = fake_env(tmp_path, CRAFT_GCS_BUCKET="factory-logs")
     del env["CLOUDSDK_AUTH_ACCESS_TOKEN"]
     run_hook(env, transcript, project)
     time.sleep(1)

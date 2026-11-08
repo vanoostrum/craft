@@ -4,7 +4,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "sous" / "skills"
+SKILLS = ROOT / "plugins" / "craft" / "skills"
 
 
 def skill(name: str) -> str:
@@ -13,7 +13,7 @@ def skill(name: str) -> str:
 
 
 def lane_row(lane: str) -> str:
-    """Return the row of the lanes table in `sous:next` for `lane`."""
+    """Return the row of the lanes table in `craft:next` for `lane`."""
     rows = [
         line for line in skill("next").splitlines() if line.startswith(f"| {lane} |")
     ]
@@ -22,7 +22,7 @@ def lane_row(lane: str) -> str:
 
 
 def test_spec_lane_runs_in_a_new_session() -> None:
-    """The spec lane starts `sous:spec` in a new session, like the build lane."""
+    """The spec lane starts `craft:spec` in a new session, like the build lane."""
     row = lane_row("Spec")
     assert "new session" in row
     assert "this session" not in row
@@ -36,7 +36,7 @@ def test_spec_lane_passes_a_blocker_brief() -> None:
 
 
 def test_spec_reads_the_brief() -> None:
-    """`sous:spec` takes the brief of the blocking tickets as input."""
+    """`craft:spec` takes the brief of the blocking tickets as input."""
     text = skill("spec")
     inputs = text.split("## Input", 1)[1].split("\n## ", 1)[0]
     assert "brief" in inputs

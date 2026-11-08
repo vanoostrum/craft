@@ -1,48 +1,48 @@
-# Sous
+# Craft
 
 A software factory for AI-assisted software engineering.
 
-Sous is a Claude Code plugin that runs software work for chef. It takes a Linear ticket through **spec → build → test → review → merge**, and stops at the pass for chef's approval: after the spec, and before the merge. A project that uses sous is a kitchen.
+Craft is a Claude Code plugin that runs software work for the owner. It takes a Linear ticket through **spec → build → test → review → merge**, and stops at a gate for the owner's approval: after the spec, and before the merge.
 
-Before the tickets, sous can brainstorm an idea with chef into a brief (`sous:brainstorm`), and plan the brief into tickets (`sous:plan`).
+Before the tickets, craft can brainstorm an idea with the owner into a brief (`craft:brainstorm`), and plan the brief into tickets (`craft:plan`).
 
-## Kitchen terms
+## Terms
 
 | Term | Meaning |
 |---|---|
-| sous | This plugin. It runs the work for chef. |
-| the kitchen | A project that installs sous. |
-| chef | The human who owns the kitchen. |
-| the pass | The gates a ticket must clear: the plan pass, the spec pass, and the merge pass. |
-| refire | Another try after a step fails. |
-| ticket note | A `note=` argument on a ticket. |
+| craft | This plugin. It runs the work for the owner. |
+| the project | A repository that installs craft. |
+| the owner | The human who owns the project. |
+| gate | A point where a ticket stops for the owner's approval: the plan gate, the spec gate, and the merge gate. |
+| retry | Another try after a step fails. |
+| note | A `note=` argument on a ticket. |
 
-The steps keep plain names: `sous:brainstorm`, `sous:plan`, `sous:spec`, `sous:design`, `sous:build`, `sous:review`, `sous:merge`, and `sous:next`. `sous:rules` holds the rules that every step loads first.
+The steps keep plain names: `craft:brainstorm`, `craft:plan`, `craft:spec`, `craft:design`, `craft:build`, `craft:review`, `craft:merge`, and `craft:next`. `craft:rules` holds the rules that every step loads first.
 
 ## Install
 
-This repository is a plugin marketplace with two plugins: `sous`, and `pstack` pinned to the version that sous is tested with.
+This repository is a plugin marketplace with two plugins: `craft`, and `pstack` pinned to the version that craft is tested with.
 
-- **claude.ai project threads:** add the plugins to your account from GitHub, `vanoostrum/sous`. Threads load account plugins, but not a repository's `.claude/settings.json`.
-- **Terminal and web sessions:** add the marketplace to the kitchen's `.claude/settings.json`, pinned to a tag:
+- **claude.ai project threads:** add the plugins to your account from GitHub, `vanoostrum/craft`. Threads load account plugins, but not a repository's `.claude/settings.json`.
+- **Terminal and web sessions:** add the marketplace to the project's `.claude/settings.json`, pinned to a tag:
 
   ```json
   "extraKnownMarketplaces": {
-    "sous": { "source": { "source": "github", "repo": "vanoostrum/sous", "ref": "v1.2.0" } }
+    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.0.0" } }
   },
-  "enabledPlugins": { "sous@sous": true, "pstack@sous": true }
+  "enabledPlugins": { "craft@craft": true, "pstack@craft": true }
   ```
 
-To upload transcripts to Google Cloud Storage, set `SOUS_GCS_BUCKET` in the cloud environment, and add a "GCP access token" network secret for `storage.googleapis.com`. See `plugins/sous/hooks/upload_transcripts.py`.
+To upload transcripts to Google Cloud Storage, set `CRAFT_GCS_BUCKET` in the cloud environment, and add a "GCP access token" network secret for `storage.googleapis.com`. See `plugins/craft/hooks/upload_transcripts.py`.
 
-## A kitchen
+## Set up a project
 
-A kitchen gives sous these things:
+A project gives craft these things:
 
-1. **`.claude/kitchen.md`**, imported from `CLAUDE.md` with `@.claude/kitchen.md`:
+1. **`.claude/craft.md`**, imported from `CLAUDE.md` with `@.claude/craft.md`:
 
    ```markdown
-   # Kitchen config
+   # Project config
 
    | Key | Value |
    |---|---|
@@ -55,28 +55,24 @@ A kitchen gives sous these things:
 
    ## Standing notes
 
-   Ticket notes that apply to every ticket.
+   Notes that apply to every ticket.
    ```
 
 2. **A verify skill** in `.claude/skills/`: install, lint, type check, and test, as the required CI checks do.
 3. **An app driver skill** in `.claude/skills/`: launch the app, drive each entry point, save evidence and screenshots, and clean up, with a feature map.
-4. **Engineering rules in `CLAUDE.md`**, including the test seam rule, and this line for the kitchen's own skills in project threads:
+4. **Engineering rules in `CLAUDE.md`**, including the test seam rule, and this line for the project's own skills in project threads:
 
    > If a skill is unknown, read `.claude/skills/<name>/SKILL.md` and follow it.
 
-5. **Fixed paths:** `GLOSSARY.md`, `docs/adr/`, and the design gallery in `design/`. `sous:design` creates the gallery on its first run.
+5. **Fixed paths:** `GLOSSARY.md`, `docs/adr/`, and the design gallery in `design/`. `craft:design` creates the gallery on its first run.
 6. **A Linear team** with the states Todo, Specifying, Ready to build, Building, In Review, Done, and Needs human, and the label `ui`.
 7. **A GitHub repository** with the required checks on the base branch and "Automatically delete head branches" on.
 
 ## Development
 
-- Fix sous here, not in a kitchen.
-- Try a change on a live ticket with `claude --plugin-dir <this checkout>/plugins/sous` in a terminal session.
+- Fix craft here, not in a project.
+- Try a change on a live ticket with `claude --plugin-dir <this checkout>/plugins/craft` in a terminal session.
 - Run the checks with `uv run ruff check .`, `uv run ruff format --check .`, `uv run ty check`, and `uv run pytest`.
-- Release with a tag, and bump `ref` in each kitchen in its own PR.
+- Release with a tag, and bump `ref` in each project in its own PR.
 
-`plugins/sous/VENDORED.md` lists the skills that come from other repositories.
-
-## Possible new names
-
-- workshop
+`plugins/craft/VENDORED.md` lists the skills that come from other repositories.

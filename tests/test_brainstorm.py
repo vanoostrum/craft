@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "sous" / "skills"
+SKILLS = ROOT / "plugins" / "craft" / "skills"
 
 
 def skill(name: str) -> str:
@@ -39,29 +39,29 @@ def test_brainstorm_writes_the_brief_as_a_linear_document() -> None:
     assert "Look" in brief
 
 
-def test_brainstorm_has_no_pass() -> None:
-    """Chef approves the brief in chat; the plan pass stays the formal gate."""
+def test_brainstorm_has_no_gate() -> None:
+    """The owner approves the brief in chat; the plan gate stays the formal gate."""
     text = skill("brainstorm")
-    assert "🤖 Pass:" not in text
-    assert "plan pass" in section(text, "Approval")
+    assert "🤖 Gate:" not in text
+    assert "plan gate" in section(text, "Approval")
 
 
 def test_brainstorm_hands_the_brief_to_plan() -> None:
-    """After approval, `sous:plan` runs with the brief in a new session."""
+    """After approval, `craft:plan` runs with the brief in a new session."""
     after = section(skill("brainstorm"), "After approval")
-    assert "sous:plan" in after
+    assert "craft:plan" in after
     assert "new session" in after
 
 
 def test_plan_takes_a_brief() -> None:
-    """`sous:plan` accepts a brief and grills only what it left open."""
+    """`craft:plan` accepts a brief and grills only what it left open."""
     text = skill("plan")
     assert "brief" in section(text, "Input")
     assert "left open" in step(text, "Helicopter grill.")
 
 
-def test_plan_slices_by_what_chef_can_reject() -> None:
-    """A ticket is split only where chef could reject one part and approve the other."""
+def test_plan_slices_by_what_the_owner_can_reject() -> None:
+    """A ticket is split only where the owner could reject one part."""
     slicing = step(skill("plan"), "Slice the work")
     assert "vertical" in slicing
     assert "reject" in slicing
@@ -83,7 +83,7 @@ def test_plan_copies_constraints_verbatim() -> None:
 
 def test_design_starts_from_the_brief_look() -> None:
     """Project mode starts from the Look section of the brief, if there is one."""
-    assert "Look" in step(skill("design"), "Prototype with chef.")
+    assert "Look" in step(skill("design"), "Prototype with the owner.")
 
 
 def test_spec_has_a_review_focus_that_review_checks() -> None:

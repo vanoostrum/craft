@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Theo van Oostrum
-"""The bstack hook blocks pstack skills until sous:bstack is loaded."""
+"""The bstack hook blocks pstack skills until craft:bstack is loaded."""
 
 import json
 import subprocess
@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-HOOK = ROOT / "plugins" / "sous" / "hooks" / "require_bstack.py"
+HOOK = ROOT / "plugins" / "craft" / "hooks" / "require_bstack.py"
 
 
 def skill_call(name: str) -> dict[str, Any]:
@@ -45,9 +45,9 @@ def run_hook(tmp_path: Path, skill: str, entries: list[dict[str, Any]]) -> str:
 @pytest.mark.parametrize(
     "entry",
     [
-        skill_call("sous:bstack"),
+        skill_call("craft:bstack"),
         skill_call("bstack"),
-        slash_command("sous:bstack"),
+        slash_command("craft:bstack"),
         slash_command("bstack"),
     ],
 )
@@ -57,22 +57,22 @@ def test_pstack_runs_after_bstack(tmp_path: Path, entry: dict[str, Any]) -> None
 
 
 def test_pstack_is_denied_without_bstack(tmp_path: Path) -> None:
-    """A pstack skill is denied, and the reason names sous:bstack."""
-    output = json.loads(run_hook(tmp_path, "pstack:how", [skill_call("sous:spec")]))
+    """A pstack skill is denied, and the reason names craft:bstack."""
+    output = json.loads(run_hook(tmp_path, "pstack:how", [skill_call("craft:spec")]))
     decision = output["hookSpecificOutput"]
     assert decision["permissionDecision"] == "deny"
-    assert "sous:bstack" in decision["permissionDecisionReason"]
+    assert "craft:bstack" in decision["permissionDecisionReason"]
 
 
 def test_compaction_unloads_bstack(tmp_path: Path) -> None:
     """After a compaction, bstack must be loaded again."""
-    entries = [skill_call("sous:bstack"), {"subtype": "compact_boundary"}]
+    entries = [skill_call("craft:bstack"), {"subtype": "compact_boundary"}]
     assert "deny" in run_hook(tmp_path, "pstack:how", entries)
 
 
 def test_other_skills_pass(tmp_path: Path) -> None:
     """Skills outside pstack are never blocked."""
-    assert run_hook(tmp_path, "sous:spec", []) == ""
+    assert run_hook(tmp_path, "craft:spec", []) == ""
 
 
 def test_plugin_runs_the_hook_before_each_skill() -> None:

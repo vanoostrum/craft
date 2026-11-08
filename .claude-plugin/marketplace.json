@@ -1,15 +1,15 @@
 {
-  "name": "sous",
+  "name": "craft",
   "owner": {
     "name": "Theo van Oostrum",
     "url": "https://github.com/vanoostrum"
   },
-  "description": "Sous runs Linear tickets through spec, build, review, and merge with Claude Code, and stops at the pass for chef.",
+  "description": "Craft runs Linear tickets through spec, build, review, and merge with Claude Code, and stops at each gate for the owner's approval.",
   "plugins": [
     {
-      "name": "sous",
-      "source": "./plugins/sous",
-      "description": "The sous steps, rules, and hooks."
+      "name": "craft",
+      "source": "./plugins/craft",
+      "description": "The craft steps, rules, and hooks."
     },
     {
       "name": "pstack",
@@ -19,7 +19,7 @@
         "path": "plugins/pstack",
         "ref": "v0.9.102"
       },
-      "description": "pstack, pinned to the version that sous is tested with. Load sous:bstack before any pstack skill."
+      "description": "pstack, pinned to the version that craft is tested with. Load craft:bstack before any pstack skill."
     }
   ]
 }

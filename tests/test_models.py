@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Theo van Oostrum
-"""The sous step skills run on the models that `models.md` lists."""
+"""The craft step skills run on the models that `models.md` lists."""
 
 import re
 from pathlib import Path
@@ -7,16 +7,16 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "sous" / "skills"
+SKILLS = ROOT / "plugins" / "craft" / "skills"
 MODELS = SKILLS / "rules" / "models.md"
-STEP_ROW = re.compile(r"^\| [^|]+ \| `sous:([a-z]+)` \| ([a-z-]+) \|$", re.MULTILINE)
+STEP_ROW = re.compile(r"^\| [^|]+ \| `craft:([a-z]+)` \| ([a-z-]+) \|$", re.MULTILINE)
 MODEL_HEADER = re.compile(
     r"\A---\n.*?^model: ([a-z-]+)$.*?^---$", re.DOTALL | re.MULTILINE
 )
 
 
 def step_models() -> dict[str, str]:
-    """Return the model per sous step skill from the models table."""
+    """Return the model per craft step skill from the models table."""
     text = MODELS.read_text(encoding="utf-8")
     steps = text.split("## Steps", 1)[1].split("\n## ", 1)[0]
     return dict(STEP_ROW.findall(steps))

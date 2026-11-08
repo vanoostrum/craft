@@ -31,6 +31,6 @@ jobs:
       - name: Ty
         run: uv run ty check
       - name: Shellcheck
-        run: shellcheck plugins/sous/skills/rules/scripts/gallery-shot
+        run: shellcheck plugins/craft/skills/rules/scripts/gallery-shot
       - name: Pytest
         run: uv run pytest
