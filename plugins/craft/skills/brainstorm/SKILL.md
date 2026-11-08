@@ -59,4 +59,4 @@ Start `craft:plan` in a new session, so that the plan starts with a fresh contex
 
 ## Done when
 
-The brief is a Linear document in the increment's Linear project, the owner has approved it, and `craft:plan` is started on it.
+The brief is a Linear document in the increment's Linear project, the owner has approved it, and `craft:plan` or `craft:setup dev` is started on it.

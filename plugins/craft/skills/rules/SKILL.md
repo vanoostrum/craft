@@ -31,7 +31,9 @@ Read `.claude/craft.md` in the project first. It holds these keys:
 | Verify skill | The project skill that installs, lints, type-checks, and tests, as the required checks do. |
 | App driver skill | The project skill that launches the app, drives each entry point, and saves evidence and screenshots. |
 
-A key with the value `none yet` waits for the ticket that creates it, such as the walking skeleton from a `Brief: Dev environment`. Until then, a step skips the work that needs it and says so in its step comment.
+A project new to craft has no `.claude/craft.md` yet. `craft:setup` asks the owner for the Linear team and the GitHub repo, and `craft:plan` takes all values from the **Craft wiring** of the `Brief: Dev environment` and writes the file in its PR.
+
+A key with the value `none yet` waits for the ticket that creates it, such as the walking skeleton from a `Brief: Dev environment`. That ticket reads the new values from its own branch, and its own build, review, and merge use them: it proves its verify skill, its app driver skill, and its checks on its own PR. Any other step that needs a `none yet` value skips that work and says so in its step comment.
 
 Its `## Standing notes` section holds notes for every ticket. Follow them as if each ticket had them under `## Steering`.
 
