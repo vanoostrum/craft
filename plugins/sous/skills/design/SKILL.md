@@ -14,7 +14,7 @@ The goal is to settle the look once, before the build. Chef changes their mind h
 
 One of:
 
-- **Project mode:** called by `sous:plan`, with the plan's flows and the plan ticket key.
+- **Project mode:** called by `sous:plan`, with the plan's flows, the plan ticket key, and the brief's **Look** section, if the plan came from a brief.
 - **Ticket mode:** called by `sous:spec`, with a ticket that has the `ui` label, after the grill.
 
 ## Steps
@@ -23,7 +23,7 @@ One of:
 2. **Check the rollout stage.** Read `Current stage` in `design/README.md`. If a trigger for the next stage is met, follow **Rollout** below before you go on.
 3. **Read the gallery.** Read `design/gallery.css` and the pages in `design/pages/`. If there is no `design/gallery.css` yet, this run also sets the visual identity: colours, fonts, spacing, and the primary action. Do that in ticket mode too.
 4. **Prototype with chef.** Iterate in Claude Design: the Artifact tool's Design type, started with `quickstart` and intent `design`. If this session has no Artifact tool, ask chef to prototype in Claude Design and share the link. Show screens, not descriptions. Ask in chat; this is an exception to the Chat rule in `sous:rules`, like the grill.
-   - **Project mode:** set the identity if needed, and draw one rough page per main flow of the plan. Use realistic data. Leave states and edge cases out. Put all flows side by side and look for missing screens. Report each gap to `sous:plan` as a new ticket.
+   - **Project mode:** if the brief has a **Look** section, start from it: open the chosen prototype and go on from it in Claude Design, and follow the direction in words. Do not offer again the variants that chef turned down there. Set the identity if needed, and draw one rough page per main flow of the plan. Use realistic data. Leave states and edge cases out. Put all flows side by side and look for missing screens. Report each gap to `sous:plan` as a new ticket.
    - **Ticket mode:** start from the existing page for this ticket, if there is one. Redraw each page that a `🤖 replan: stale` comment on the ticket names, with the decision from that comment. Settle only what the ticket needs: each state the app can reach, empty and error cases, and the real copy.
    - **Variants.** Read `design-variants` from `## Steering` on the ticket, or on the plan ticket in project mode. If it is more than 1, draw that many prototypes of each new screen, and of the identity if this run sets it. Make them differ in layout or flow, not only in colour. Show them side by side and ask chef to pick one, or to combine parts of them. Then iterate on that one only. A page that already exists in the gallery is changed in place, without variants.
    - **Platforms.** Draw the variants on the primary platform only, the first in `Platforms`. Once chef has picked one, draw it on each other platform, and iterate on all of them together. Keep the structure, the flow, and the copy of the chosen variant; change only what the platform needs, such as navigation, layout, and controls. For a native platform, follow its conventions. When chef asks for a change, make it on every platform.

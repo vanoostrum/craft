@@ -4,6 +4,8 @@ A software factory for AI-assisted software engineering.
 
 Sous is a Claude Code plugin that runs software work for chef. It takes a Linear ticket through **spec → build → test → review → merge**, and stops at the pass for chef's approval: after the spec, and before the merge. A project that uses sous is a kitchen.
 
+Before the tickets, sous can brainstorm an idea with chef into a brief (`sous:brainstorm`), and plan the brief into tickets (`sous:plan`).
+
 ## Kitchen terms
 
 | Term | Meaning |
@@ -15,7 +17,7 @@ Sous is a Claude Code plugin that runs software work for chef. It takes a Linear
 | refire | Another try after a step fails. |
 | ticket note | A `note=` argument on a ticket. |
 
-The steps keep plain names: `sous:plan`, `sous:spec`, `sous:design`, `sous:build`, `sous:review`, `sous:merge`, and `sous:next`. `sous:rules` holds the rules that every step loads first.
+The steps keep plain names: `sous:brainstorm`, `sous:plan`, `sous:spec`, `sous:design`, `sous:build`, `sous:review`, `sous:merge`, and `sous:next`. `sous:rules` holds the rules that every step loads first.
 
 ## Install
 
@@ -26,7 +28,7 @@ This repository is a plugin marketplace with two plugins: `sous`, and `pstack` p
 
   ```json
   "extraKnownMarketplaces": {
-    "sous": { "source": { "source": "github", "repo": "vanoostrum/sous", "ref": "v1.1.0" } }
+    "sous": { "source": { "source": "github", "repo": "vanoostrum/sous", "ref": "v1.2.0" } }
   },
   "enabledPlugins": { "sous@sous": true, "pstack@sous": true }
   ```

@@ -17,7 +17,7 @@ One of:
 
 Optional steering arguments follow it, as Steering in `sous:rules` describes.
 
-When `sous:next` starts this step, the prompt also has a `Brief:`. It sums up the tickets that block this ticket: their goals, and the decisions and domain docs that this ticket builds on. This session starts fresh for each ticket, so the brief, `GLOSSARY.md`, and `docs/adr/` are what it knows of the other tickets.
+When `sous:next` starts this step, the prompt also has a `Brief:`, the blocker brief. It sums up the tickets that block this ticket: their goals, what they produce for this ticket, and the decisions and domain docs that this ticket builds on. This session starts fresh for each ticket, so the blocker brief, `GLOSSARY.md`, and `docs/adr/` are what it knows of the other tickets.
 
 ## Steps
 
@@ -27,8 +27,8 @@ When `sous:next` starts this step, the prompt also has a `Brief:`. It sums up th
    - Steering arguments: write them under `## Steering` in the ticket description. They replace the values that are already there.
 2. Move the ticket to **Specifying**.
 3. **Grill.** Run the `sous:grill-with-docs` skill on the ticket. It asks chef questions in rounds and reads the code to find facts. Follow it, with these rules:
-   - Read `GLOSSARY.md` and `docs/adr/` first, if they exist. Then read the brief. Read a blocking ticket's full spec only when the brief leaves a question about it open.
-   - If the ticket came from a plan, read the plan ticket's `## Plan` first. Ask only what the plan left open.
+   - Read `GLOSSARY.md` and `docs/adr/` first, if they exist. Then read the blocker brief. Read a blocking ticket's full spec only when the blocker brief leaves a question about it open.
+   - If the ticket came from a plan, read the plan ticket's `## Plan` first. Ask only what the plan left open. Keep the ticket's Consumes, Produces, and Constraints: use the names and values exactly as they are written. A change to one of them is a replan proposal, not a spec decision.
    - Ask the rounds in chat. This is an exception to the Chat rule in `sous:rules`.
    - If the ticket is already clear, the first frontier can be empty. Then skip to the next step.
    - Do not write `GLOSSARY.md` or ADR files in the repo now. Write the new and changed glossary terms and ADRs into the spec, under **Domain docs**. `sous:build` commits them.
@@ -47,6 +47,7 @@ When `sous:next` starts this step, the prompt also has a `Brief:`. It sums up th
    - **Scope:** what changes.
    - **Out of scope:** what does not.
    - **Decisions:** the decisions from the grill, one line each. Mark the technical ones you took without asking with `(agent)`, and the high-certainty ones on behavior, UX, or architecture with `(default)`.
+   - **Review focus:** up to five inputs or conditions that the criteria imply but do not name, and that are most likely to hurt a user, such as an empty list, a duplicate, a very long name, or a lost connection. One line each: the input, and what a user would expect to happen. Most likely first. Each one gets a test in **Plan**. If there are none, write `none`, after you checked.
    - **Acceptance criteria:** a numbered list. Each one is testable and observable, e.g. "Asking for the version returns the version from the package metadata". For a `ui` ticket, each screen state cites its gallery page, e.g. "The search screen with no results matches `design/pages/search/empty.html`".
    - **Gallery pages:** for a `ui` ticket only. Each page from `sous:design`, with one line on what it shows.
    - **Testing decisions:**
