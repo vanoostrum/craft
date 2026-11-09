@@ -17,8 +17,8 @@ A ticket in **Ready to build** whose spec gate is approved.
 1. **Check that the ticket is ready.**
    - The spec gate must be approved.
    - Each ticket that blocks it must be **Done**.
-   - **Owner first.** If the ticket lists **Owner first** items, such as a secret or a cloud environment setting, check each one you can, for example that the secret is set. For one you cannot check, or that is missing, comment `🤖 build: escalated — owner first: <item>`, tell the owner in chat what to do and where, and stop.
-   - **Stale spec.** Read the glossary terms, ADRs, and code merged since the `🤖 Gate: spec` comment. If they contradict the spec, do not guess. Move the ticket to **Todo**, comment `🤖 build: escalated — stale spec: <what changed>`, and tell the owner. The spec lane grills only the decisions that changed.
+   - **Owner first.** If the ticket lists **Owner first** items, such as a secret or a cloud environment setting, check each one you can, for example that the secret is set. For one you cannot check, or that is missing, comment `🤖 build: escalated — owner first: <item>`, tell the owner in chat what to do and where, and stop. For `mode=one-shot`, also move the ticket to **Needs human** and run `craft:next`, so the run goes on with other tickets.
+   - **Stale spec.** Read the glossary terms, ADRs, and code merged since the `🤖 Gate: spec` comment. If they contradict the spec, do not guess. Move the ticket to **Todo**, comment `🤖 build: escalated — stale spec: <what changed>`, and tell the owner. The spec lane grills only the decisions that changed. For `mode=one-shot`, move it to **Needs human** instead of **Todo**, and run `craft:next`: the done report lists it.
    - If a check fails for another reason, stop and say so.
    Then move the ticket to **Building**.
 2. **Branch.** Create or check out the branch from the naming rule, based on the latest base branch.
@@ -45,7 +45,7 @@ A ticket in **Ready to build** whose spec gate is approved.
    - for a `ui` ticket, a **Gallery** table: screen state and platform → gallery page → app screenshot and gallery screenshot.
    - the domain docs that the PR adds or changes, if any.
 8. **Wait for CI** in a subagent on the `CI polling and log reading` model from `models.md` from `craft:rules`. It polls `gh api repos/<repo>/commits/<head sha>/check-runs` about every 30 seconds until each required check has completed, for at most 30 minutes. A required check that has not completed by then, or has not started, counts as failed. If a check failed, the subagent reads the job log with `gh api repos/<repo>/actions/jobs/<job id>/logs` and returns the error. Fix and push. That counts as a failed attempt.
-9. Comment `🤖 build: success — PR <url>` on the ticket. Tell the owner in chat in one line, with the PR link.
+9. Comment `🤖 build: success — PR <url>` on the ticket. Tell the owner in chat in one line, with the PR link. For `mode=one-shot`, send no chat message.
 
 ## Done when
 

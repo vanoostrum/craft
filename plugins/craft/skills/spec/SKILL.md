@@ -61,9 +61,17 @@ When `craft:next` starts this step, the prompt also has a `Brief:`, the blocker 
 6. **Replan check.** Run the replan check from `craft:next` with this spec's decisions and domain docs.
 7. **Gate.** Post `🤖 Gate: spec` with the acceptance criteria, the `(default)` decisions, the replan proposals, and "Reply approve, or give feedback." For a `ui` ticket, the gate also approves the gallery pages: list them, and point to their screenshots on the ticket. In chat, ask for approval, by 👍 on the message or a reply "approve", with the ticket link, the number of criteria, and the `(default)` decisions, one line each, so the owner can override any of them before approving. If there are none, leave the list out. Stop.
 
+## One-shot
+
+**One-shot.** A ticket with `mode=one-shot` in `## Steering` has no spec gate. The grill and the owner's answers are its approval, and the launch gate shows its `(default)` decisions. So, instead of step 7 and **After approval**:
+
+1. Post the replan proposals as **Replan check** in `craft:next` says for one-shot. Do not post `🤖 Gate: spec`.
+2. Move the ticket to **Ready to build**. Comment `🤖 spec: success — <n> criteria (one-shot)`.
+3. Tell the owner in chat, in one line, that the spec is done. Run `craft:next`, which starts the next grill or posts the launch gate.
+
 ## Done when
 
-The ticket has a `## Spec` section and a `🤖 Gate: spec` comment, and the owner has been asked. A `ui` ticket also has its gallery pages committed on its branch.
+The ticket has a `## Spec` section and a `🤖 Gate: spec` comment, and the owner has been asked. For `mode=one-shot`, the ticket is in **Ready to build** instead. A `ui` ticket also has its gallery pages committed on its branch.
 
 ## After approval
 
