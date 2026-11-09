@@ -79,7 +79,7 @@ def test_one_shot_spec_skips_the_spec_gate() -> None:
     text = skill("spec")
     step = text.split("**One-shot.**", 1)[1].split("\n## ", 1)[0]
     assert "Ready to build" in step
-    assert "🤖 Gate: spec" in step
+    assert "Do not post `🤖 Gate: spec`" in step
 
 
 def test_one_shot_merge_needs_the_launch_gate() -> None:
@@ -87,3 +87,33 @@ def test_one_shot_merge_needs_the_launch_gate() -> None:
     step = skill("merge").split("1. **Check the gate.**", 1)[1].split("\n2. ", 1)[0]
     assert "launch" in step
     assert "PASS" in step
+
+
+def test_one_shot_build_does_not_need_a_spec_gate() -> None:
+    """`craft:build`'s readiness check accepts the launch gate for one-shot tickets."""
+    step = skill("build").split("1. **Check that the ticket is ready.**", 1)[1]
+    check = step.split("The spec gate must be approved.", 1)[1].split("\n", 1)[0]
+    assert "`mode=one-shot`" in check
+    assert "🤖 Gate: launch" in check
+
+
+def test_one_shot_retries_keep_the_run_going() -> None:
+    """After the third failure in one-shot mode, Retries starts the next ticket."""
+    rules = skill("rules")
+    retries = rules.split("- **Retries.**", 1)[1].split("\n- **", 1)[0]
+    assert "run `craft:next`" in retries.split("In one-shot mode", 1)[1]
+
+
+def test_next_finds_the_one_shot_phase_from_the_plan_ticket() -> None:
+    """`craft:next` picks the phase from the plan ticket and routes gated tickets."""
+    text = section(skill("next"), "One-shot")
+    assert "Find the phase" in text
+    rows = [line for line in text.splitlines() if line.startswith("| a `🤖 one-shot:`")]
+    assert len(rows) == 1
+    assert "`mode=gated`" in rows[0]
+
+
+def test_one_shot_plan_ticket_stays_open() -> None:
+    """With one-shot, the plan ticket stays open for the launch gate."""
+    after = section(skill("plan"), "After approval")
+    assert "For `mode=one-shot`, leave it open" in after

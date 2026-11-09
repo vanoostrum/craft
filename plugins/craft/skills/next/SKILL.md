@@ -38,17 +38,28 @@ None, or a Linear project. Without a project, use every open ticket in the Linea
 
 When the plan ticket's `## Steering` has `mode=one-shot`, run these phases for the tickets of its Linear project instead of the Steps above. **One-shot mode** in `craft:rules` gives the overview. A ticket with `mode=gated` takes no part in them.
 
+Find the phase from the comments on the plan ticket:
+
+| Plan ticket has | Phase |
+|---|---|
+| no approved `🤖 Gate: launch` | Spec phase, or the launch gate when the spec phase is done |
+| an approved `🤖 Gate: launch`, and no `🤖 one-shot:` comment | Build phase, or the done report when the build lane has nothing left |
+| a `🤖 one-shot:` comment | None. Run the Steps above for the tickets with `mode=gated`. |
+
+A launch gate counts as approved as The gate in `craft:rules` says, and only if no ticket went back to **Todo** after the approval.
+
 1. **Spec phase.** Run the spec lane only. It has no limit on **Ready to build**, and takes one ticket in **Specifying** at a time, in build order, each in a new session as Spec lane in the Steps describes. The build lane takes no ticket yet. Each spec ends without a spec gate and runs `craft:next` again.
-2. **Launch gate.** When every ticket of the phase is in **Ready to build**, check each **Owner first** item and each open **Up front** item that you can. Then post `🤖 Gate: launch` on the plan ticket with:
+2. **Launch gate.** When every ticket of the phase is in **Ready to build** or **Needs human**, check each **Owner first** item and each open **Up front** item that you can. Then post `🤖 Gate: launch` on the plan ticket with:
    - each ticket: key, title, number of criteria, and its `ui` pages;
    - every `(default)` decision of every spec, one line each, with its ticket;
    - the `🤖 replan: pending` comments on the plan ticket;
    - the owner actions that are still open, where to do each, and the value to use;
    - the paid services from **Up front**;
+   - the tickets in **Needs human**, and what blocks each one; they and the tickets that depend on them are not built;
    - the gated tickets, which come after the done report;
    - "Do the open actions, then reply approve, or give feedback."
 
-   In chat, ask for approval, by 👍 on the message or a reply "approve", with the plan ticket link, the number of tickets, the open owner actions, and the paid services, one line each. Stop. Feedback on a spec moves that ticket back to **Todo**: the spec phase grills it again, and then this gate comes again. Apply the approved replan proposals as **Replan check** step 6 says.
+   In chat, ask for approval, by 👍 on the message or a reply "approve", with the plan ticket link, the number of tickets, the open owner actions, and the paid services, one line each. Stop. Feedback on a spec moves that ticket back to **Todo**: the spec phase grills it again, and then this gate comes again. After the approval, apply the approved replan proposals as **Replan check** step 6 says. If that moves a ticket back to **Todo**, the approval no longer counts: go back to the spec phase, and post this gate again when it is done.
 3. **Build phase.** After the approval, run the build lane only, as in the Steps, one ticket in **Building** at a time. The session prompt is `Run craft:build on <key>, then craft:review and craft:merge. Do not stop at the merge gate.` A ticket in **Needs human** does not stop the phase: go on with the tickets that do not depend on it.
 4. **Done report.** When the build lane has nothing left to take, post `🤖 one-shot: success — <n> tickets merged` on the plan ticket, or `🤖 one-shot: partial — <n> merged, <m> need you`. Tell the owner in chat, and send a push notification too if the environment has one:
    - what shipped, with the PR links and the app screenshots;
@@ -57,7 +68,9 @@ When the plan ticket's `## Steering` has `mode=one-shot`, run these phases for t
    - the **Owner after** items, with where to do each;
    - the gated tickets, if any.
 
-   Move the plan ticket to **Done** when no ticket is left in **Needs human**. Then run the Steps above for the gated tickets, with their spec gates and merge gates. If the project has no `Brief: Staging and production` yet, offer `craft:setup deploy` instead.
+   Move the plan ticket to **Done**. The tickets in **Needs human** stay open for the owner.
+
+   Then run the Steps above for the gated tickets, with their spec gates and merge gates. If there are none, and the project has no `Brief: Staging and production` yet, offer `craft:setup deploy`. If the plan's input was a `Brief: Dev environment` that names a **Product brief**, and its walking skeleton is merged, start `craft:plan` on the product brief in a new session, as `craft:merge` step 8 does. Give it `mode=one-shot`: the owner still approves its plan gate.
 
 The milestone checkpoint does not run in the one-shot phases. The done report covers it.
 

@@ -10,15 +10,15 @@ Load the `craft:rules` skill first, and follow it. Then load `craft:bstack` with
 
 ## Input
 
-A ticket in **Ready to build** whose spec gate is approved.
+A ticket in **Ready to build** whose spec gate is approved. For `mode=one-shot`, a ticket in **Ready to build** whose plan ticket has an approved `🤖 Gate: launch`.
 
 ## Steps
 
 1. **Check that the ticket is ready.**
-   - The spec gate must be approved.
+   - The spec gate must be approved. For `mode=one-shot`, there is no spec gate: the ticket must have a `🤖 spec: success` comment, and its plan ticket an approved `🤖 Gate: launch`.
    - Each ticket that blocks it must be **Done**.
    - **Owner first.** If the ticket lists **Owner first** items, such as a secret or a cloud environment setting, check each one you can, for example that the secret is set. For one you cannot check, or that is missing, comment `🤖 build: escalated — owner first: <item>`, tell the owner in chat what to do and where, and stop. For `mode=one-shot`, also move the ticket to **Needs human** and run `craft:next`, so the run goes on with other tickets.
-   - **Stale spec.** Read the glossary terms, ADRs, and code merged since the `🤖 Gate: spec` comment. If they contradict the spec, do not guess. Move the ticket to **Todo**, comment `🤖 build: escalated — stale spec: <what changed>`, and tell the owner. The spec lane grills only the decisions that changed. For `mode=one-shot`, move it to **Needs human** instead of **Todo**, and run `craft:next`: the done report lists it.
+   - **Stale spec.** Read the glossary terms, ADRs, and code merged since the `🤖 Gate: spec` comment, or for `mode=one-shot` since the `🤖 spec: success` comment. If they contradict the spec, do not guess. Move the ticket to **Todo**, comment `🤖 build: escalated — stale spec: <what changed>`, and tell the owner. The spec lane grills only the decisions that changed. For `mode=one-shot`, move it to **Needs human** instead of **Todo**, and run `craft:next`: the done report lists it.
    - If a check fails for another reason, stop and say so.
    Then move the ticket to **Building**.
 2. **Branch.** Create or check out the branch from the naming rule, based on the latest base branch.
