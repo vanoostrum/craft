@@ -22,10 +22,11 @@ A ticket with an open PR and green required checks.
 3. **Post the review** as a PR comment. Do not repeat it in chat.
 4. **If FAIL:** go back to `craft:build` with the review as input. That counts as a failed attempt in the count that `craft:build` and `craft:review` share (see Retries in `craft:rules`).
 5. **If PASS:** post `🤖 Gate: merge` on the ticket with the PR link and the criteria table. In chat, ask for approval, by 👍 on the message or a reply "approve", with the PR link and the review link. Stop.
+   For a ticket with `mode=one-shot` in `## Steering`, there is no merge gate. Comment `🤖 review: success — PASS, merging (one-shot)` on the ticket with the PR link and the criteria table, and continue with `craft:merge` at once. Send no chat message.
 
 ## Done when
 
-The PR has a review comment ending in PASS and the ticket has a `🤖 Gate: merge` comment.
+The PR has a review comment ending in PASS and the ticket has a `🤖 Gate: merge` comment, or, for `mode=one-shot`, a `🤖 review: success` comment.
 
 ## Escalation
 

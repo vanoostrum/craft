@@ -2,7 +2,7 @@
 name: plan
 description: Craft step 0. Turn a brief from craft:brainstorm or craft:setup, a project spec, or a set of features for a working app, into an approved plan of Linear tickets and a rough gallery, then stop at the plan gate. Use for new work that spans more than one or two tickets or adds a new user flow.
 model: opus
-argument-hint: "<brief, spec, file, or link> [design-variants=<n>] [platforms=<list>] [note=<text, file, or link>]..."
+argument-hint: "<brief, spec, file, or link> [design-variants=<n>] [platforms=<list>] [mode=<gated|one-shot>] [note=<text, file, or link>]..."
 ---
 
 # craft:plan
@@ -48,6 +48,7 @@ An idea that is not yet clear, with no answer yet to what it is for and why, sta
      - Items under **Owner first** in the brief's **Owner checklist** are not tickets: copy each one into the description of the first ticket that needs it, under **Owner first**. Copy each **Owner after** item to the ticket after whose merge it is done, under **Owner after**.
      - Write each `(ADR)` decision of the brief to `docs/adr/` in step 6.
    - **Interfaces.** For each ticket, name what it **Consumes** from the tickets it depends on, and what it **Produces** for later tickets: the routes, models, events, glossary terms, or screens that another ticket builds on, by their exact names.
+   - **Gated tickets.** With `mode=one-shot`, give `mode=gated` to each ticket that sets up or changes staging or production, such as a deploy, a production database, a domain, or a paid production resource, and to each ticket that depends on one. Put them at the end of the build order. They keep the spec gate and the merge gate.
    - **Fields.** Give each one a title, a goal of one or two sentences, its dependencies, a Linear priority, and a milestone. A milestone is a set of tickets that gives the owner something to try in the app. Give the `ui` label to each ticket that adds or changes a screen. Put the tickets in build order.
 5. **Design pass.** If any ticket has the `ui` label, run `craft:design` in project mode with the main flows, the plan ticket key, and the brief's **Look** section, if there is one. It reads `design-variants`, `platforms`, and the notes from the plan ticket's `## Steering`, and settles the platforms. It sets the visual identity if there is none, and draws one rough page per main flow. For an increment, it extends the existing gallery and lists each existing page that changes. Add a ticket for each missing screen that it finds, and repeat this step for the new flows.
 6. **Commit** the domain docs to the plan ticket's branch. For a `Brief: Dev environment` in a repo without `.claude/craft.md`, also write `.claude/craft.md` from the brief's **Craft wiring**, with `none yet` for the required checks, the verify skill, and the app driver skill, and add the `@.claude/craft.md` import and the unknown-skill line from the craft README to `CLAUDE.md`. Commit them next to the gallery commits from step 5, with the `Craft-Issue` trailer. Open a PR against the base branch, with the `gh api` calls from **Open the PR** in `craft:build`. Its body has a one-line summary, the plan ticket link, and the plan. It has no acceptance criteria or app evidence.
@@ -59,7 +60,12 @@ An idea that is not yet clear, with no answer yet to what it is for and why, sta
    - **Tickets:** a table in build order, with title, goal, priority, milestone, `ui` yes or no, depends on, consumes, produces, and gallery pages.
    - **Changed pages:** for an increment, each existing gallery page that changes, and how.
    - **Risks:** only if there are any.
-8. **Review in a fresh agent.** Start a subagent on the `plan reviewer` model from `models.md` from `craft:rules`, so the review is not biased by having written the plan. Give it only the plan ticket key and the PR number, and this task:
+   - **Up front:** only with `mode=one-shot`, from step 8.
+8. **Up front.** Only with `mode=one-shot`. In the one-shot build phase nobody waits for the owner, so find now what only the owner can do, and what costs money. Write it under **Up front** in `## Plan`:
+   - **Owner checklist:** every **Before the plan**, **Owner first**, and **Owner after** item of the brief, and every other action that a ticket needs from the owner, such as an account, an API key, a secret in the cloud environment, a network host, a Linear state, or a repository setting. For each item: the ticket, where the owner does it, and the value to use. Check each one you can, and mark it done or open.
+   - **Paid services:** every external service that a ticket uses and that costs money, or can start to cost money, such as a host past its free plan, a database, an email or SMS service, or an AI API. For each one: the ticket, the plan, the price, the free limits, and what makes the cost grow. Read the current price on the provider's pricing page, and write the date you read it. Follow `preferences.md` from `craft:setup`. Say if a choice leaves the plan the owner is on, such as a commercial use on a Hobby plan. If no service costs money, write `none`.
+   - **Gated tickets:** the tickets with `mode=gated`, and why.
+9. **Review in a fresh agent.** Start a subagent on the `plan reviewer` model from `models.md` from `craft:rules`, so the review is not biased by having written the plan. Give it only the plan ticket key and the PR number, and this task:
 
    > Load the `craft:bstack` skill first. Read the input and the `## Plan` of the Linear ticket, and the PR diff. Check that:
    > - every flow and requirement in the input is covered by a ticket, and nothing out of scope is in a ticket;
@@ -75,12 +81,13 @@ An idea that is not yet clear, with no answer yet to what it is for and why, sta
    > - the gallery pages follow the gallery rules in `gallery.md` from `craft:rules`. Open their screenshots on the Linear ticket;
    > - the decisions agree with `GLOSSARY.md` and `docs/adr/`;
    > - the plan follows the notes under `## Steering` on the plan ticket;
+   > - with `mode=one-shot`: **Up front** names every owner action and every paid service that a ticket needs, with a price and the date it was read, and each ticket that sets up or changes staging or production, or depends on one, has `mode=gated`;
    > - for an increment, every existing page and flow that changes is listed.
    >
    > List real problems only, each with the ticket or file it concerns. Write the review with the `craft:clear-technical-prose` skill. End with PASS or FAIL.
 
    Post the review as a PR comment. If it ends in FAIL, fix the plan, the tickets, or the gallery, go back to the step that the problem belongs to, and review again. That counts as a failed attempt.
-9. **Gate.** Post `🤖 Gate: plan` with the ticket table, the gallery screenshots, the PR link, and the review link, and "Reply approve, or give feedback." In chat, ask for approval, by 👍 on the message or a reply "approve", with the ticket link, the number of tickets, and the review link. Stop.
+10. **Gate.** Post `🤖 Gate: plan` with the ticket table, the gallery screenshots, the PR link, and the review link, and "Reply approve, or give feedback." With `mode=one-shot`, add **Up front**, and say that this approval starts the grills of every ticket, and that only the launch gate comes before the builds. In chat, ask for approval, by 👍 on the message or a reply "approve", with the ticket link, the number of tickets, and the review link. With `mode=one-shot`, add the paid services and the open owner actions, one line each. Stop.
 
 ## Escalation
 
@@ -89,6 +96,6 @@ After 3 failed attempts (review or CI), follow Retries in `craft:rules`.
 ## After approval
 
 1. Wait for the required checks on the PR to be green, as **Wait for CI** in `craft:build` describes. The plan gate approval is also the merge approval for this PR. Merge it with **Check CI**, **Merge**, and **Check the branch is gone** in `craft:merge`. No commits may have been pushed after the `🤖 Gate: plan` comment; if there were, ask for approval again.
-2. Create the milestones in the Linear project. Create each ticket from the table in **Todo**. Each ticket gets its goal, its Consumes and Produces, the Constraints word for word, the decisions it depends on, links to its gallery pages, its priority and milestone, the `ui` label where set, its **Owner first** items, a copy of the plan ticket's `## Steering`, and blocking relations for its dependencies. Create the `ui` label in the team if it does not exist.
+2. Create the milestones in the Linear project. Create each ticket from the table in **Todo**. Each ticket gets its goal, its Consumes and Produces, the Constraints word for word, the decisions it depends on, links to its gallery pages, its priority and milestone, the `ui` label where set, its **Owner first** items, a copy of the plan ticket's `## Steering`, with `mode=gated` where step 4 set it, and blocking relations for its dependencies. Create the `ui` label in the team if it does not exist.
 3. Move the plan ticket to **Done**. Comment `🤖 plan: success — <n> tickets in <project link>`. Tell the owner in chat in one line.
-4. Run `craft:next`. Do not stop after step 3. `craft:next` picks the tickets in priority and build order, and runs the spec lane and the build lane in parallel. Each ticket's grill reads the plan's decisions first and asks only what the plan left open.
+4. Run `craft:next`. Do not stop after step 3. `craft:next` picks the tickets in priority and build order, and runs the spec lane and the build lane in parallel. Each ticket's grill reads the plan's decisions first and asks only what the plan left open. With `mode=one-shot`, `craft:next` runs the one-shot phases instead.

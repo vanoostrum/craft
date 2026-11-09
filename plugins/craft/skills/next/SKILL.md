@@ -34,6 +34,33 @@ None, or a Linear project. Without a project, use every open ticket in the Linea
    - Tell the owner in chat in one line that a grill is waiting, with the ticket link and where it runs.
 5. **Nothing to pick.** If neither lane can take a ticket, say why in one line: what each lane waits on.
 
+## One-shot
+
+When the plan ticket's `## Steering` has `mode=one-shot`, run these phases for the tickets of its Linear project instead of the Steps above. **One-shot mode** in `craft:rules` gives the overview. A ticket with `mode=gated` takes no part in them.
+
+1. **Spec phase.** Run the spec lane only. It has no limit on **Ready to build**, and takes one ticket in **Specifying** at a time, in build order, each in a new session as Spec lane in the Steps describes. The build lane takes no ticket yet. Each spec ends without a spec gate and runs `craft:next` again.
+2. **Launch gate.** When every ticket of the phase is in **Ready to build**, check each **Owner first** item and each open **Up front** item that you can. Then post `🤖 Gate: launch` on the plan ticket with:
+   - each ticket: key, title, number of criteria, and its `ui` pages;
+   - every `(default)` decision of every spec, one line each, with its ticket;
+   - the `🤖 replan: pending` comments on the plan ticket;
+   - the owner actions that are still open, where to do each, and the value to use;
+   - the paid services from **Up front**;
+   - the gated tickets, which come after the done report;
+   - "Do the open actions, then reply approve, or give feedback."
+
+   In chat, ask for approval, by 👍 on the message or a reply "approve", with the plan ticket link, the number of tickets, the open owner actions, and the paid services, one line each. Stop. Feedback on a spec moves that ticket back to **Todo**: the spec phase grills it again, and then this gate comes again. Apply the approved replan proposals as **Replan check** step 6 says.
+3. **Build phase.** After the approval, run the build lane only, as in the Steps, one ticket in **Building** at a time. The session prompt is `Run craft:build on <key>, then craft:review and craft:merge. Do not stop at the merge gate.` A ticket in **Needs human** does not stop the phase: go on with the tickets that do not depend on it.
+4. **Done report.** When the build lane has nothing left to take, post `🤖 one-shot: success — <n> tickets merged` on the plan ticket, or `🤖 one-shot: partial — <n> merged, <m> need you`. Tell the owner in chat, and send a push notification too if the environment has one:
+   - what shipped, with the PR links and the app screenshots;
+   - each ticket in **Needs human** or blocked by one, and what blocks it;
+   - the `🤖 replan: pending` proposals from the build phase;
+   - the **Owner after** items, with where to do each;
+   - the gated tickets, if any.
+
+   Move the plan ticket to **Done** when no ticket is left in **Needs human**. Then run the Steps above for the gated tickets, with their spec gates and merge gates. If the project has no `Brief: Staging and production` yet, offer `craft:setup deploy` instead.
+
+The milestone checkpoint does not run in the one-shot phases. The done report covers it.
+
 ## Replan check
 
 `craft:spec` runs this after the owner approves a spec. `craft:merge` runs it after a merge, in a subagent on the `replan check` model from `models.md`, because the merge step runs on a small model. It keeps the backlog in step with what craft has learned.
@@ -44,7 +71,7 @@ None, or a Linear project. Without a project, use every open ticket in the Linea
 4. **Gallery pages.** For each open `ui` ticket, check its gallery pages against the new facts:
    - A change to the look lives in `design/gallery.css` or, from gallery stage 2, `design/components/`. Every page follows. Propose no redraw. Name the pages to look at again in their next screenshots.
    - A change to a screen, such as a field, a state, or the copy, does not follow on its own. Propose to mark the page stale. Do not redraw it now: `craft:design` redraws it when that ticket is grilled.
-5. Post the proposals with the gate or the merge message, as the calling step says. They need the owner's approval. One approval covers the gate and the proposals.
+5. Post the proposals with the gate or the merge message, as the calling step says. They need the owner's approval. One approval covers the gate and the proposals. For a ticket with `mode=one-shot`, nobody waits: post each proposal on the plan ticket as `🤖 replan: pending — <proposal>`, for the launch gate or the done report. If a proposal shows that the spec of a ticket in **Ready to build** is wrong, also move that ticket to **Needs human** in the build phase, with the reason. In the spec phase, post a proposal for a ticket in **Todo** on that ticket too: its grill reads it.
 6. **After approval**, apply each change in Linear. Mark a stale page with a ticket comment `🤖 replan: stale <page> — <the decision that changed it>`. A change to a ticket in **Ready to build** moves it back to **Todo**, so the spec lane grills it again.
 7. Comment on each changed ticket `🤖 replan: success — <one line>`.
 

@@ -19,6 +19,10 @@ Before the tickets, craft can brainstorm an idea with the owner into a brief (`c
 
 The steps keep plain names: `craft:brainstorm`, `craft:setup`, `craft:plan`, `craft:spec`, `craft:design`, `craft:build`, `craft:review`, `craft:merge`, and `craft:next`. `craft:rules` holds the rules that every step loads first.
 
+## One-shot mode
+
+Run `craft:plan <brief> mode=one-shot` to take a whole plan to merged code with two approvals. The plan lists up front every action only you can take and every paid service, with its price. After the plan gate, craft grills every ticket with you, one after another, without spec gates. The launch gate then shows all specs, the open owner actions, and the costs. After you approve it, craft builds, reviews, and merges every ticket on its own, and tells you when it is done. Tickets that set up or change staging or production keep the spec gate and the merge gate, and run after the rest.
+
 ## Install
 
 This repository is a plugin marketplace with two plugins: `craft`, and `pstack` pinned to the version that craft is tested with.
@@ -28,7 +32,7 @@ This repository is a plugin marketplace with two plugins: `craft`, and `pstack` 
 
   ```json
   "extraKnownMarketplaces": {
-    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.1.0" } }
+    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.2.0" } }
   },
   "enabledPlugins": { "craft@craft": true, "pstack@craft": true }
   ```
