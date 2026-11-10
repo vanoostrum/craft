@@ -9,10 +9,10 @@ The calling step gives the subagent only the ticket key or the plan ticket key, 
 
 ## Task
 
-> Load the `craft:bstack` skill first. Read `GLOSSARY.md` and `docs/adr/` on the base branch, and the `## Plan` of the plan ticket, if the ticket came from a plan.
+> Load the `craft:bstack` skill first. Read `GLOSSARY.md` and `docs/adr/` on the base branch, and the plan document, if the ticket came from a plan: the `Plan: <name>` document that the plan ticket links.
 >
 > - **Ticket scope:** the spec under review is the `## Spec` of the given ticket. The other specs are the `## Spec` of each other ticket in its Linear project that has one, and the specs of the tickets that block it.
-> - **Plan scope:** the specs under review are the `## Spec` of each ticket in the plan's Linear project that does not have `mode=gated`. The other specs are all of them.
+> - **Plan scope:** the specs under review are the `## Spec` of each sub-issue of the plan ticket that does not have `mode=gated`. The other specs are all of them.
 >
 > Check each spec under review on its own:
 > - each acceptance criterion is testable, and a client can observe it at the test seam that the spec names;

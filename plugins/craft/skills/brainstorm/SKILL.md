@@ -19,7 +19,7 @@ An idea from the owner, as text, a file, or a link. Optional `note=` arguments f
 
 ## Steps
 
-1. **Read what exists.** For an existing app, read the code, `GLOSSARY.md`, `docs/adr/`, `design/`, and the open tickets in the Linear team. Read the files and links in the notes. Do not ask the owner what these already answer, and do not reopen what they already decide.
+1. **Read what exists.** For an existing app, read the code, `GLOSSARY.md`, `docs/adr/`, `design/`, and the open tickets in the Linear project from the config. Read the files and links in the notes. Do not ask the owner what these already answer, and do not reopen what they already decide.
 2. **First message.** Say the idea back in your own words: what the owner wants, for whom, and why, as far as the owner has said. Add what you found that bears on it, such as how the app works today, or a constraint or a cheaper path the owner may not have seen. Then ask one open question about why the owner wants it, unless the owner already said so.
 3. **The conversation.** Ask one question at a time, in chat. Build each question on the owner's last answer or on something you found.
    - Until you know why the owner wants it, ask open questions, with no recommended answer and no options to pick from. Options steer the owner away from their own words.
@@ -32,7 +32,7 @@ An idea from the owner, as text, a file, or a link. Optional `note=` arguments f
 6. **Directions.** Once you know what the owner wants, lay out two or three product directions in a message of their own: different ways the idea could work for its users, not different technologies. Drop the weak ones. Say what each trades off, recommend one, and ask the owner to pick.
 7. **Look and feel.** If the idea has screens and their look matters to it, sketch them in Claude Design: the Artifact tool's Design type, started with `quickstart` and intent `design`. Draw two or three throwaway variants that differ in direction, such as layout, density, or tone, not in detail. The owner picks one, or combines parts. Do not write to `design/`: `craft:design` freezes the gallery in `craft:plan`.
 8. **Size it.** If the idea is several increments, say so, agree on an order with the owner, and brief the first one only. Note the others under **Later** in the brief.
-9. **Write the brief.** Create a Linear project for the increment, named after the idea. Write the brief as a Linear document in that project, titled `Brief: <name>`, with the `craft:clear-technical-prose` skill:
+9. **Write the brief.** Write the brief as a Linear document in the Linear project from the config, titled `Brief: <name>`. For a new project, with no `.claude/craft.md` yet, create a Linear project named after the product in the owner's Linear team first, or use the one the owner names. Write it with the `craft:clear-technical-prose` skill:
    - **Intent:** what to build, for whom, and why, in the owner's terms.
    - **Success:** what success looks like to the owner.
    - **Goals**, **Non-goals**, and **Anti-goals.**
@@ -59,4 +59,4 @@ Start `craft:plan` in a new session, so that the plan starts with a fresh contex
 
 ## Done when
 
-The brief is a Linear document in the increment's Linear project, the owner has approved it, and `craft:plan` or `craft:setup dev` is started on it.
+The brief is a Linear document in the project's Linear project, the owner has approved it, and `craft:plan` or `craft:setup dev` is started on it.
