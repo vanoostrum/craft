@@ -32,7 +32,7 @@ When `craft:next` starts this step, the prompt also has a `Brief:`, the blocker 
    - Ask the rounds in chat. This is an exception to the Chat rule in `craft:rules`.
    - If the ticket is already clear, the first frontier can be empty. Then skip to the next step.
    - Do not write `GLOSSARY.md` or ADR files in the repo now. Write the new and changed glossary terms and ADRs into the spec, under **Domain docs**. `craft:build` commits them.
-   - If the owner gave spec feedback, grill only the decisions that the feedback opens again.
+   - If the owner gave spec feedback, grill only the decisions that the feedback opens again. A `🤖 spec review:` comment from the one-shot spec review counts as spec feedback. Fix what you can decide yourself, and ask the owner only what **What to ask** names.
    - Read the ticket's `🤖 replan` comments. They name the decisions of other tickets that changed this one.
    - If `craft:build` sent the ticket back with a stale spec, grill only the decisions that the merged code changed.
    - **What to ask.** Ask the owner only about:
