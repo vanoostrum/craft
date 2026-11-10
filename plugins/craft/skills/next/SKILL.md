@@ -49,21 +49,7 @@ Find the phase from the comments on the plan ticket:
 A launch gate counts as approved as The gate in `craft:rules` says, and only if no ticket went back to **Todo** after the approval.
 
 1. **Spec phase.** Run the spec lane only. It has no limit on **Ready to build**, and takes one ticket in **Specifying** at a time, in build order, each in a new session as Spec lane in the Steps describes. The build lane takes no ticket yet. Each spec ends without a spec gate and runs `craft:next` again.
-2. **Spec review.** When every ticket of the phase is in **Ready to build** or **Needs human**, start a subagent on the `spec reviewer` model from `models.md` from `craft:rules`, so the review is not biased by having written the specs. Give it only the plan ticket key, and this task:
-
-   > Load the `craft:bstack` skill first. Read the `## Plan` of the plan ticket. Read the `## Spec` of each ticket in its Linear project that does not have `mode=gated`, and `GLOSSARY.md` and `docs/adr/` on the base branch. Check each spec on its own:
-   > - each acceptance criterion is testable, and a client can observe it at the test seam that the spec names;
-   > - each line under **Review focus** has a task in **Plan** that tests it;
-   > - the spec keeps the ticket's goal, its Consumes, Produces, and Constraints word for word, and the plan's decisions.
-   >
-   > Then check the specs together, as one system:
-   > - each name that a spec consumes is produced by a spec of a ticket it depends on, with the same name, fields, states, and errors;
-   > - no two specs decide the same thing differently, such as a rule, a state, a limit, copy, or a glossary term, and no two **Domain docs** change the same term or ADR in different ways;
-   > - nothing falls between tickets: each step of each main flow in the plan is in the criteria of a spec, and no two specs build the same thing;
-   > - the specs together cover the plan's **Scope**, and nothing in its **Out of scope**;
-   > - where the flows of `ui` tickets meet, their gallery pages agree on navigation, names, and states.
-   >
-   > List real problems only. For each one, name the tickets and the spec lines it concerns, and say whether the fix needs the owner: a question on behavior, UX, or an architecture choice against `docs/adr/`. Write the review with the `craft:clear-technical-prose` skill. End with PASS or FAIL.
+2. **Spec review.** When every ticket of the phase is in **Ready to build** or **Needs human**, run the spec review in plan scope, as `spec-review.md` from `craft:rules` describes. Give the subagent the plan ticket key.
 
    Post the review on the plan ticket as `🤖 spec review: <PASS or FAIL> — <one line>`, with the review below it. If it ends in FAIL, post each problem on each ticket it concerns as `🤖 spec review: <problem>`, and move those tickets back to **Todo**. The spec phase grills them again, and then this review runs again. That counts as a failed attempt for the plan ticket. After the third FAIL, do not move tickets to **Needs human**: go on to the launch gate, and list the open problems on it for the owner.
 3. **Launch gate.** When the spec review ends in PASS, or after its third FAIL, check each **Owner first** item and each open **Up front** item that you can. Then post `🤖 Gate: launch` on the plan ticket with:

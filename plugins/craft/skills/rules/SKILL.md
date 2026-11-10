@@ -52,6 +52,7 @@ Craft's own files sit next to this skill, in its base directory. The steps write
 | File | What |
 |---|---|
 | `models.md` | The model for each step, each subagent, and each pstack role. |
+| `spec-review.md` | The fresh-agent review of specs, before the spec gate or the launch gate. |
 | `gallery.md` | The gallery rules: platforms, page rules, who changes the gallery, and the rollout stages. |
 | `scripts/gallery-shot` | Takes a screenshot of a gallery page for one platform. |
 
@@ -70,7 +71,7 @@ Load `craft:bstack` with the Skill tool before any `pstack:` skill. A hook block
 | Plan, once per project or increment, with a fresh-agent review | `craft:plan` | — | Plan ticket: Specifying |
 | 🚦 The gate: plan | — | — | Plan ticket: Specifying |
 | Pick the next ticket for each lane | `craft:next` | — | Todo, or Ready to build |
-| Spec, with `craft:grill-with-docs` | `craft:spec` | spec | Specifying |
+| Spec, with `craft:grill-with-docs` and a fresh-agent spec review | `craft:spec` | spec | Specifying |
 | Design, for tickets with the `ui` label | `craft:design` | spec | Specifying |
 | 🚦 The gate: spec, with the replan check | — | spec | Specifying, then Ready to build |
 | Build + test | `craft:build` | build | Building |

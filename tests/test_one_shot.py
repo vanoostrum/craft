@@ -126,13 +126,29 @@ def test_one_shot_plan_ticket_stays_open() -> None:
 
 
 def test_spec_review_checks_each_spec_and_all_specs_together() -> None:
-    """The one-shot spec review runs in a fresh agent over every spec at once."""
+    """The spec review checks each spec, and the specs as one system."""
+    review = (SKILLS / "rules" / "spec-review.md").read_text(encoding="utf-8")
+    assert "Check each spec under review on its own" in review
+    assert "check it against the other specs, as one system" in review
+    assert "**Ticket scope.**" in review
+    assert "**Plan scope.**" in review
+
+
+def test_one_shot_runs_the_spec_review_in_plan_scope() -> None:
+    """Before the launch gate, `craft:next` reviews all specs and reopens bad ones."""
     text = section(skill("next"), "One-shot")
     step = text.split("**Spec review.**", 1)[1].split("**Launch gate.**", 1)[0]
-    assert "`spec reviewer` model" in step
-    assert "Check each spec on its own" in step
-    assert "Then check the specs together" in step
+    assert "plan scope" in step
     assert "back to **Todo**" in step
+
+
+def test_gated_spec_runs_the_spec_review_before_the_gate() -> None:
+    """In the gated flow, `craft:spec` reviews the spec in ticket scope first."""
+    text = skill("spec")
+    review = text.index("**Spec review.** For a ticket")
+    gate = text.index("**Gate.** Post `🤖 Gate: spec`")
+    assert review < gate
+    assert "ticket scope" in text[review:gate]
 
 
 def test_spec_reviewer_has_a_model() -> None:
