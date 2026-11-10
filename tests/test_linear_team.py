@@ -357,3 +357,12 @@ def test_several_plans_share_one_linear_project() -> None:
     assert "no `Linear project` key" in skill("rules")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "Upgrade to 2.3" in readme
+
+
+def test_a_step_refuses_a_ticket_of_another_project() -> None:
+    """In a shared team, a step checks the ticket's Linear project first."""
+    rule = (
+        skill("rules").split("- **One project's tickets.**", 1)[1].split("\n- **", 1)[0]
+    )
+    assert "Linear project from the config" in rule
+    assert "stop and tell the owner" in rule
