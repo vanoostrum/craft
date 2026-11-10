@@ -39,7 +39,7 @@ One of:
 
 1. Compare the gallery with the trigger of the stage after `Current stage`.
 2. Stage 1 is the exception: do its work in this run, and set `Current stage: 1` in the same commit.
-3. For a later stage, if the trigger is met, search the Linear team for an open ticket titled `Gallery stage <n>`. If there is none, create it with the work that the stage lists. Do not give it the `ui` label: it changes the gallery's structure, not a screen. Tell the owner in chat in one line, with the link.
+3. For a later stage, if the trigger is met, search the Linear project for an open ticket titled `Gallery stage <n>`. If there is none, create it with the work that the stage lists. Do not give it the `ui` label: it changes the gallery's structure, not a screen. Tell the owner in chat in one line, with the link.
 4. Go on with this run. The stage ticket goes through craft like any other ticket, and it updates `Current stage`.
 
 ## Done when

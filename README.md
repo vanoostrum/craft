@@ -32,7 +32,7 @@ This repository is a plugin marketplace with two plugins: `craft`, and `pstack` 
 
   ```json
   "extraKnownMarketplaces": {
-    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.2.0" } }
+    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.3.0" } }
   },
   "enabledPlugins": { "craft@craft": true, "pstack@craft": true }
   ```
@@ -53,6 +53,7 @@ When it is done, a project gives craft these things:
    | Key | Value |
    |---|---|
    | Linear team | `ABC` |
+   | Linear project | `Abc` |
    | GitHub repo | `owner/repo` |
    | Base branch | `main` |
    | Required CI checks | `checks` |
@@ -71,7 +72,7 @@ When it is done, a project gives craft these things:
    > If a skill is unknown, read `.claude/skills/<name>/SKILL.md` and follow it.
 
 5. **Fixed paths:** `GLOSSARY.md`, `docs/adr/`, and the design gallery in `design/`. `craft:design` creates the gallery on its first run.
-6. **A Linear team** with the states Todo, Specifying, Ready to build, Building, In Review, Done, and Needs human, and the label `ui`.
+6. **A Linear team and a Linear project.** One team holds all of the owner's projects; each project is a Linear project in it, with the briefs and plans as documents and the tickets as its backlog. The team has the states Todo, Specifying, Ready to build, Building, In Review, Done, and Needs human, and the label `ui`. `craft:setup` creates the team, or completes an existing team, and creates the project, with `plugins/craft/skills/setup/scripts/linear_team.py`. The script needs a Linear personal API key that can create teams. In the cloud environment, allow the host `api.linear.app` and add a network secret for it: header `Authorization`, the key as the value, without `Bearer`. In a terminal, set `LINEAR_API_KEY`. Linear's Free plan allows two teams.
 7. **A GitHub repository** with the required checks on the base branch and "Automatically delete head branches" on.
 
 ## Development

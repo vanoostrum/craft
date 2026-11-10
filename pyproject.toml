@@ -1,6 +1,6 @@
 [project]
 name = "craft"
-version = "2.2.0"
+version = "2.3.0"
 description = "Tests for the craft Claude Code plugin."
 requires-python = ">=3.12"
 dependencies = []

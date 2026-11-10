@@ -12,7 +12,7 @@ Craft works in two lanes. The **spec lane** needs the owner: grill, design, and 
 
 ## Input
 
-None, or a Linear project. Without a project, use every open ticket in the Linear team from the config.
+None, or a plan ticket. Without one, use every open ticket in the Linear project from the config. With one, use its sub-issues.
 
 ## Lanes
 
@@ -26,7 +26,7 @@ None, or a Linear project. Without a project, use every open ticket in the Linea
 ## Steps
 
 1. **Read the board.** List the open tickets with their state, priority, and blocking relations. Skip tickets in **Needs human** and plan tickets.
-2. **Sort** the candidates of each lane by Linear priority, then by the build order in the plan ticket's `## Plan` table.
+2. **Sort** the candidates of each lane by Linear priority, then by the build order in the table of the plan document.
 3. **Build lane.** If the lane has room and a ticket is ready, start a new Claude Code session for it with this prompt: `Run craft:build on <key>, then craft:review. Stop at the merge gate.` Use what the environment offers. In a claude.ai project, ask the coordinator for a new thread. In a terminal, run `claude -p "<prompt>"` in a background shell. A build must not run in a spec session, because the grill there waits on the owner.
 4. **Spec lane.** If the lane has room and a ticket is ready, start a new Claude Code session for it, so that each grill starts with a fresh context. The new session reads `GLOSSARY.md` and `docs/adr/` for the shared conventions and decisions. It gets one more thing from this session: a blocker brief, of the tickets that this ticket depends on.
    - **Write the blocker brief.** For each ticket that blocks this ticket, read its `## Spec` and write two to four lines: the key and title, the goal, what it produces that this ticket consumes, and the decisions and domain docs that this ticket builds on. Leave out the rest. If no ticket blocks it, the blocker brief is `none`.
@@ -36,7 +36,7 @@ None, or a Linear project. Without a project, use every open ticket in the Linea
 
 ## One-shot
 
-When the plan ticket's `## Steering` has `mode=one-shot`, run these phases for the tickets of its Linear project instead of the Steps above. **One-shot mode** in `craft:rules` gives the overview. A ticket with `mode=gated` takes no part in them.
+When the plan ticket's `## Steering` has `mode=one-shot`, run these phases for the sub-issues of the plan ticket instead of the Steps above. **One-shot mode** in `craft:rules` gives the overview. A ticket with `mode=gated` takes no part in them.
 
 Find the phase from the comments on the plan ticket:
 

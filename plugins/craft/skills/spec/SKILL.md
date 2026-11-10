@@ -23,12 +23,12 @@ When `craft:next` starts this step, the prompt also has a `Brief:`, the blocker 
 
 1. **Get the ticket.**
    - Ticket key: read it, with all comments.
-   - Description: create a ticket in the Linear team from the config, with a short title and the description. Tell the owner the key.
+   - Description: create a ticket in the Linear team and the Linear project from the config, with a short title and the description. Tell the owner the key.
    - Steering arguments: write them under `## Steering` in the ticket description. They replace the values that are already there.
 2. Move the ticket to **Specifying**.
 3. **Grill.** Run the `craft:grill-with-docs` skill on the ticket. It asks the owner questions in rounds and reads the code to find facts. Follow it, with these rules:
    - Read `GLOSSARY.md` and `docs/adr/` first, if they exist. Then read the blocker brief. Read a blocking ticket's full spec only when the blocker brief leaves a question about it open.
-   - If the ticket came from a plan, read the plan ticket's `## Plan` first. Ask only what the plan left open. Keep the ticket's Consumes, Produces, and Constraints: use the names and values exactly as they are written. A change to one of them is a replan proposal, not a spec decision.
+   - If the ticket came from a plan, read the plan document first: the `Plan: <name>` document that the plan ticket links. Ask only what the plan left open. Keep the ticket's Consumes, Produces, and Constraints: use the names and values exactly as they are written. A change to one of them is a replan proposal, not a spec decision.
    - Ask the rounds in chat. This is an exception to the Chat rule in `craft:rules`.
    - If the ticket is already clear, the first frontier can be empty. Then skip to the next step.
    - Do not write `GLOSSARY.md` or ADR files in the repo now. Write the new and changed glossary terms and ADRs into the spec, under **Domain docs**. `craft:build` commits them.
