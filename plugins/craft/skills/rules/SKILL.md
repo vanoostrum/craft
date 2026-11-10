@@ -88,9 +88,10 @@ When asked to "work on" a ticket or a feature, run the steps in order from where
 
 1. **Plan.** As usual, and also an **Up front** list: every action that only the owner can take, and every paid service with its plan and price. The plan gate shows it, and the tickets that keep their gates.
 2. **Spec phase.** `craft:next` grills every ticket of the plan, one after another, each in a new session. There is no spec gate: a spec goes straight to **Ready to build**. No ticket is built yet.
-3. **Launch gate.** When every ticket is specified, `craft:next` posts `🤖 Gate: launch` on the plan ticket: all specs, all `(default)` decisions, the open owner actions, and the paid services. The owner does the open actions and approves.
-4. **Build phase.** `craft:next` builds, reviews, and merges each ticket on its own, in build order. A PASS from the fresh reviewer replaces the merge gate.
-5. **Done report.** When no ticket is left to build, `craft:next` tells the owner what shipped, what is in **Needs human**, and what the owner still has to do.
+3. **Spec review.** When every ticket is specified, a fresh agent reviews each spec, and all specs together: do they align, and is anything missing or contradictory? A problem sends its tickets back to the spec phase.
+4. **Launch gate.** When the spec review passes, `craft:next` posts `🤖 Gate: launch` on the plan ticket: all specs, all `(default)` decisions, the open owner actions, and the paid services. The owner does the open actions and approves.
+5. **Build phase.** `craft:next` builds, reviews, and merges each ticket on its own, in build order. A PASS from the fresh reviewer replaces the merge gate.
+6. **Done report.** When no ticket is left to build, `craft:next` tells the owner what shipped, what is in **Needs human**, and what the owner still has to do.
 
 Tickets that set up or change staging or production keep `mode=gated`. They skip the one-shot phases and go through the spec gate and the merge gate as usual, after the done report. A ticket that depends on a gated ticket is gated too. Each step reads the mode from `## Steering` on its ticket.
 

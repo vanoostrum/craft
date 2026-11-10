@@ -63,7 +63,13 @@ def test_plan_lists_manual_actions_and_paid_services_up_front() -> None:
 def test_next_has_the_one_shot_phases() -> None:
     """`craft:next` runs a spec phase, the launch gate, a build phase, and a report."""
     text = section(skill("next"), "One-shot")
-    for phase in ("Spec phase", "Launch gate", "Build phase", "Done report"):
+    for phase in (
+        "Spec phase",
+        "Spec review",
+        "Launch gate",
+        "Build phase",
+        "Done report",
+    ):
         assert f"**{phase}.**" in text
     assert "👍" in text
 
@@ -117,3 +123,24 @@ def test_one_shot_plan_ticket_stays_open() -> None:
     """With one-shot, the plan ticket stays open for the launch gate."""
     after = section(skill("plan"), "After approval")
     assert "For `mode=one-shot`, leave it open" in after
+
+
+def test_spec_review_checks_each_spec_and_all_specs_together() -> None:
+    """The one-shot spec review runs in a fresh agent over every spec at once."""
+    text = section(skill("next"), "One-shot")
+    step = text.split("**Spec review.**", 1)[1].split("**Launch gate.**", 1)[0]
+    assert "`spec reviewer` model" in step
+    assert "Check each spec on its own" in step
+    assert "Then check the specs together" in step
+    assert "back to **Todo**" in step
+
+
+def test_spec_reviewer_has_a_model() -> None:
+    """`models.md` names the model of the spec reviewer."""
+    models = (SKILLS / "rules" / "models.md").read_text(encoding="utf-8")
+    assert "| spec reviewer |" in models
+
+
+def test_spec_treats_a_spec_review_as_feedback() -> None:
+    """`craft:spec` grills again on the problems the spec review found."""
+    assert "`🤖 spec review:` comment" in skill("spec")

@@ -21,7 +21,7 @@ The steps keep plain names: `craft:brainstorm`, `craft:setup`, `craft:plan`, `cr
 
 ## One-shot mode
 
-Run `craft:plan <brief> mode=one-shot` to take a whole plan to merged code with two approvals. The plan lists up front every action only you can take and every paid service, with its price. After the plan gate, craft grills every ticket with you, one after another, without spec gates. The launch gate then shows all specs, the open owner actions, and the costs. After you approve it, craft builds, reviews, and merges every ticket on its own, and tells you when it is done. Tickets that set up or change staging or production keep the spec gate and the merge gate, and run after the rest.
+Run `craft:plan <brief> mode=one-shot` to take a whole plan to merged code with two approvals. The plan lists up front every action only you can take and every paid service, with its price. After the plan gate, craft grills every ticket with you, one after another, without spec gates. A fresh agent then reviews every spec, and all specs together, for gaps and contradictions. The launch gate shows that review, all specs, the open owner actions, and the costs. After you approve it, craft builds, reviews, and merges every ticket on its own, and tells you when it is done. Tickets that set up or change staging or production keep the spec gate and the merge gate, and run after the rest.
 
 ## Install
 
