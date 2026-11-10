@@ -58,12 +58,13 @@ When `craft:next` starts this step, the prompt also has a `Brief:`, the blocker 
    - **Domain docs:** only if there are any. The exact `GLOSSARY.md` entries and ADR files to add or change, in the formats of the `craft:domain-modeling` skill.
    - **Risks:** only if there are any.
    If a spec already exists and the owner gave feedback, update it instead and note what changed.
-6. **Replan check.** Run the replan check from `craft:next` with this spec's decisions and domain docs.
-7. **Gate.** Post `🤖 Gate: spec` with the acceptance criteria, the `(default)` decisions, the replan proposals, and "Reply approve, or give feedback." For a `ui` ticket, the gate also approves the gallery pages: list them, and point to their screenshots on the ticket. In chat, ask for approval, by 👍 on the message or a reply "approve", with the ticket link, the number of criteria, and the `(default)` decisions, one line each, so the owner can override any of them before approving. If there are none, leave the list out. Stop.
+6. **Spec review.** For a ticket with `mode=one-shot`, skip this step: the spec review in plan scope runs before the launch gate. Otherwise, run the spec review in ticket scope, as `spec-review.md` from `craft:rules` describes. Give the subagent the ticket key. Post the review on the ticket as `🤖 spec review: <PASS or FAIL> — <one line>`, with the review below it. If it ends in FAIL, fix the spec. For a problem that needs the owner, ask in chat, as a grill round. For a problem in another ticket's spec, propose the change in the replan check. Then review again. That counts as a failed attempt.
+7. **Replan check.** Run the replan check from `craft:next` with this spec's decisions and domain docs.
+8. **Gate.** Post `🤖 Gate: spec` with the spec review link, the acceptance criteria, the `(default)` decisions, the replan proposals, and "Reply approve, or give feedback." For a `ui` ticket, the gate also approves the gallery pages: list them, and point to their screenshots on the ticket. In chat, ask for approval, by 👍 on the message or a reply "approve", with the ticket link, the number of criteria, and the `(default)` decisions, one line each, so the owner can override any of them before approving. If there are none, leave the list out. Stop.
 
 ## One-shot
 
-**One-shot.** A ticket with `mode=one-shot` in `## Steering` has no spec gate. The grill and the owner's answers are its approval, and the launch gate shows its `(default)` decisions. So, instead of step 7 and **After approval**:
+**One-shot.** A ticket with `mode=one-shot` in `## Steering` has no spec gate. The grill and the owner's answers are its approval, and the launch gate shows its `(default)` decisions. So, instead of steps 6 and 8 and **After approval**:
 
 1. Post the replan proposals as **Replan check** in `craft:next` says for one-shot. Do not post `🤖 Gate: spec`.
 2. Move the ticket to **Ready to build**. Comment `🤖 spec: success — <n> criteria (one-shot)`.
