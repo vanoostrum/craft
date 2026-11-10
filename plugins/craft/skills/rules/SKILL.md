@@ -101,6 +101,7 @@ Tickets that set up or change staging or production keep `mode=gated`. They skip
 
 ## Rules for every step
 
+- **One project's tickets.** The Linear project from the config is what separates this project's tickets from those of the owner's other projects in the shared team. Every ticket craft creates goes into it. Before a step acts on a ticket, check that the ticket is in that Linear project. If it is in another one, stop and tell the owner which project it belongs to: it is built from another repository. A ticket without a project is not picked up until the owner puts it in one.
 - **Linear is the source of truth.** Read the ticket's current state and comments before acting. Do not rely on memory of earlier sessions.
 - **Craft comments.** Every comment craft writes in Linear starts with `🤖`. Comments without it are from the owner. Each step adds one comment when it ends: `🤖 <step>: <success|failed|escalated> — <one line>`.
 - **Dependencies.** A ticket with a Linear "blocked by" relation is not built until each ticket that blocks it is Done. `craft:next` and `craft:build` check this.
