@@ -11,7 +11,7 @@ The calling step gives the subagent only the ticket key or the plan ticket key, 
 
 > Load the `craft:bstack` skill first. Read `GLOSSARY.md` and `docs/adr/` on the base branch, and the plan document, if the ticket came from a plan: the `Plan: <name>` document that the plan ticket links.
 >
-> - **Ticket scope:** the spec under review is the `## Spec` of the given ticket. The other specs are the `## Spec` of each other ticket in its Linear project that has one, and the specs of the tickets that block it.
+> - **Ticket scope:** the spec under review is the `## Spec` of the given ticket. The other specs are the `## Spec` of each other sub-issue of its plan ticket, of each other open ticket in its Linear project, and of the tickets that block it.
 > - **Plan scope:** the specs under review are the `## Spec` of each sub-issue of the plan ticket that does not have `mode=gated`. The other specs are all of them.
 >
 > Check each spec under review on its own:

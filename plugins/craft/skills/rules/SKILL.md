@@ -34,6 +34,8 @@ Read `.claude/craft.md` in the project first. It holds these keys:
 
 A project new to craft has no `.claude/craft.md` yet. `craft:setup` asks the owner for the Linear team, the Linear project, and the GitHub repo, and `craft:plan` takes all values from the **Craft wiring** of the `Brief: Dev environment` and writes the file in its PR.
 
+A project set up before craft 2.3 has no `Linear project` key. Before any step reads the project's tickets, ask the owner which Linear project holds this project, or offer to create one named after it with `linear_team.py` from `craft:setup`. Write the key into `.claude/craft.md` on the step's branch, or, for a step without a branch, in a small PR of its own. Until then, use every open ticket of the Linear team. Tickets of this project that sit in other Linear projects of the team move into it when the owner agrees.
+
 A key with the value `none yet` waits for the ticket that creates it, such as the walking skeleton from a `Brief: Dev environment`. That ticket reads the new values from its own branch, and its own build, review, and merge use them: it proves its verify skill, its app driver skill, and its checks on its own PR. Any other step that needs a `none yet` value skips that work and says so in its step comment.
 
 Its `## Standing notes` section holds notes for every ticket. Follow them as if each ticket had them under `## Steering`.
