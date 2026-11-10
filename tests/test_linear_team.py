@@ -121,7 +121,9 @@ class FakeLinear:
         return {"data": {"team": data}}
 
     def op_UpdateState(self, variables: dict[str, Any]) -> dict[str, Any]:  # noqa: N802
-        """Change a state."""
+        """Change a state; Linear refuses changes to its reserved states."""
+        if self.state(variables["id"])["type"] in {"duplicate", "triage"}:
+            return {"errors": [{"message": "unable to update reserved state"}]}
         self.state(variables["id"]).update(variables["input"])
         return {"data": {"workflowStateUpdate": {"success": True}}}
 
@@ -242,6 +244,15 @@ def test_completes_an_existing_team_and_keeps_its_states(
     assert [s["name"] for s in team["states"]].count("Specifying") == 1
     assert started_order(team)[:2] == ["Specifying", "Ready to build"]
     assert "CreateTeam" not in fake.mutations
+
+
+def test_leaves_reserved_states_alone(linear: tuple[FakeLinear, str]) -> None:
+    """A team whose reserved states are out of craft's order still completes."""
+    fake, url = linear
+    fake.add_team("ABC", list(reversed(LINEAR_DEFAULT_STATES)))
+    result = run(url, "ABC", "Abc team", "Abc app")
+    assert result.returncode == 0, result.stderr
+    assert started_order(craft_team(fake, "ABC")) == STARTED_ORDER
 
 
 def test_keeps_the_team_s_own_backlog_state(linear: tuple[FakeLinear, str]) -> None:

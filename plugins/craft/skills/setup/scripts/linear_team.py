@@ -148,7 +148,9 @@ def complete_states(team_id: str, states: list[dict[str, Any]]) -> None:
                 },
             )
             say(f"Created state {name}.")
-        elif state["position"] != position:
+        elif kind == "started" and state["position"] != position:
+            # Only the started states need craft's order. Linear refuses
+            # changes to its reserved states, such as Duplicate.
             update_state(state["id"], {"position": position})
 
 
