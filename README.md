@@ -75,6 +75,16 @@ When it is done, a project gives craft these things:
 6. **A Linear team and a Linear project.** One team holds all of the owner's projects; each project is a Linear project in it, with the briefs and plans as documents and the tickets as its backlog. The team has the states Todo, Specifying, Ready to build, Building, In Review, Done, and Needs human, and the label `ui`. `craft:setup` creates the team, or completes an existing team, and creates the project, with `plugins/craft/skills/setup/scripts/linear_team.py`. The script needs a Linear personal API key that can create teams. In the cloud environment, allow the host `api.linear.app` and add a network secret for it: header `Authorization`, the key as the value, without `Bearer`. In a terminal, set `LINEAR_API_KEY`. Linear's Free plan allows two teams.
 7. **A GitHub repository** with the required checks on the base branch and "Automatically delete head branches" on.
 
+## Upgrade to 2.3
+
+Craft 2.3 keeps all projects in one Linear team, with one Linear project per project. Its briefs and plans are documents in that project, and its tickets are the backlog. A plan's tickets are sub-issues of its plan ticket. To upgrade a project:
+
+1. Pick the shared team, and run `linear_team.py <TEAM KEY> <team name> <project name>` from `plugins/craft/skills/setup/scripts/` to complete it and create the project.
+2. Move the project's open tickets and briefs into that Linear project.
+3. Add `| Linear project | <name> |` to `.claude/craft.md`, and set `Linear team` to the shared team.
+
+A step that finds no `Linear project` key asks the owner for it and adds it.
+
 ## Development
 
 - Fix craft here, not in a project.

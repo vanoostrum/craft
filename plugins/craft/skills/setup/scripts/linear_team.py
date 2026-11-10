@@ -16,6 +16,7 @@ has a network secret for `api.linear.app`. In a terminal, set `LINEAR_API_KEY`.
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 from typing import Any
 
@@ -38,6 +39,14 @@ STATES = [
 ]
 # A new Linear team has "In Progress"; craft calls that state "Specifying".
 RENAMED = {"In Progress": "Specifying"}
+# Craft does not use these types itself: a team that has a state of the type,
+# under any name, keeps it and gets no second one.
+OWN_NAME_TYPES = {"backlog", "canceled", "duplicate"}
+KEY_HINT = (
+    "Linear needs an API key. In a cloud session, add a network secret for "
+    "api.linear.app (header Authorization, the key without Bearer). "
+    "In a terminal, set LINEAR_API_KEY."
+)
 UI_LABEL = {
     "name": "ui",
     "color": "#2f5d50",
@@ -60,20 +69,36 @@ def gql(query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
     key = os.environ.get("LINEAR_API_KEY", PLACEHOLDER_KEY)
     headers = {"Content-Type": "application/json", "Authorization": key}
     request = urllib.request.Request(URL, body, headers)  # noqa: S310 - fixed host.
-    with urllib.request.urlopen(request) as response:  # noqa: S310 - fixed host.
-        out = json.load(response)
-    if out.get("errors"):
+    out: dict[str, Any]
+    try:
+        with urllib.request.urlopen(request) as response:  # noqa: S310 - fixed host.
+            out = json.load(response)
+    except urllib.error.HTTPError as error:
+        try:
+            out = json.load(error)
+        except ValueError:
+            out = {"errors": [{"message": f"HTTP {error.code} {error.reason}"}]}
+        if error.code == 401:  # noqa: PLR2004 - HTTP Unauthorized.
+            out.setdefault("errors", []).append({"message": KEY_HINT})
+    except urllib.error.URLError as error:
+        out = {"errors": [{"message": f"cannot reach Linear: {error.reason}"}]}
+    errors: list[dict[str, Any]] = out.get("errors") or []
+    if errors:
         messages = [
             e.get("extensions", {}).get("userPresentableMessage") or e["message"]
-            for e in out["errors"]
+            for e in errors
         ]
-        raise LinearError("; ".join(messages))
+        if any("authenticat" in m.lower() for m in messages):
+            messages.append(KEY_HINT)
+        raise LinearError("; ".join(dict.fromkeys(messages)))
     return out["data"]
 
 
 def find_or_create_team(key: str, name: str) -> str:
     """Return the id of the team with this key, created if it is missing."""
-    teams = gql("query Teams { teams { nodes { id key } } }")["teams"]["nodes"]
+    teams = gql("query Teams { teams(first: 250) { nodes { id key } } }")["teams"][
+        "nodes"
+    ]
     for team in teams:
         if team["key"] == key:
             return str(team["id"])
@@ -103,8 +128,11 @@ def complete_states(team_id: str, states: list[dict[str, Any]]) -> None:
             update_state(by_name[old]["id"], {"name": new})
             by_name[new] = by_name.pop(old)
             say(f"Renamed state {old} to {new}.")
+    types = {s["type"] for s in states}
     for position, (name, kind, color) in enumerate(STATES):
         state = by_name.get(name)
+        if state is None and kind in OWN_NAME_TYPES and kind in types:
+            continue
         if state is None:
             gql(
                 "mutation CreateState($input: WorkflowStateCreateInput!) "
@@ -129,8 +157,9 @@ def main(key: str, name: str, project: str) -> None:
     team_id = find_or_create_team(key, name)
     team = gql(
         "query TeamSetup($id: String!) { team(id: $id) { "
-        "states { nodes { id name type position } } labels { nodes { name } } "
-        "projects { nodes { name } } } }",
+        "states(first: 250) { nodes { id name type position } } "
+        "labels(first: 250) { nodes { name } } "
+        "projects(first: 250) { nodes { name } } } }",
         {"id": team_id},
     )["team"]
     complete_states(team_id, team["states"]["nodes"])

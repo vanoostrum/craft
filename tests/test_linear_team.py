@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 from collections.abc import Iterator
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, override
@@ -54,6 +55,7 @@ class FakeLinear:
         self.teams: dict[str, dict[str, Any]] = {}
         self.mutations: list[str] = []
         self.auth: list[str] = []
+        self.http_status = 200
         self.next_id = 0
 
     def new_id(self) -> str:
@@ -160,8 +162,12 @@ def linear() -> Iterator[tuple[FakeLinear, str]]:
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             fake.auth.append(self.headers.get("Authorization", ""))
             name = body["query"].split("(", 1)[0].split("{", 1)[0].split()[-1]
-            out = json.dumps(fake.handle(name, body.get("variables") or {})).encode()
-            self.send_response(200)
+            if fake.http_status == HTTPStatus.OK:
+                reply = fake.handle(name, body.get("variables") or {})
+            else:
+                reply = {"errors": [{"message": "Query too complex"}]}
+            out = json.dumps(reply).encode()
+            self.send_response(fake.http_status)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(out)
@@ -232,7 +238,43 @@ def test_completes_an_existing_team_and_keeps_its_states(
     names = {s["name"] for s in team["states"]}
     assert set(CRAFT_STATES) <= names
     assert "QA" in names
+    assert "In Progress" not in names
+    assert [s["name"] for s in team["states"]].count("Specifying") == 1
+    assert started_order(team)[:2] == ["Specifying", "Ready to build"]
     assert "CreateTeam" not in fake.mutations
+
+
+def test_keeps_the_team_s_own_backlog_state(linear: tuple[FakeLinear, str]) -> None:
+    """A team with a backlog state under its own name gets no second one."""
+    fake, url = linear
+    fake.add_team("ABC", [("Triage", "backlog"), *LINEAR_DEFAULT_STATES[1:]])
+    result = run(url, "ABC", "Abc team", "Abc app")
+    assert result.returncode == 0, result.stderr
+    names = [s["name"] for s in craft_team(fake, "ABC")["states"]]
+    assert "Triage" in names
+    assert "Backlog" not in names
+
+
+def test_an_http_error_shows_linear_s_message(
+    linear: tuple[FakeLinear, str],
+) -> None:
+    """Linear answers some errors with HTTP 400; the owner reads the message."""
+    fake, url = linear
+    fake.http_status = HTTPStatus.BAD_REQUEST
+    result = run(url, "ABC", "Abc team", "Abc app")
+    assert result.returncode != 0
+    assert "Query too complex" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_a_refused_key_says_where_to_set_it(linear: tuple[FakeLinear, str]) -> None:
+    """Without a valid key, the message says how to give the script one."""
+    fake, url = linear
+    fake.http_status = HTTPStatus.UNAUTHORIZED
+    result = run(url, "ABC", "Abc team", "Abc app")
+    assert result.returncode != 0
+    assert "LINEAR_API_KEY" in result.stderr
+    assert "api.linear.app" in result.stderr
 
 
 def test_adds_a_second_project_to_a_shared_team(
@@ -298,3 +340,20 @@ def test_one_linear_project_per_project() -> None:
     assert "sub-issue of the plan ticket" in skill("plan")
     assert "Create a Linear project for" not in skill("brainstorm")
     assert "Create a Linear project named" not in skill("setup")
+
+
+def test_no_step_reads_a_plan_from_the_plan_ticket() -> None:
+    """The plan is a `Plan: <name>` document, not a `## Plan` ticket section."""
+    for path in SKILLS.rglob("*.md"):
+        assert "## Plan`" not in path.read_text(encoding="utf-8"), path
+
+
+def test_several_plans_share_one_linear_project() -> None:
+    """Several plans share one Linear project, and old projects get the key."""
+    nxt = skill("next")
+    assert "ticket's plan document" in nxt
+    assert "For each open plan ticket" in nxt
+    assert "`<plan name>: <milestone>`" in skill("plan")
+    assert "no `Linear project` key" in skill("rules")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "Upgrade to 2.3" in readme
