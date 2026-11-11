@@ -110,3 +110,12 @@ def test_moving_a_file_out_of_the_plugin_runs_the_suite(tmp_path: Path) -> None:
     result, output = run_gate(repo, base, "sk-test", tmp_path)
     assert result.returncode == 0, result.stderr
     assert output.strip() == "run=true"
+
+
+@pytest.mark.parametrize("changed", ["plugins/café.md", "plugins/a b/SKILL.md"])
+def test_an_unusual_plugin_path_runs_the_suite(tmp_path: Path, changed: str) -> None:
+    """A plugin path with a non-ASCII character or a space still runs the suite."""
+    repo, base = repo_with_change(tmp_path, changed)
+    result, output = run_gate(repo, base, "sk-test", tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert output.strip() == "run=true"
