@@ -27,15 +27,7 @@ Run `craft:plan <brief> mode=one-shot` to take a whole plan to merged code with 
 
 This repository is a plugin marketplace with two plugins: `craft`, and `pstack` pinned to the version that craft is tested with.
 
-- **claude.ai project threads:** add the plugins to your account from GitHub, `vanoostrum/craft`. Threads load account plugins, but not a repository's `.claude/settings.json`.
-- **Terminal and web sessions:** add the marketplace to the project's `.claude/settings.json`, pinned to a tag:
-
-  ```json
-  "extraKnownMarketplaces": {
-    "craft": { "source": { "source": "github", "repo": "vanoostrum/craft", "ref": "v2.3.0" } }
-  },
-  "enabledPlugins": { "craft@craft": true, "pstack@craft": true }
-  ```
+Install craft as an account plugin: in claude.ai, add the plugins to your account from GitHub, `vanoostrum/craft`. Project threads load account plugins. The marketplace pins craft to a release tag, so your account runs the craft of the tag that `ref` names in `.claude-plugin/marketplace.json`, not the craft on `main`.
 
 To upload transcripts to Google Cloud Storage, set `CRAFT_GCS_BUCKET` in the cloud environment, and add a "GCP access token" network secret for `storage.googleapis.com`. See `plugins/craft/hooks/upload_transcripts.py`.
 
@@ -90,6 +82,16 @@ A step that finds no `Linear project` key asks the owner for it and adds it.
 - Fix craft here, not in a project.
 - Run the checks with the `project-verify` skill in `.claude/skills/`. It runs the same steps as the `checks` CI job.
 - Prove a change in a real session with the `verify` skill. It runs the smoke suite in `plugins/craft/evals/`, as the `evals` CI job does, and says how to try a step by hand.
-- Release with a tag, and bump `ref` in each project in its own PR.
 
 `plugins/craft/VENDORED.md` lists the skills that come from other repositories.
+
+## Release
+
+A merge to `main` does not reach the projects. A release does, in four steps:
+
+1. Bump `version` in `plugins/craft/.claude-plugin/plugin.json` on a PR, and merge it. `pyproject.toml` keeps its version.
+2. Tag that commit on `main` as `v<version>` on GitHub.
+3. Check that the tag exists: `git ls-remote --tags origin v<version>`.
+4. Open a one-line PR that sets craft's `ref` in `.claude-plugin/marketplace.json` to the new tag, and merge it.
+
+Rollback: if a release breaks craft, set `ref` back to the last good tag in a one-line PR. If the pin itself does not work in project threads, set the craft source back to `./plugins/craft` by hand (`docs/adr/0002-fix-a-broken-craft-by-hand.md`).
