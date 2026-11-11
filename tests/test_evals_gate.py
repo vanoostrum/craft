@@ -98,3 +98,15 @@ def test_a_change_to_the_plugin_runs_the_suite(tmp_path: Path, changed: str) -> 
     result, output = run_gate(repo, base, "sk-test", tmp_path)
     assert result.returncode == 0, result.stderr
     assert output.strip() == "run=true"
+
+
+def test_moving_a_file_out_of_the_plugin_runs_the_suite(tmp_path: Path) -> None:
+    """A rename out of `plugins/` changes the plugin, so the suite runs."""
+    repo, _ = repo_with_change(tmp_path, "plugins/craft/skills/x/SKILL.md")
+    base = git(repo, "rev-parse", "HEAD")
+    (repo / "docs").mkdir()
+    git(repo, "mv", "plugins/craft/skills/x/SKILL.md", "docs/SKILL.md")
+    git(repo, "commit", "-q", "-m", "move")
+    result, output = run_gate(repo, base, "sk-test", tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert output.strip() == "run=true"

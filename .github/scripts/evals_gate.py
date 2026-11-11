@@ -20,7 +20,7 @@ WATCHED = ("plugins/", ".claude-plugin/", ".github/workflows/")
 def changed_files(base: str) -> list[str]:
     """Return the files that the head commit changes since `base`."""
     diff = subprocess.run(  # noqa: S603 - the base SHA comes from the PR event.
-        ["git", "diff", "--name-only", f"{base}...HEAD"],  # noqa: S607
+        ["git", "diff", "--name-only", "--no-renames", f"{base}...HEAD"],  # noqa: S607
         check=True,
         capture_output=True,
         text=True,
