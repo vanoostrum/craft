@@ -61,6 +61,15 @@ def test_prints_the_skill_calls_of_each_run(tmp_path: Path) -> None:
     assert "  skills: craft:spec, craft:rules, craft:bstack\n" in out
 
 
+def test_skips_a_cut_off_trace_line(tmp_path: Path) -> None:
+    """A run that stops mid-write leaves a partial last line; it is skipped."""
+    trace = tmp_path / "trace.jsonl"
+    whole = tool_use("Skill", {"skill": "craft:rules"})
+    trace.write_text(whole + "\n" + whole[:20], encoding="utf-8")
+    out = run_script(tmp_path, one_run(str(trace)))
+    assert "  skills: craft:rules\n" in out
+
+
 def test_still_prints_the_scores_without_a_trace(tmp_path: Path) -> None:
     """A run without a trace file shows its score, and the script exits 0."""
     out = run_script(tmp_path, one_run(str(tmp_path / "gone.jsonl")))

@@ -19,7 +19,10 @@ def skill_calls(trace_path: str | None) -> str:
         return "(no trace)"
     skills: list[str] = []
     for line in Path(trace_path).read_text(encoding="utf-8").splitlines():
-        message = json.loads(line)
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # A run that stopped mid-write leaves a partial last line.
         if message.get("type") != "assistant":
             continue
         for block in message["message"].get("content", []):
