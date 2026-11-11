@@ -13,7 +13,7 @@
 | `.github/workflows/ci.yml` | CI. |
 
 - Python 3.12, managed with **uv**. Add dependencies with `uv add`, never `pip`.
-- Lint with **ruff**, format with **ruff format**, type-check with **ty**, test with **pytest**. All must pass.
+- Lint with **ruff**, format with **ruff format**, type-check with **ty**, check `plugins/craft/skills/rules/scripts/gallery-shot` with **shellcheck**, and test with **pytest**. All must pass.
 - Write tests first.
 - **Test seams.** A pytest test checks skill text, hook behavior, and script behavior. An eval case checks how a step behaves when Claude runs it. Do not check in an eval what a pytest test already checks.
 - The agents run the released craft, not this checkout. A merge reaches the projects only through a release. When craft itself is broken, the owner fixes it by hand, outside craft (`docs/adr/0002`).
