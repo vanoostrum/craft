@@ -1,9 +1,7 @@
 ---
-type: tool_order
-before:
-  tool: Skill
-  input_match: "craft:rules"
-after:
-  tool: Skill
-  input_match: "\"skill\":\\s*\"(?!craft:(rules|spec)\")"
+type: regex
+target: trace
+match: not_contains
+flags: s
 ---
+^(?:(?!"name":"Skill","input":\{"skill":"craft:rules").)*"name":"Skill","input":\{"skill":"(?!craft:(?:rules|spec)")

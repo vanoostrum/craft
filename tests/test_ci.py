@@ -73,6 +73,12 @@ def test_evals_runs_the_agreed_command() -> None:
     assert suite["env"]["ANTHROPIC_API_KEY"] == "${{ secrets.ANTHROPIC_API_KEY }}"
 
 
+def test_evals_keeps_the_traces() -> None:
+    """The suite keeps each run's trace, so `Show scores` can print its Skill calls."""
+    suite = step_named(job("evals")["steps"], "Smoke suite")
+    assert "--keep-temp" in suite["run"]
+
+
 def test_evals_uploads_no_transcripts() -> None:
     """The upload hook is off in CI, under its new and its old name."""
     suite = step_named(job("evals")["steps"], "Smoke suite")
