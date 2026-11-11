@@ -8,7 +8,9 @@ dependencies = []
 [dependency-groups]
 dev = [
     "pytest",
+    "pyyaml>=6.0.3",
     "ruff",
+    "shellcheck-py>=0.11.0.1",
     "ty",
 ]
 
@@ -44,6 +46,8 @@ ignore = [
 "tests/**/*.py" = ["S101"]
 # Claude Code runs hook scripts as standalone files, not as a package.
 "plugins/craft/hooks/*.py" = ["INP001"]
+# GitHub Actions runs CI scripts as standalone files, not as a package.
+".github/scripts/*.py" = ["INP001"]
 
 [tool.ty.environment]
 python-version = "3.12"

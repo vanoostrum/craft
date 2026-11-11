@@ -31,6 +31,46 @@ jobs:
       - name: Ty
         run: uv run ty check
       - name: Shellcheck
-        run: shellcheck plugins/craft/skills/rules/scripts/gallery-shot
+        run: uv run shellcheck plugins/craft/skills/rules/scripts/gallery-shot
       - name: Pytest
         run: uv run pytest
+
+  # The eval smoke suite is the app driver (docs/adr/0001). It runs on every
+  # PR, and skips the suite when the PR does not touch the plugin.
+  evals:
+    name: evals
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Gate
+        id: gate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python3 .github/scripts/evals_gate.py "${{ github.event.pull_request.base.sha }}"
+      - name: Install Claude Code
+        if: steps.gate.outputs.run == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.322
+      - name: Smoke suite
+        id: suite
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: >-
+          env -u CRAFT_GCS_BUCKET -u SOUS_GCS_BUCKET
+          claude plugin eval plugins/craft --trust-plugin --no-publish
+          --ablation none --runs 1 --max-cost-usd 1
+          --json eval-results/result.json --report eval-results/report.html
+      - name: Show scores
+        if: always() && steps.suite.outcome != 'skipped'
+        run: python3 .github/scripts/eval_scores.py eval-results/result.json
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: eval-results
+          if-no-files-found: ignore
