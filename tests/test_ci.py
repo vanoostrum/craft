@@ -85,6 +85,16 @@ def test_evals_installs_a_pinned_cli() -> None:
     assert "npm install -g @anthropic-ai/claude-code@2." in install["run"]
 
 
+def test_evals_prints_the_scores_also_on_failure() -> None:
+    """The job log names each case and each failed grader, so a red run is readable."""
+    show = step_named(job("evals")["steps"], "Show scores")
+    assert show["if"] == "always() && steps.suite.outcome != 'skipped'"
+    assert (
+        "python3 .github/scripts/eval_scores.py eval-results/result.json"
+        in (show["run"])
+    )
+
+
 def test_evals_uploads_the_results_also_on_failure() -> None:
     """The JSON result and the report are uploaded, also when the suite fails."""
     steps = job("evals")["steps"]

@@ -64,6 +64,9 @@ jobs:
           claude plugin eval plugins/craft --trust-plugin --no-publish
           --ablation none --runs 1 --max-cost-usd 1
           --json eval-results/result.json --report eval-results/report.html
+      - name: Show scores
+        if: always() && steps.suite.outcome != 'skipped'
+        run: python3 .github/scripts/eval_scores.py eval-results/result.json
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
