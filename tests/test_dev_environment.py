@@ -4,6 +4,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -23,7 +24,7 @@ def repo_skill(name: str) -> str:
     return (REPO_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
 
 
-def frontmatter(path: Path) -> dict[str, object]:
+def frontmatter(path: Path) -> dict[str, Any]:
     """Return the YAML frontmatter of a markdown file."""
     match = FRONTMATTER.match(path.read_text(encoding="utf-8"))
     assert match, f"{path} has no frontmatter"
@@ -94,7 +95,7 @@ def test_each_smoke_case_has_a_prompt_and_a_grader_and_no_bash() -> None:
         prompt = EVALS / case / "prompt.md"
         meta = frontmatter(prompt)
         assert FRONTMATTER.sub("", prompt.read_text(encoding="utf-8")).strip()
-        assert set(meta["allowed_tools"]) <= {"Read", "Glob", "Grep", "Skill"}  # type: ignore[arg-type]
+        assert set(meta["allowed_tools"]) <= {"Read", "Glob", "Grep", "Skill"}
         graders = list((EVALS / case / "graders").glob("*.md"))
         assert graders, f"{case} has no grader"
         assert sum(frontmatter(g)["type"] == "llm" for g in graders) <= 1

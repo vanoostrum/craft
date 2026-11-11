@@ -54,7 +54,7 @@ def test_evals_checks_out_the_full_history() -> None:
 
 
 def test_evals_runs_the_suite_only_after_the_gate_says_so() -> None:
-    """The gate runs first with the secret and the base SHA; the suite needs run=true."""
+    """The gate runs first, with the secret and the base SHA; then the suite."""
     steps = job("evals")["steps"]
     gate = step_named(steps, "Gate")
     suite = step_named(steps, "Smoke suite")
