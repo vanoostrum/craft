@@ -88,8 +88,8 @@ A step that finds no `Linear project` key asks the owner for it and adds it.
 ## Development
 
 - Fix craft here, not in a project.
-- Try a change on a live ticket with `claude --plugin-dir <this checkout>/plugins/craft` in a terminal session.
-- Run the checks with `uv run ruff check .`, `uv run ruff format --check .`, `uv run ty check`, and `uv run pytest`.
+- Run the checks with the `project-verify` skill in `.claude/skills/`. It runs the same steps as the `checks` CI job.
+- Prove a change in a real session with the `verify` skill. It runs the smoke suite in `plugins/craft/evals/`, as the `evals` CI job does, and says how to try a step by hand.
 - Release with a tag, and bump `ref` in each project in its own PR.
 
 `plugins/craft/VENDORED.md` lists the skills that come from other repositories.

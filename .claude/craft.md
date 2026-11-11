@@ -8,9 +8,9 @@ The craft plugin reads these values. Its rules are in the `craft:rules` skill.
 | Linear project | `Craft` |
 | GitHub repo | `vanoostrum/craft` |
 | Base branch | `main` |
-| Required CI checks | none yet |
-| Verify skill | none yet |
-| App driver skill | none yet |
+| Required CI checks | `checks`, `evals` |
+| Verify skill | `project-verify` |
+| App driver skill | `verify` |
 
 ## Standing notes
 
