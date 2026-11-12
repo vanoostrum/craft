@@ -12,7 +12,7 @@
         "source": "git-subdir",
         "url": "vanoostrum/craft",
         "path": "plugins/craft",
-        "ref": "v2.4.0"
+        "ref": "v2.5.0"
       },
       "description": "The craft steps, rules, and hooks."
     },
