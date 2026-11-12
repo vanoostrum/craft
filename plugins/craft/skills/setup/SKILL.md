@@ -67,9 +67,13 @@ Next to this skill, in its base directory:
 
 ## Approval
 
-Ask the owner in chat to approve the brief, with its link, by 👍 on the message or a reply "approve". List the **Before the plan** items that are still open: the owner does them before the plan starts. Any other reply is feedback: go back to the step it belongs to. There is no gate and no Linear comment here, because there is no ticket yet. The plan gate is the first formal gate.
+Ask the owner in chat to approve the brief, with its link, by 👍 on the message or a reply "approve". List the **Before the plan** items that are still open: the owner does them before the plan starts.
+
+In the same message, say that the plan of this brief runs gated: an environment plan never runs one-shot. The owner can add a note for the plan to the reply, such as "approve note=<text, file, or link>". `note=` is the only argument setup offers. Any other argument, such as `mode=`, `design-variants=`, or `platforms=`, is not an approval: say that only `note=` is accepted, and ask again. Any other reply is feedback: go back to the step it belongs to. There is no gate and no Linear comment here, because there is no ticket yet. The plan gate is the first formal gate.
 
 ## After approval
+
+A `note=` given at approval is added to the notes already in **Steering** in the brief; it does not replace them.
 
 When the **Before the plan** items are done, start `craft:plan` in a new session on the brief, as **After approval** in `craft:brainstorm` describes, with this prompt: `Run craft:plan on <brief link>.` For `dev`, tell the owner that the product brief, if there is one, gets its own plan when the walking skeleton is merged. Tell the owner in chat in one line.
 

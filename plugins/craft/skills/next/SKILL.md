@@ -74,7 +74,7 @@ A launch gate counts as approved as The gate in `craft:rules` says, and only if 
 
    Move the plan ticket to **Done**. The tickets in **Needs human** stay open for the owner.
 
-   Then run the Steps above for the gated tickets, with their spec gates and merge gates. If there are none, and the project has no `Brief: Staging and production` yet, offer `craft:setup deploy`. If the plan's input was a `Brief: Dev environment` that names a **Product brief**, and its walking skeleton is merged, start `craft:plan` on the product brief in a new session, as `craft:merge` step 8 does. Give it `mode=one-shot`: the owner still approves its plan gate.
+   Then run the Steps above for the gated tickets, with their spec gates and merge gates. If there are none, and the project has no `Brief: Staging and production` yet, offer `craft:setup deploy`.
 
 The milestone checkpoint does not run in the one-shot phases. The done report covers it.
 

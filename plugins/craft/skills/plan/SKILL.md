@@ -26,7 +26,7 @@ One of:
 - an environment brief from `craft:setup`: a link to `Brief: Dev environment` or `Brief: Staging and production`;
 - a project spec or a feature description from the owner, as text, a file, or a link.
 
-Optional steering arguments follow it, as Steering in `craft:rules` describes. A brief's `Steering` section counts as arguments; arguments given here replace its values.
+Optional steering arguments follow it, as Steering in `craft:rules` describes. A brief's `Steering` section counts as arguments; arguments given here replace its values. An environment brief always plans with `mode=gated`, whatever the arguments say: write `mode=gated` in the plan ticket's `## Steering`, so its tickets and `craft:next` read it too. If you ignored `mode=one-shot`, tell the owner in one line.
 
 An idea that is not yet clear, with no answer yet to what it is for and why, starts at `craft:brainstorm` instead.
 
