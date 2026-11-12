@@ -1,10 +1,15 @@
 # Copyright (C) 2026 Theo van Oostrum
 """Stop, SubagentStop, and SessionEnd hook: copy transcripts to Google Cloud Storage.
 
-Proof of concept for the craft dashboard. `CRAFT_GCS_BUCKET` names the bucket.
-For one release, each `CRAFT_GCS_*` variable falls back to its old
-`SOUS_GCS_*` name. The hook signs in to Google Cloud in one of two ways,
-and does nothing when neither is there:
+The transcripts are for evaluating and improving the craft steps, so the hook
+uploads only a session that runs a step: a call of `craft:brainstorm`,
+`craft:setup`, `craft:plan`, `craft:spec`, `craft:design`, `craft:build`,
+`craft:review`, `craft:merge`, or `craft:next`, as a Skill call or as a slash
+command that the owner types. Such a session uploads in full, from its first
+line. Other craft skills, such as `craft:rules`, are no step.
+
+`CRAFT_GCS_BUCKET` names the bucket. The hook signs in to Google Cloud in one
+of two ways, and does nothing when neither is there:
 
 - In a cloud session, a "GCP access token" network secret for
   `storage.googleapis.com` lets the proxy add the access token. The sandbox
@@ -17,18 +22,23 @@ The hook returns at once and uploads in a background process, so a turn does
 not wait for Google Cloud. Each upload writes the whole session to the same
 folder, so the bucket always holds the latest state:
 
-    gs://<bucket>/<repo>/sessions/<session id>/
+    gs://<bucket>/<owner>/<repo>/sessions/<session id>/
         session.jsonl.gz
         subagents/<agent>.jsonl.gz
         metadata.json
 
-`metadata.json` splits the session into segments. Each Skill call of a craft
-step, such as `craft:build`, starts a segment. The names from before craft 2.0,
-such as `sous:build`, and from before the plugin, such as `factory-build`,
-count too. A segment has its step, its ticket, its start and end time, its
+`<owner>/<repo>` is the last two path segments of the `origin` remote URL of
+the session's repo: the first working directory in the transcript that is
+inside a git repo with such a remote. It comes from the transcript, not from
+the hook's own directory, so every upload of a session goes to one folder. A
+session without such a repo goes to `no-repo/`. `metadata.json` has the same
+value in `repo`, and the branch of that repo in `branch`.
+
+`metadata.json` splits the session into segments. Each step call starts a
+segment. A segment has its step, its ticket, its start and end time, its
 tokens per model, and its subagents with their own tokens.
 
-- The ticket of a segment comes from the Skill arguments, such as `ABC-12`,
+- The ticket of a segment comes from the step's arguments, such as `ABC-12`,
   or else from the branch name, such as `abc-12/version-endpoint`.
 - A subagent belongs to the segment whose `Agent` call started it. When the
   transcript does not link the two, it belongs to the segment that was running
@@ -64,20 +74,26 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 BUCKET_ENV = "CRAFT_GCS_BUCKET"
 KEY_ENV = "CRAFT_GCS_KEY"
 TOKEN_ENV = "CLOUDSDK_AUTH_ACCESS_TOKEN"  # noqa: S105 - a variable name.
 PROXY_TOKEN = "proxy-injected"  # noqa: S105 - a marker, not a secret.
 INTERVAL_ENV = "CRAFT_GCS_STOP_INTERVAL"
-OLD_PREFIX = "SOUS_GCS_"
 DEFAULT_STOP_INTERVAL = 300.0
 UPLOAD_FLAG = "--upload"
 TICKET_BRANCH = re.compile(r"^([a-z]+)-(\d+)/")
 TICKET_KEY = re.compile(r"\b[A-Z][A-Z0-9]*-\d+\b")
 STEP_SKILL = re.compile(
-    r"^(?:craft:|sous:|factory[-:])(plan|spec|design|build|review|merge|next)$"
+    r"^craft:(brainstorm|setup|plan|spec|design|build|review|merge|next)$"
 )
+SLASH_COMMAND = re.compile(
+    r"<command-name>/?(?P<name>[^<]*)</command-name>"
+    r"(?:\s*<command-args>(?P<args>[^<]*)</command-args>)?"
+)
+NO_REPO = "no-repo"
+SCP_URL = re.compile(r"^[^/:]+:")
 SECRET_NAME = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", re.IGNORECASE)
 MIN_SECRET_LENGTH = 8
 AGENT_TOOLS = {"Agent", "Task"}
@@ -99,9 +115,8 @@ def state_dir() -> Path:
 
 
 def setting(name: str) -> str:
-    """Return a `CRAFT_GCS_*` variable, or else its old `SOUS_GCS_*` name."""
-    old = OLD_PREFIX + name.removeprefix("CRAFT_GCS_")
-    return os.environ.get(name, "") or os.environ.get(old, "")
+    """Return a `CRAFT_GCS_*` variable, or "" when it is not set."""
+    return os.environ.get(name, "")
 
 
 def git(cwd: str, *args: str) -> str:
@@ -113,6 +128,51 @@ def git(cwd: str, *args: str) -> str:
         check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def owner_repo(url: str) -> str | None:
+    """Return `<owner>/<repo>` from the last two path segments of a remote URL.
+
+    The host, a port, and user info are not part of the path, so a token in the
+    URL never becomes the folder. Works for URLs with a scheme, such as HTTPS
+    and proxy URLs with more segments in front, for the SSH form
+    `git@host:owner/repo.git`, and for local paths. Returns None when the path
+    has fewer than two segments.
+    """
+    url = url.strip()
+    if "://" in url:
+        path = urlsplit(url).path
+    elif SCP_URL.match(url):
+        path = url.split(":", 1)[1]
+    else:
+        path = url
+    parts = [part for part in path.split("/") if part]
+    if len(parts) < 2:  # noqa: PLR2004 - an owner and a repo.
+        return None
+    return f"{parts[-2]}/{parts[-1].removesuffix('.git')}"
+
+
+@dataclass
+class Repo:
+    """The repo a session works in: its `<owner>/<repo>` and its checkout."""
+
+    name: str
+    toplevel: str | None
+
+
+def session_repo(path: Path) -> Repo:
+    """Return the first repo with an `origin` remote in the transcript's cwds."""
+    seen: set[str] = set()
+    for entry in entries(path):
+        cwd = entry.get("cwd")
+        if not isinstance(cwd, str) or cwd in seen:
+            continue
+        seen.add(cwd)
+        toplevel = git(cwd, "rev-parse", "--show-toplevel")
+        name = owner_repo(git(cwd, "remote", "get-url", "origin")) if toplevel else None
+        if name is not None:
+            return Repo(name, toplevel)
+    return Repo(NO_REPO, None)
 
 
 def ticket_of(branch: str) -> str | None:
@@ -241,26 +301,54 @@ def failed_calls(path: Path) -> set[str]:
     }
 
 
-def segment_starts(path: Path, branch_ticket: str | None) -> list[Segment]:
-    """Return the segments of the main transcript, with their `Agent` calls.
+def texts(entry: dict[str, Any]) -> list[str]:
+    """Return the text of a user line, as a string or as text blocks."""
+    if entry.get("type") != "user":
+        return []
+    content = (entry.get("message") or {}).get("content")
+    if isinstance(content, str):
+        return [content]
+    return [str(block.get("text") or "") for block in blocks(entry)]
 
-    A Skill call that failed, such as an unknown skill, starts no segment.
+
+def step_calls(entry: dict[str, Any], failed: set[str]) -> Iterator[tuple[str, str]]:
+    """Yield the name and arguments of each step call in a transcript line.
+
+    A step call is a Skill call or a slash command of a craft step. A Skill
+    call that failed, such as an unknown skill, is no step call.
     """
+    calls: list[tuple[str, str]] = [
+        (str(command.group("name")).strip(), str(command.group("args") or ""))
+        for text in texts(entry)
+        for command in SLASH_COMMAND.finditer(text)
+    ]
+    calls += [
+        (str(tool_input.get("skill") or ""), str(tool_input.get("args") or ""))
+        for block in blocks(entry)
+        if block.get("type") == "tool_use"
+        and block.get("name") == "Skill"
+        and str(block.get("id")) not in failed
+        for tool_input in [block.get("input") or {}]
+    ]
+    for name, args in calls:
+        match = STEP_SKILL.match(name)
+        if match is not None:
+            yield str(match.group(1)), args
+
+
+def segment_starts(path: Path, branch_ticket: str | None) -> list[Segment]:
+    """Return the segments of the main transcript, with their `Agent` calls."""
     failed = failed_calls(path)
     segments = [Segment(step=None, ticket=branch_ticket, started_at=None)]
     for entry in entries(path):
         stamp = entry.get("timestamp")
+        for step, args in step_calls(entry, failed):
+            found = TICKET_KEY.search(args)
+            ticket = found.group(0) if found else branch_ticket
+            segments.append(Segment(step, ticket, stamp, stamp))
         for block in blocks(entry):
-            if block.get("type") != "tool_use":
-                continue
-            tool_input = block.get("input") or {}
-            if block.get("name") == "Skill":
-                match = STEP_SKILL.match(str(tool_input.get("skill") or ""))
-                if match and str(block.get("id")) not in failed:
-                    found = TICKET_KEY.search(str(tool_input.get("args") or ""))
-                    ticket = found.group(0) if found else branch_ticket
-                    segments.append(Segment(match.group(1), ticket, stamp, stamp))
-            elif block.get("name") in AGENT_TOOLS:
+            if block.get("type") == "tool_use" and block.get("name") in AGENT_TOOLS:
+                tool_input = block.get("input") or {}
                 role = tool_input.get("description") or tool_input.get("subagent_type")
                 segments[-1].agent_calls[str(block.get("id"))] = role
         if stamp:
@@ -341,24 +429,30 @@ def segment_json(segment: Segment) -> dict[str, Any]:
     }
 
 
-def stage(event: dict[str, Any], out: Path) -> str:
-    """Write the gzipped transcripts and metadata to `out`. Return the prefix."""
-    cwd = event.get("cwd") or str(Path.cwd())
-    repo = Path(git(cwd, "rev-parse", "--show-toplevel") or cwd).name
-    branch = git(cwd, "branch", "--show-current")
+def stage(event: dict[str, Any], out: Path) -> str | None:
+    """Write the gzipped transcripts and metadata to `out`. Return the prefix.
+
+    Return None, and write nothing, when the session ran no craft step.
+    """
     session = event.get("session_id") or "unknown-session"
     transcript = Path(event.get("transcript_path") or "")
+    if not transcript.is_file():
+        return None
+    repo = session_repo(transcript)
+    branch = (
+        "" if repo.toplevel is None else git(repo.toplevel, "branch", "--show-current")
+    )
+    segments = segment_session(transcript, ticket_of(branch))
+    if all(segment.step is None for segment in segments):
+        return None
     values = secrets()
     for name, path in transcripts(transcript).items():
         target = out / f"{name}.gz"
         target.parent.mkdir(parents=True, exist_ok=True)
         text = path.read_text(encoding="utf-8", errors="replace")
         target.write_bytes(gzip.compress(redact(text, values).encode(), mtime=0))
-    segments = (
-        segment_session(transcript, ticket_of(branch)) if transcript.is_file() else []
-    )
     metadata = {
-        "repo": repo,
+        "repo": repo.name,
         "branch": branch,
         "session_id": session,
         "tickets": sorted({s.ticket for s in segments if s.ticket is not None}),
@@ -367,7 +461,7 @@ def stage(event: dict[str, Any], out: Path) -> str:
         "uploaded_at": datetime.now(UTC).isoformat(),
     }
     (out / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    return f"{repo}/sessions/{session}"
+    return f"{repo.name}/sessions/{session}"
 
 
 def proxy_auth() -> bool:
@@ -395,14 +489,16 @@ def gcloud(config: Path, *args: str, keep_token: bool) -> None:
     )
 
 
-def upload(event: dict[str, Any]) -> None:
-    """Stage the session and copy it to the bucket."""
+def upload(event: dict[str, Any]) -> bool:
+    """Stage the session and copy it to the bucket. Return whether it uploaded."""
     bucket = setting(BUCKET_ENV)
     with tempfile.TemporaryDirectory(prefix="craft-transcripts-") as tmp:
         work = Path(tmp)
         out = work / "out"
         out.mkdir()
         prefix = stage(event, out)
+        if prefix is None:
+            return False
         config = work / "gcloud"
         raw_key = setting(KEY_ENV)
         if raw_key:
@@ -425,6 +521,7 @@ def upload(event: dict[str, Any]) -> None:
             "--recursive",
             keep_token=not raw_key,
         )
+    return True
 
 
 def log(message: str) -> None:
@@ -458,10 +555,13 @@ def upload_locked(event: dict[str, Any]) -> None:
     with session_file(session, "lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
-            upload(event)
+            uploaded = upload(event)
         except (OSError, subprocess.CalledProcessError) as error:
             detail = getattr(error, "stderr", b"") or b""
             log(f"failed {session}: {error} {detail.decode()[-500:]}")
+            return
+        if not uploaded:
+            log(f"skipped {session}: no craft step")
             return
         session_file(session, "last").write_text(str(time.time()), encoding="utf-8")
         log(f"uploaded {session} ({event.get('hook_event_name')})")

@@ -49,7 +49,7 @@ def test_project_verify_names_the_step_that_failed() -> None:
 def test_verify_runs_the_suite_without_uploads() -> None:
     """`verify` runs the agreed command with the upload hook off, and passes --case."""
     text = repo_skill("verify")
-    assert "env -u CRAFT_GCS_BUCKET -u SOUS_GCS_BUCKET" in text
+    assert "env -u CRAFT_GCS_BUCKET \\\n  claude plugin eval" in text
     assert (
         "claude plugin eval plugins/craft --trust-plugin --no-publish "
         "--ablation none --runs 1"

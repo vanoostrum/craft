@@ -12,12 +12,12 @@ Craft is skill text and hooks, so the app is the plugin running in a Claude Code
 From the repo root:
 
 ```bash
-env -u CRAFT_GCS_BUCKET -u SOUS_GCS_BUCKET \
+env -u CRAFT_GCS_BUCKET \
   claude plugin eval plugins/craft --trust-plugin --no-publish --ablation none --runs 1
 ```
 
 - Add `--case <glob>` to run only the cases that a change touches, such as `--case spec-loads-rules-first`.
-- `env -u` turns off the transcript upload hook. It reads `CRAFT_GCS_BUCKET`, and falls back to the old name `SOUS_GCS_BUCKET`, so unset both.
+- `env -u` turns off the transcript upload hook, which reads `CRAFT_GCS_BUCKET`.
 - Locally the suite runs on the session's own login and needs no API key. CI uses the secret `ANTHROPIC_API_KEY`.
 - CI pins Claude Code `2.1.322`. If your `claude --version` differs and a case fails, check the version first.
 - Each case costs about $0.10. The CI job adds `--max-cost-usd 1`.

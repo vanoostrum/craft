@@ -80,9 +80,9 @@ def test_evals_keeps_the_traces() -> None:
 
 
 def test_evals_uploads_no_transcripts() -> None:
-    """The upload hook is off in CI, under its new and its old name."""
+    """The upload hook is off in CI."""
     suite = step_named(job("evals")["steps"], "Smoke suite")
-    assert "env -u CRAFT_GCS_BUCKET -u SOUS_GCS_BUCKET" in suite["run"]
+    assert "env -u CRAFT_GCS_BUCKET claude plugin eval" in suite["run"]
 
 
 def test_evals_installs_a_pinned_cli() -> None:
