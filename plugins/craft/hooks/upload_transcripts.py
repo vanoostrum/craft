@@ -74,6 +74,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 BUCKET_ENV = "CRAFT_GCS_BUCKET"
 KEY_ENV = "CRAFT_GCS_KEY"
@@ -92,6 +93,7 @@ SLASH_COMMAND = re.compile(
     r"(?:\s*<command-args>(?P<args>[^<]*)</command-args>)?"
 )
 NO_REPO = "no-repo"
+SCP_URL = re.compile(r"^[^/:]+:")
 SECRET_NAME = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", re.IGNORECASE)
 MIN_SECRET_LENGTH = 8
 AGENT_TOOLS = {"Agent", "Task"}
@@ -131,14 +133,23 @@ def git(cwd: str, *args: str) -> str:
 def owner_repo(url: str) -> str | None:
     """Return `<owner>/<repo>` from the last two path segments of a remote URL.
 
-    Works for HTTPS, SSH (`git@host:owner/repo.git`), and proxy URLs with more
-    segments in front. Returns None when the path has fewer than two segments.
+    The host, a port, and user info are not part of the path, so a token in the
+    URL never becomes the folder. Works for URLs with a scheme, such as HTTPS
+    and proxy URLs with more segments in front, for the SSH form
+    `git@host:owner/repo.git`, and for local paths. Returns None when the path
+    has fewer than two segments.
     """
-    rest = re.sub(r"^[A-Za-z][A-Za-z0-9+.-]*://", "", url.strip())
-    path = [part for part in re.split(r"[/:]", rest)[1:] if part]
-    if len(path) < 2:  # noqa: PLR2004 - an owner and a repo.
+    url = url.strip()
+    if "://" in url:
+        path = urlsplit(url).path
+    elif SCP_URL.match(url):
+        path = url.split(":", 1)[1]
+    else:
+        path = url
+    parts = [part for part in path.split("/") if part]
+    if len(parts) < 2:  # noqa: PLR2004 - an owner and a repo.
         return None
-    return f"{path[-2]}/{path[-1].removesuffix('.git')}"
+    return f"{parts[-2]}/{parts[-1].removesuffix('.git')}"
 
 
 @dataclass

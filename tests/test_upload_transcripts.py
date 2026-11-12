@@ -509,6 +509,7 @@ def test_other_slash_commands_are_no_step(tmp_path: Path, project: Path) -> None
         "git@github.com:vanoostrum/craft.git",
         "ssh://git@github.com/vanoostrum/craft.git",
         "http://local_proxy@127.0.0.1:41463/git/vanoostrum/craft",
+        "https://user:ghp_token123@github.com:8443/vanoostrum/craft.git",
     ],
 )
 def test_folder_is_named_after_the_origin_remote(
@@ -549,7 +550,16 @@ def test_first_repo_with_an_origin_wins(
     assert metadata(tmp_path)["repo"] == "vanoostrum/librag"
 
 
-@pytest.mark.parametrize("origin", [None, "https://example.com/craft.git"])
+@pytest.mark.parametrize(
+    "origin",
+    [
+        None,
+        "https://example.com/craft.git",
+        "https://host:8443/craft.git",
+        "https://user:ghp_token123@github.com/craft.git",
+        "git@github.com:craft.git",
+    ],
+)
 def test_session_without_a_repo_goes_to_no_repo(
     tmp_path: Path, outside: Path, origin: str | None
 ) -> None:
@@ -680,16 +690,27 @@ def test_does_nothing_without_a_bucket(
 def test_ignores_the_old_variable_names(
     tmp_path: Path, project: Path, transcript: Path
 ) -> None:
-    """The names from before craft 2.0 no longer configure the upload."""
-    env = fake_env(
+    """The names from before craft 2.0 no longer configure the upload.
+
+    A second run with the new names uploads, so a background upload from the
+    first run would have finished and shown up in the log by then.
+    """
+    old = fake_env(
         tmp_path,
         SOUS_GCS_BUCKET="factory-logs",
         SOUS_GCS_KEY=json.dumps(KEY),
         SOUS_GCS_STOP_INTERVAL="0",
     )
-    run_hook(env, transcript, project, "SessionEnd")
+    run_hook(old, transcript, project, "SessionEnd")
+    time.sleep(1)
+    run_hook(configured_env(tmp_path), transcript, project, "SessionEnd")
+    wait_for_uploads(tmp_path, 1)
+    time.sleep(1)
 
-    assert_no_upload(tmp_path)
+    upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
+    assert upload_log.read_text("utf-8").count(" uploaded ") == 1
+    gcloud_log = (tmp_path / "gcloud.log").read_text("utf-8")
+    assert gcloud_log.count("storage rsync") == 1
 
 
 @pytest.mark.parametrize("event", ["Stop", "SubagentStop", "SessionEnd"])
