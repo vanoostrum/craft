@@ -8,12 +8,7 @@
   "plugins": [
     {
       "name": "craft",
-      "source": {
-        "source": "git-subdir",
-        "url": "vanoostrum/craft",
-        "path": "plugins/craft",
-        "ref": "v2.5.0"
-      },
+      "source": "./plugins/craft",
       "description": "The craft steps, rules, and hooks."
     },
     {

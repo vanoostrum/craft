@@ -27,7 +27,7 @@ Run `craft:plan <brief> mode=one-shot` to take a whole plan to merged code with 
 
 This repository is a plugin marketplace with two plugins: `craft`, and `pstack` pinned to the version that craft is tested with.
 
-Install craft as an account plugin: in claude.ai, add the plugins to your account from GitHub, `vanoostrum/craft`. Project threads load account plugins. The marketplace pins craft to a release tag, so your account runs the craft of the tag that `ref` names in `.claude-plugin/marketplace.json`, not the craft on `main`.
+Install craft as an account plugin: in claude.ai, add the plugins to your account from GitHub, `vanoostrum/craft`. Project threads load account plugins. Your account runs the craft on `main`, which holds only releases. Work goes into `dev` (`docs/adr/0004`).
 
 To upload transcripts to Google Cloud Storage, set `CRAFT_GCS_BUCKET` in the cloud environment, and add a "GCP access token" network secret for `storage.googleapis.com`. See `plugins/craft/hooks/upload_transcripts.py`.
 
@@ -87,11 +87,13 @@ A step that finds no `Linear project` key asks the owner for it and adds it.
 
 ## Release
 
-A merge to `main` does not reach the projects. A release does, in four steps:
+Craft PRs merge into `dev`. A merge to `dev` does not reach the projects. A release does, in four steps:
 
-1. Bump `version` in `plugins/craft/.claude-plugin/plugin.json` on a PR, and merge it. `pyproject.toml` keeps its version.
-2. Tag that commit on `main` as `v<version>` on GitHub.
-3. Check that the tag exists: `git ls-remote --tags origin v<version>`.
-4. Open a one-line PR that sets craft's `ref` in `.claude-plugin/marketplace.json` to the new tag, and merge it.
+1. Bump `version` in `plugins/craft/.claude-plugin/plugin.json` on a PR to `dev`, and merge it. `pyproject.toml` keeps its version.
+2. Open a PR from `dev` to `main`, and merge it with a merge commit, so that `main` and `dev` keep the same history. The account plugin syncs from `main` within seconds.
+3. Tag that merge commit on `main` as `v<version>` on GitHub.
+4. Check that the tag exists: `git ls-remote --tags origin v<version>`.
 
-Rollback: if a release breaks craft, set `ref` back to the last good tag in a one-line PR. If the pin itself does not work in project threads, set the craft source back to `./plugins/craft` by hand (`docs/adr/0002-fix-a-broken-craft-by-hand.md`).
+Rollback: if a release breaks craft, open a PR to `main` that puts `plugins/craft` back as it is at the last good tag, and merge it. If craft is too broken for that, fix it by hand (`docs/adr/0002-fix-a-broken-craft-by-hand.md`).
+
+Hotfix: branch from `main`, fix and bump `version` on a PR to `main`, tag it, then merge `main` back into `dev`.
