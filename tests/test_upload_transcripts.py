@@ -78,24 +78,61 @@ def write_jsonl(path: Path, lines: list[dict[str, Any]]) -> None:
     path.write_text("".join(json.dumps(line) + "\n" for line in lines), "utf-8")
 
 
-@pytest.fixture
-def project(tmp_path: Path) -> Path:
-    """Return a git checkout on a ticket branch."""
-    repo = tmp_path / "librag"
-    repo.mkdir()
+def git_repo(path: Path, branch: str, origin: str | None) -> Path:
+    """Create a git checkout at `path` on `branch`, with an `origin` remote."""
+    path.mkdir(parents=True)
     subprocess.run(  # noqa: S603
-        ["git", "init", "-q", "-b", "librag-12/version-endpoint", str(repo)],  # noqa: S607
+        ["git", "init", "-q", "-b", branch, str(path)],  # noqa: S607
         check=True,
     )
-    return repo
+    if origin is not None:
+        subprocess.run(  # noqa: S603
+            ["git", "-C", str(path), "remote", "add", "origin", origin],  # noqa: S607
+            check=True,
+        )
+    return path
 
 
 @pytest.fixture
-def transcript(tmp_path: Path) -> Path:
+def project(tmp_path: Path) -> Path:
+    """Return a git checkout on a ticket branch, with a GitHub `origin`."""
+    return git_repo(
+        tmp_path / "checkout",
+        "librag-12/version-endpoint",
+        "https://github.com/vanoostrum/librag.git",
+    )
+
+
+@pytest.fixture
+def outside(tmp_path: Path) -> Path:
+    """Return a folder that is not inside a git repo, such as `/home/user`."""
+    folder = tmp_path / "home"
+    folder.mkdir()
+    return folder
+
+
+def in_dir(cwd: Path, line: dict[str, Any]) -> dict[str, Any]:
+    """Return a transcript line with the working directory Claude Code records."""
+    return {**line, "cwd": str(cwd)}
+
+
+def slash_command(minute: int, name: str, args: str = "") -> dict[str, Any]:
+    """Return the user line that Claude Code writes for a typed slash command."""
+    text = (
+        f"<command-message>{name}</command-message>\n"
+        f"<command-name>/{name}</command-name>\n"
+        f"<command-args>{args}</command-args>"
+    )
+    return {"type": "user", "timestamp": stamp(minute), "message": {"content": text}}
+
+
+@pytest.fixture
+def transcript(tmp_path: Path, project: Path, outside: Path) -> Path:
     """Return a build session: build, review, and merge, with two subagents.
 
-    Subagent a1 is linked to its `Agent` call. Subagent b2 is not, and wrote
-    its first line during the review.
+    The session starts outside any repo and then works in the project. Subagent
+    a1 is linked to its `Agent` call. Subagent b2 is not, and wrote its first
+    line during the review.
     """
     sessions = tmp_path / "sessions"
     main = sessions / f"{SESSION}.jsonl"
@@ -107,14 +144,15 @@ def transcript(tmp_path: Path) -> Path:
         "name": "Agent",
         "input": {"description": "app driver", "subagent_type": "general-purpose"},
     }
+    first = {
+        "type": "user",
+        "timestamp": stamp(0),
+        "message": {"content": f"key {SECRET}, token proxy-injected"},
+    }
     write_jsonl(
         main,
         [
-            {
-                "type": "user",
-                "timestamp": stamp(0),
-                "message": {"content": f"key {SECRET}, token proxy-injected"},
-            },
+            in_dir(outside, first),
             # One reply written as two lines, each with the same usage.
             reply(1, "m1", SONNET, 100, {"type": "text", "text": "Building."}),
             reply(1, "m1", SONNET, 100, skill("craft:build", "LIBRAG-12")),
@@ -129,9 +167,10 @@ def transcript(tmp_path: Path) -> Path:
                     "content": [{"type": "tool_result", "tool_use_id": "call-agent"}]
                 },
             },
-            # The names from before craft 2.0 and before the plugin still count.
-            reply(10, "m3", OPUS, 300, skill("sous:review", "LIBRAG-12")),
-            reply(20, "m4", OPUS, 7, skill("factory-merge")),
+            in_dir(
+                project, reply(10, "m3", OPUS, 300, skill("craft:review", "LIBRAG-12"))
+            ),
+            reply(20, "m4", OPUS, 7, skill("craft:merge")),
             reply(21, "m5", OPUS, 5, {"type": "text", "text": "Merged."}),
         ],
     )
@@ -205,14 +244,25 @@ def wait_for_uploads(tmp_path: Path, count: int) -> None:
         time.sleep(0.1)
 
 
-def session_folder(tmp_path: Path) -> Path:
+def session_folder(tmp_path: Path, repo: str = "vanoostrum/librag") -> Path:
     """Return the session's folder in the fake bucket."""
-    return tmp_path / "gcs" / "factory-logs" / "librag" / "sessions" / SESSION
+    return tmp_path / "gcs" / "factory-logs" / repo / "sessions" / SESSION
 
 
-def metadata(tmp_path: Path) -> dict[str, Any]:
+def metadata(tmp_path: Path, repo: str = "vanoostrum/librag") -> dict[str, Any]:
     """Return the uploaded metadata of the session."""
-    return json.loads((session_folder(tmp_path) / "metadata.json").read_text("utf-8"))
+    path = session_folder(tmp_path, repo) / "metadata.json"
+    return json.loads(path.read_text("utf-8"))
+
+
+def assert_no_upload(tmp_path: Path) -> None:
+    """Assert that the hook called no Google tool and logged no upload."""
+    time.sleep(1)
+    upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
+    assert not (tmp_path / "gcloud.log").exists()
+    assert " uploaded " not in (
+        upload_log.read_text("utf-8") if upload_log.exists() else ""
+    )
 
 
 def tokens(model: str, input_tokens: int, replies: int) -> dict[str, dict[str, int]]:
@@ -240,6 +290,7 @@ def test_uploads_the_session_transcripts(
         (folder / "subagents" / "agent-a1.jsonl.gz").read_bytes()
     )
 
+    # The lines before the first step are there too.
     assert "key [redacted:OPENAI_API_KEY]" in main
     assert SECRET not in main
     assert "token proxy-injected" in main
@@ -250,7 +301,7 @@ def test_uploads_the_session_transcripts(
         == (transcript.parent / SESSION / "subagents" / "agent-a1.jsonl").read_bytes()
     )
     data = metadata(tmp_path)
-    assert data["repo"] == "librag"
+    assert data["repo"] == "vanoostrum/librag"
     assert data["branch"] == "librag-12/version-endpoint"
     assert data["session_id"] == SESSION
     assert data["tickets"] == ["LIBRAG-12"]
@@ -318,28 +369,194 @@ def test_failed_skill_call_starts_no_segment(tmp_path: Path, project: Path) -> N
             ]
         },
     }
-    write_jsonl(session, [reply(1, "m1", OPUS, 9, call), error])
-    run_hook(configured_env(tmp_path), session, project)
-    wait_for_uploads(tmp_path, 1)
+    write_jsonl(session, [in_dir(project, reply(1, "m1", OPUS, 9, call)), error])
+    run_hook(configured_env(tmp_path), session, project, "SessionEnd")
 
-    steps = [s["step"] for s in metadata(tmp_path)["segments"]]
-    assert steps == [None]
+    assert_no_upload(tmp_path)
 
 
-def test_session_without_a_ticket(tmp_path: Path, project: Path) -> None:
-    """Outside craft, the session is one segment without a step or ticket."""
+def test_step_without_a_ticket(tmp_path: Path, project: Path) -> None:
+    """A step without a ticket argument, on a branch without one, has no ticket."""
     subprocess.run(  # noqa: S603
         ["git", "-C", str(project), "checkout", "-q", "-b", "claude/thread"],  # noqa: S607
         check=True,
     )
     plain = tmp_path / "plain.jsonl"
-    write_jsonl(plain, [reply(1, "m1", OPUS, 9, {"type": "text", "text": "Hi."})])
+    write_jsonl(plain, [in_dir(project, reply(1, "m1", OPUS, 9, skill("craft:next")))])
     run_hook(configured_env(tmp_path), plain, project)
     wait_for_uploads(tmp_path, 1)
 
     data = metadata(tmp_path)
     assert data["tickets"] == []
-    assert [(s["step"], s["ticket"]) for s in data["segments"]] == [(None, None)]
+    assert data["branch"] == "claude/thread"
+    assert [(s["step"], s["ticket"]) for s in data["segments"]] == [("next", None)]
+
+
+@pytest.mark.parametrize("event", ["Stop", "SubagentStop", "SessionEnd"])
+@pytest.mark.parametrize("name", ["craft:rules", "craft:bstack", "pstack:tdd"])
+def test_session_without_a_step_uploads_nothing(
+    tmp_path: Path, project: Path, event: str, name: str
+) -> None:
+    """A session that loads craft skills but runs no step is not uploaded."""
+    chat = tmp_path / "chat.jsonl"
+    write_jsonl(
+        chat,
+        [
+            in_dir(project, reply(1, "m1", OPUS, 9, skill(name))),
+            reply(2, "m2", OPUS, 9, {"type": "text", "text": "Hi."}),
+        ],
+    )
+    run_hook(configured_env(tmp_path), chat, project, event)
+
+    assert_no_upload(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "step",
+    [
+        "brainstorm",
+        "setup",
+        "plan",
+        "spec",
+        "design",
+        "build",
+        "review",
+        "merge",
+        "next",
+    ],
+)
+def test_each_step_skill_starts_a_segment(
+    tmp_path: Path, project: Path, step: str
+) -> None:
+    """Each of the nine craft steps starts a segment with its step name."""
+    session = tmp_path / "step.jsonl"
+    write_jsonl(
+        session, [in_dir(project, reply(1, "m1", OPUS, 9, skill(f"craft:{step}")))]
+    )
+    run_hook(configured_env(tmp_path), session, project)
+    wait_for_uploads(tmp_path, 1)
+
+    assert [s["step"] for s in metadata(tmp_path)["segments"]] == [step]
+
+
+@pytest.mark.parametrize("name", ["sous:build", "factory-build", "factory:build"])
+def test_old_step_names_are_no_step(tmp_path: Path, project: Path, name: str) -> None:
+    """The names from before craft 2.0 and before the plugin no longer count."""
+    session = tmp_path / "old.jsonl"
+    write_jsonl(session, [in_dir(project, reply(1, "m1", OPUS, 9, skill(name)))])
+    run_hook(configured_env(tmp_path), session, project, "SessionEnd")
+
+    assert_no_upload(tmp_path)
+
+
+def test_slash_command_starts_a_segment(
+    tmp_path: Path, project: Path, outside: Path
+) -> None:
+    """A step that the owner types as a slash command counts, with its ticket."""
+    session = tmp_path / "local.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(project, reply(1, "m1", OPUS, 9, {"type": "text", "text": "Hi."})),
+            in_dir(project, slash_command(2, "craft:build", "CRAFT-12")),
+            reply(3, "m2", SONNET, 20, {"type": "text", "text": "Building."}),
+        ],
+    )
+    run_hook(configured_env(tmp_path), session, outside)
+    wait_for_uploads(tmp_path, 1)
+
+    segments = metadata(tmp_path)["segments"]
+    assert [(s["step"], s["ticket"]) for s in segments] == [
+        (None, "LIBRAG-12"),
+        ("build", "CRAFT-12"),
+    ]
+    assert segments[1]["tokens"] == tokens(SONNET, 20, 1)
+
+
+def test_other_slash_commands_are_no_step(tmp_path: Path, project: Path) -> None:
+    """A slash command that is not a craft step, such as `/craft:rules`, is no step."""
+    session = tmp_path / "local.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(project, slash_command(1, "craft:rules")),
+            in_dir(project, slash_command(2, "clear")),
+        ],
+    )
+    run_hook(configured_env(tmp_path), session, project, "SessionEnd")
+
+    assert_no_upload(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://github.com/vanoostrum/craft.git",
+        "https://github.com/vanoostrum/craft",
+        "git@github.com:vanoostrum/craft.git",
+        "ssh://git@github.com/vanoostrum/craft.git",
+        "http://local_proxy@127.0.0.1:41463/git/vanoostrum/craft",
+    ],
+)
+def test_folder_is_named_after_the_origin_remote(
+    tmp_path: Path, outside: Path, origin: str
+) -> None:
+    """The folder is `<owner>/<repo>` from the `origin` URL, for HTTPS and SSH."""
+    repo = git_repo(tmp_path / "work" / "craft-clone", "craft-7/x", origin)
+    session = tmp_path / "s.jsonl"
+    write_jsonl(session, [in_dir(repo, reply(1, "m1", OPUS, 9, skill("craft:spec")))])
+    run_hook(configured_env(tmp_path), session, outside)
+    wait_for_uploads(tmp_path, 1)
+
+    data = metadata(tmp_path, "vanoostrum/craft")
+    assert data["repo"] == "vanoostrum/craft"
+    assert data["branch"] == "craft-7/x"
+    assert data["segments"][0]["ticket"] == "CRAFT-7"
+
+
+def test_first_repo_with_an_origin_wins(
+    tmp_path: Path, project: Path, outside: Path
+) -> None:
+    """Directories outside a repo, or in a repo without `origin`, are skipped."""
+    local = git_repo(tmp_path / "local", "main", None)
+    other = git_repo(tmp_path / "other", "main", "git@github.com:someone/other.git")
+    session = tmp_path / "s.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(outside, reply(1, "m1", OPUS, 9, skill("craft:build"))),
+            in_dir(local, reply(2, "m2", OPUS, 9)),
+            in_dir(project, reply(3, "m3", OPUS, 9)),
+            in_dir(other, reply(4, "m4", OPUS, 9)),
+        ],
+    )
+    run_hook(configured_env(tmp_path), session, other)
+    wait_for_uploads(tmp_path, 1)
+
+    assert metadata(tmp_path)["repo"] == "vanoostrum/librag"
+
+
+@pytest.mark.parametrize("origin", [None, "https://example.com/craft.git"])
+def test_session_without_a_repo_goes_to_no_repo(
+    tmp_path: Path, outside: Path, origin: str | None
+) -> None:
+    """Without a repo whose `origin` has an owner and a name, the folder is no-repo."""
+    repo = git_repo(tmp_path / "solo", "craft-3/y", origin)
+    session = tmp_path / "s.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(outside, reply(1, "m1", OPUS, 9, skill("craft:plan", "CRAFT-3"))),
+            in_dir(repo, reply(2, "m2", OPUS, 9)),
+        ],
+    )
+    run_hook(configured_env(tmp_path), session, repo)
+    wait_for_uploads(tmp_path, 1)
+
+    data = metadata(tmp_path, "no-repo")
+    assert data["repo"] == "no-repo"
+    assert data["branch"] == ""
+    assert data["tickets"] == ["CRAFT-3"]
 
 
 def test_skips_a_stop_soon_after_an_upload(
@@ -447,15 +664,19 @@ def test_does_nothing_without_a_bucket(
     assert not (tmp_path / "gcloud.log").exists()
 
 
-def test_reads_the_old_variable_names(
+def test_ignores_the_old_variable_names(
     tmp_path: Path, project: Path, transcript: Path
 ) -> None:
-    """For one release, the names from before craft 2.0 still configure the upload."""
-    env = fake_env(tmp_path, SOUS_GCS_BUCKET="factory-logs")
-    run_hook(env, transcript, project)
-    wait_for_uploads(tmp_path, 1)
+    """The names from before craft 2.0 no longer configure the upload."""
+    env = fake_env(
+        tmp_path,
+        SOUS_GCS_BUCKET="factory-logs",
+        SOUS_GCS_KEY=json.dumps(KEY),
+        SOUS_GCS_STOP_INTERVAL="0",
+    )
+    run_hook(env, transcript, project, "SessionEnd")
 
-    assert (session_folder(tmp_path) / "metadata.json").is_file()
+    assert_no_upload(tmp_path)
 
 
 @pytest.mark.parametrize("event", ["Stop", "SubagentStop", "SessionEnd"])
@@ -464,3 +685,18 @@ def test_plugin_runs_the_hook(event: str) -> None:
     hooks = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]
     commands = [hook["command"] for group in hooks[event] for hook in group["hooks"]]
     assert '"${CLAUDE_PLUGIN_ROOT}/hooks/upload_transcripts.py"' in " ".join(commands)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        HOOK,
+        ROOT / ".github" / "workflows" / "ci.yml",
+        ROOT / ".claude" / "skills" / "verify" / "SKILL.md",
+    ],
+)
+def test_old_names_are_gone(path: Path) -> None:
+    """The hook, CI, and the verify skill no longer name the old variables or steps."""
+    text = path.read_text(encoding="utf-8")
+    assert "SOUS_GCS" not in text
+    assert "sous:" not in text

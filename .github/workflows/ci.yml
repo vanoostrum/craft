@@ -60,7 +60,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: >-
-          env -u CRAFT_GCS_BUCKET -u SOUS_GCS_BUCKET
+          env -u CRAFT_GCS_BUCKET
           claude plugin eval plugins/craft --trust-plugin --no-publish
           --ablation none --runs 1 --max-cost-usd 1 --keep-temp
           --json eval-results/result.json --report eval-results/report.html
