@@ -257,12 +257,25 @@ def metadata(tmp_path: Path, repo: str = "vanoostrum/librag") -> dict[str, Any]:
 
 def assert_no_upload(tmp_path: Path) -> None:
     """Assert that the hook called no Google tool and logged no upload."""
-    time.sleep(1)
     upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
     assert not (tmp_path / "gcloud.log").exists()
     assert " uploaded " not in (
         upload_log.read_text("utf-8") if upload_log.exists() else ""
     )
+
+
+def assert_skipped(tmp_path: Path) -> None:
+    """Wait until the background process skips the session, then assert no upload."""
+    upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
+    deadline = time.monotonic() + 20
+    while " skipped " not in (
+        upload_log.read_text("utf-8") if upload_log.exists() else ""
+    ):
+        if time.monotonic() > deadline:
+            pytest.fail("the hook did not skip the session")
+        time.sleep(0.1)
+    assert "no craft step" in upload_log.read_text("utf-8")
+    assert_no_upload(tmp_path)
 
 
 def tokens(model: str, input_tokens: int, replies: int) -> dict[str, dict[str, int]]:
@@ -372,7 +385,7 @@ def test_failed_skill_call_starts_no_segment(tmp_path: Path, project: Path) -> N
     write_jsonl(session, [in_dir(project, reply(1, "m1", OPUS, 9, call)), error])
     run_hook(configured_env(tmp_path), session, project, "SessionEnd")
 
-    assert_no_upload(tmp_path)
+    assert_skipped(tmp_path)
 
 
 def test_step_without_a_ticket(tmp_path: Path, project: Path) -> None:
@@ -408,7 +421,7 @@ def test_session_without_a_step_uploads_nothing(
     )
     run_hook(configured_env(tmp_path), chat, project, event)
 
-    assert_no_upload(tmp_path)
+    assert_skipped(tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -446,7 +459,7 @@ def test_old_step_names_are_no_step(tmp_path: Path, project: Path, name: str) ->
     write_jsonl(session, [in_dir(project, reply(1, "m1", OPUS, 9, skill(name)))])
     run_hook(configured_env(tmp_path), session, project, "SessionEnd")
 
-    assert_no_upload(tmp_path)
+    assert_skipped(tmp_path)
 
 
 def test_slash_command_starts_a_segment(
@@ -485,7 +498,7 @@ def test_other_slash_commands_are_no_step(tmp_path: Path, project: Path) -> None
     )
     run_hook(configured_env(tmp_path), session, project, "SessionEnd")
 
-    assert_no_upload(tmp_path)
+    assert_skipped(tmp_path)
 
 
 @pytest.mark.parametrize(
