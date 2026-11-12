@@ -18,7 +18,7 @@
 - Run the checks with the `project-verify` skill, as the `checks` job does. Run the smoke suite with the `verify` skill, as the `evals` job does.
 - Write tests first.
 - **Test seams.** A pytest test checks skill text, hook behavior, and script behavior. An eval case checks how a step behaves when Claude runs it. Do not check in an eval what a pytest test already checks.
-- The agents run the account plugin, not this checkout. Until craft is pinned to a release tag (`docs/adr/0003`), the account marketplace syncs from `main`, so every merge reaches every project at once. After the pin, a merge reaches the projects only through a release. When craft itself is broken, the owner fixes it by hand, outside craft (`docs/adr/0002`).
+- The agents run the account plugin, not this checkout. The account marketplace syncs from `main`, so `main` holds only releases. PRs target `dev`, and a merge reaches the projects only through a release (`docs/adr/0004`). When craft itself is broken, the owner fixes it by hand, outside craft (`docs/adr/0002`).
 - **Unknown skills.** If a skill is unknown, read `.claude/skills/<name>/SKILL.md` and follow it.
 
 ## Craft

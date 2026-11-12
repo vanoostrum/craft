@@ -7,7 +7,7 @@ The craft plugin reads these values. Its rules are in the `craft:rules` skill.
 | Linear team | `CRAFT` |
 | Linear project | `Craft` |
 | GitHub repo | `vanoostrum/craft` |
-| Base branch | `main` |
+| Base branch | `dev` |
 | Required CI checks | `checks`, `evals` |
 | Verify skill | `project-verify` |
 | App driver skill | `verify` |
