@@ -96,3 +96,51 @@ def test_merging_the_walking_skeleton_plans_the_product() -> None:
 def test_v1_offers_the_deploy_setup() -> None:
     """The milestone checkpoint offers `craft:setup deploy` at v1."""
     assert "craft:setup deploy" in section(skill("next"), "Milestone checkpoint")
+
+
+def rules_steering() -> str:
+    """Return the Steering rule in `craft:rules`."""
+    rules = skill("rules")
+    return rules.split("- **Steering.**", 1)[1].split("- **The gate.**", 1)[0]
+
+
+def test_setup_offers_only_a_note_at_approval() -> None:
+    """The environment plan runs gated, so setup asks only for a note."""
+    approval = section(skill("setup"), "Approval")
+    assert "runs gated" in approval
+    assert "`note=` is the only argument setup offers" in approval
+    assert "mode=<gated|one-shot>" not in approval
+
+
+def test_setup_adds_an_approval_note_to_the_brief_notes() -> None:
+    """A note given at approval joins the notes already in Steering."""
+    after = section(skill("setup"), "After approval")
+    assert "added to the notes already in **Steering**" in after
+    assert "`Run craft:plan on <brief link>.`" in after
+
+
+def test_setup_asks_again_for_an_argument_it_does_not_offer() -> None:
+    """`mode=` or an unknown value is not an approval."""
+    approval = section(skill("setup"), "Approval")
+    assert "not an approval" in approval
+    assert "ask again" in approval
+
+
+def test_plan_runs_an_environment_brief_gated() -> None:
+    """An environment brief always plans with `mode=gated`, on the plan ticket too."""
+    plan_input = section(skill("plan"), "Input")
+    assert "always plans with `mode=gated`" in plan_input
+    assert "plan ticket's `## Steering`" in plan_input
+    assert "ignored `mode=one-shot`" in plan_input
+
+
+def test_rules_say_what_the_brief_approval_asks() -> None:
+    """Brainstorm asks for plan arguments, setup for a note; briefs hold only those."""
+    steering = rules_steering()
+    assert "take only `note=`" not in steering
+    assert "brief approval" in steering
+    assert "only the arguments the owner gave" in steering
+    mode_row = next(
+        line for line in steering.splitlines() if line.strip().startswith("| `mode=")
+    )
+    assert "environment brief" in mode_row

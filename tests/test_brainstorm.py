@@ -90,3 +90,38 @@ def test_spec_has_a_review_focus_that_review_checks() -> None:
     """The spec lists failure modes to test, and the reviewer checks each one."""
     assert "Review focus" in step(skill("spec"), "Write the spec")
     assert "Review focus" in skill("review")
+
+
+PLAN_ARGUMENTS = ("design-variants=", "platforms=", "mode=<gated|one-shot>", "note=")
+
+
+def test_brainstorm_asks_for_the_plan_arguments_at_approval() -> None:
+    """The approval lists each plan argument; "approve" or 👍 keeps the defaults."""
+    approval = section(skill("brainstorm"), "Approval")
+    for argument in PLAN_ARGUMENTS:
+        assert f"`{argument}" in approval
+    assert "default" in approval
+    assert "keeps the defaults" in approval
+
+
+def test_brainstorm_carries_the_plan_arguments_in_the_brief() -> None:
+    """The owner's arguments go into the brief; the prompt holds only the link."""
+    after = section(skill("brainstorm"), "After approval")
+    assert "**Steering**" in after
+    assert "only the arguments the owner gave" in after
+    assert "`Run craft:plan on <brief link>.`" in after
+    assert "would replace" in after
+    assert "product brief" in after
+
+
+def test_brainstorm_adds_an_approval_note_to_the_brief_notes() -> None:
+    """A note given at approval joins the notes already in Steering."""
+    after = section(skill("brainstorm"), "After approval")
+    assert "added to the notes already in **Steering**" in after
+
+
+def test_brainstorm_asks_again_for_an_unknown_argument() -> None:
+    """An unknown argument or value is not an approval."""
+    approval = section(skill("brainstorm"), "Approval")
+    assert "not an approval" in approval
+    assert "ask again" in approval

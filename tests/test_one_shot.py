@@ -160,3 +160,10 @@ def test_spec_reviewer_has_a_model() -> None:
 def test_spec_treats_a_spec_review_as_feedback() -> None:
     """`craft:spec` grills again on the problems the spec review found."""
     assert "`🤖 spec review:` comment" in skill("spec")
+
+
+def test_one_shot_done_report_starts_no_product_plan() -> None:
+    """An environment plan is never one-shot, so no product plan starts here."""
+    one_shot = section(skill("next"), "One-shot")
+    assert "Product brief" not in one_shot
+    assert "craft:plan` on the product brief" not in one_shot

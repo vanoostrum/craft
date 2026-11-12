@@ -105,13 +105,13 @@ Tickets that set up or change staging or production keep `mode=gated`. They skip
 - **Linear is the source of truth.** Read the ticket's current state and comments before acting. Do not rely on memory of earlier sessions.
 - **Craft comments.** Every comment craft writes in Linear starts with `🤖`. Comments without it are from the owner. Each step adds one comment when it ends: `🤖 <step>: <success|failed|escalated> — <one line>`.
 - **Dependencies.** A ticket with a Linear "blocked by" relation is not built until each ticket that blocks it is Done. `craft:next` and `craft:build` check this.
-- **Steering.** `craft:plan` and `craft:spec` take optional arguments after their input, as `key=value`. `craft:brainstorm` and `craft:setup` take only `note=`, and write it into the brief for `craft:plan`. Scope is not an argument: `craft:plan` decides from the repo whether the work is a new project or an increment.
+- **Steering.** `craft:plan` and `craft:spec` take optional arguments after their input, as `key=value`. `craft:brainstorm` and `craft:setup` take `note=` as input, and write it into the brief for `craft:plan`. At the brief approval, `craft:brainstorm` asks the owner for the plan's arguments, and `craft:setup` only for a `note=`. A brief's **Steering** holds only the arguments the owner gave, with no defaults filled in: `craft:plan` fills them in on the plan ticket. Scope is not an argument: `craft:plan` decides from the repo whether the work is a new project or an increment.
 
   | Argument | Default | Effect |
   |---|---|---|
   | `design-variants=<n>` | `1` | `craft:design` draws `n` distinct prototypes of each new screen, side by side, and the owner picks one. |
   | `platforms=<list>` | derived | The platforms the gallery covers, primary first, from `desktop`, `mobile`, `ios`, `android`; for example `platforms=ios,android`. By default `craft:design` derives them from the project, as `gallery.md` describes. |
-  | `mode=<gated|one-shot>` | `gated` | Only for `craft:plan`. `one-shot` runs the plan as **One-shot mode** below describes. `craft:plan` writes `mode=gated` on each staging or production ticket of a one-shot plan. |
+  | `mode=<gated|one-shot>` | `gated` | Only for `craft:plan`, and not for an environment brief: its plan always runs gated. `one-shot` runs the plan as **One-shot mode** below describes. `craft:plan` writes `mode=gated` on each staging or production ticket of a one-shot plan. |
   | `note=<text, file, or link>` | none | A note: guidance for any step, such as a document on the local or cloud deployment setup. Repeat it for more notes. |
 
   The step writes the arguments under `## Steering` in the ticket description, with the default for each one not given. A ticket that `craft:plan` creates gets a copy of the plan ticket's `## Steering`. Arguments given to `craft:spec` replace those values on that ticket. Every step reads `## Steering` on its ticket, and the standing notes in `.claude/craft.md`, before it starts, and follows the notes that concern it. It reads a file or link in a note when the note concerns its work.

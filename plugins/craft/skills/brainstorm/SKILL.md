@@ -51,11 +51,22 @@ An idea from the owner, as text, a file, or a link. Optional `note=` arguments f
 
 ## Approval
 
-Ask the owner in chat to approve the brief, with its link, by 👍 on the message or a reply "approve". Any other reply is feedback: go back to the step it belongs to. There is no gate and no Linear comment here, because there is no ticket yet. The plan gate is the first formal gate.
+Ask the owner in chat to approve the brief, with its link, by 👍 on the message or a reply "approve". In the same message, list the arguments of the plan of this brief, one line each, with its default and what it does:
+
+- `design-variants=<n>`, default `1`;
+- `platforms=<list>`, default derived from the project;
+- `mode=<gated|one-shot>`, default `gated`;
+- `note=<text, file, or link>`, default none.
+
+"approve" or 👍 keeps the defaults. The owner sets an argument by adding it to the reply, such as "approve mode=one-shot". The table in Steering in `craft:rules` has what each one does.
+
+An argument that is not in this list, or a value that the table does not allow, such as `mode=fast`, is not an approval: name the arguments and values you accept, and ask again. Any other reply is feedback: go back to the step it belongs to. There is no gate and no Linear comment here, because there is no ticket yet. The plan gate is the first formal gate.
 
 ## After approval
 
-Start `craft:plan` in a new session, so that the plan starts with a fresh context and the brief is all it knows of the brainstorm. Use this prompt: `Run craft:plan on <brief link>.` For a new project, or a project with no `.claude/craft.md`, use `Run craft:setup dev on <brief link>.` instead: the dev environment comes first, and its plan runs before the plan of this brief. In a claude.ai project, ask the coordinator for a new thread. In a terminal, give the owner the command `claude "<prompt>"` to run in a new terminal. Tell the owner in chat in one line.
+Write the arguments the owner gave at approval into the brief's **Steering** section: only the arguments the owner gave, with no defaults filled in, so `craft:plan` can tell a choice from silence. A `note=` given at approval is added to the notes already in **Steering**; it does not replace them.
+
+Start `craft:plan` in a new session, so that the plan starts with a fresh context and the brief is all it knows of the brainstorm. Use this prompt: `Run craft:plan on <brief link>.` Do not put the arguments in the prompt: `craft:plan` reads the brief's **Steering** as its arguments, and an argument in the prompt would replace the brief's values. For a new project, or a project with no `.claude/craft.md`, use `Run craft:setup dev on <brief link>.` instead: the dev environment comes first, and its plan runs before the plan of this brief. The owner's arguments stay in this product brief: its plan starts when the walking skeleton is merged, and reads them then. In a claude.ai project, ask the coordinator for a new thread. In a terminal, give the owner the command `claude "<prompt>"` to run in a new terminal. Tell the owner in chat in one line.
 
 ## Done when
 
