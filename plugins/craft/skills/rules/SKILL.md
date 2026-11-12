@@ -109,7 +109,7 @@ Tickets that set up or change staging or production keep `mode=gated`. They skip
 
   | Argument | Default | Effect |
   |---|---|---|
-  | `design-variants=<n>` | `1` | `craft:design` draws `n` distinct prototypes of each new screen, side by side, and the owner picks one. |
+  | `design-variants=<n>` | `1` | `craft:design` draws `n` distinct prototypes of each new screen, side by side, and the owner picks one. After a brainstorm, a new screen is one that is not in the brief's **Look**. |
   | `platforms=<list>` | derived | The platforms the gallery covers, primary first, from `desktop`, `mobile`, `ios`, `android`; for example `platforms=ios,android`. By default `craft:design` derives them from the project, as `gallery.md` describes. |
   | `mode=<gated|one-shot>` | `gated` | Only for `craft:plan`, and not for an environment brief: its plan always runs gated. `one-shot` runs the plan as **One-shot mode** below describes. `craft:plan` writes `mode=gated` on each staging or production ticket of a one-shot plan. |
   | `note=<text, file, or link>` | none | A note: guidance for any step, such as a document on the local or cloud deployment setup. Repeat it for more notes. |

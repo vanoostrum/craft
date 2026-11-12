@@ -30,7 +30,11 @@ An idea from the owner, as text, a file, or a link. Optional `note=` arguments f
 4. **Bring your own ideas.** Look further when it helps: in the code, in the owner's files, and on the web. Say what you looked for and what you found. Bring at least one idea that the owner did not ask for: a twist from prior art, a cheaper path, or a conflict with what exists.
 5. **Play it back.** As soon as one part is clear, describe it back in 200 to 300 words, then go on to the next part. Mark what the owner said as the owner's, and what you added as your proposal, with your reason. End each playback by asking what is wrong or missing.
 6. **Directions.** Once you know what the owner wants, lay out two or three product directions in a message of their own: different ways the idea could work for its users, not different technologies. Drop the weak ones. Say what each trades off, recommend one, and ask the owner to pick.
-7. **Look and feel.** If the idea has screens and their look matters to it, sketch them in Claude Design: the Artifact tool's Design type, started with `quickstart` and intent `design`. Draw two or three throwaway variants that differ in direction, such as layout, density, or tone, not in detail. The owner picks one, or combines parts. Do not write to `design/`: `craft:design` freezes the gallery in `craft:plan`.
+7. **Look and feel.** If the idea has screens and their look matters to it, settle the look here. This is the one place where the owner chooses between looks: `craft:plan` freezes what this step settles, and does not prototype it again. Work in Claude Design: the Artifact tool's Design type, started with `quickstart` and intent `design`.
+   - Draw two or three variants that differ in direction, such as layout, density, or tone, not in detail. Draw them on the primary platform only. The owner picks one, or combines parts.
+   - Then iterate on the chosen one with the owner until the owner says it is right. Settle the visual identity: colours, fonts, and the main shapes. Draw the defining screens: the one to three screens that show what makes the product special, such as the home screen. Go to the detail the owner wants.
+   - Leave the other screens, the states, the edge cases, and the other platforms to `craft:design`: slicing in `craft:plan` decides which screens there are.
+   - Do not write to `design/`: `craft:design` freezes the gallery in `craft:plan`.
 8. **Size it.** If the idea is several increments, say so, agree on an order with the owner, and brief the first one only. Note the others under **Later** in the brief.
 9. **Write the brief.** Write the brief as a Linear document in the Linear project from the config, titled `Brief: <name>`. For a new project, with no `.claude/craft.md` yet, ask the owner for the Linear team key and the project name first, and run `linear_team.py` as step 2 of `craft:setup` describes. It creates the team if needed, and the project. Name the team key and the project in the brief, so that `craft:setup dev` uses the same ones. Write it with the `craft:clear-technical-prose` skill:
    - **Intent:** what to build, for whom, and why, in the owner's terms.
@@ -38,7 +42,9 @@ An idea from the owner, as text, a file, or a link. Optional `note=` arguments f
    - **Goals**, **Non-goals**, and **Anti-goals.**
    - **Constraints:** hard values such as limits, platforms, and naming or copy rules, word for word as the owner gave them.
    - **Directions:** the directions from step 6, what each trades off, the one the owner picked, and why.
-   - **Look:** only if step 7 ran. The links to the prototypes with the chosen one marked, a screenshot of each, the direction in words (what the owner picked, loved, and hated, and the references the owner gave), and what is still open.
+   - **Look:** only if step 7 ran. The links to the prototypes with the chosen one marked, a screenshot of each, the direction in words (what the owner picked, loved, and hated, and the references the owner gave), and what is still open. Also:
+     - **Identity:** the values of the visual identity, such as the colours as hex codes and the font names, so that `craft:design` can write `design/gallery.css` from them;
+     - **Screens:** each screen drawn, with the platform and where it is on the canvas.
    - **Decisions:** each decision from the conversation, one line each. Mark the ones you took yourself `(agent)`.
    - **Open for the plan:** what the plan must still settle.
    - **Later:** only if step 8 found more increments.
