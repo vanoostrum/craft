@@ -81,10 +81,6 @@ Craft 2.3 keeps all projects in one Linear team, with one Linear project per pro
 
 A step that finds no `Linear project` key asks the owner for it and adds it.
 
-## Upgrade to 2.7
-
-Craft 2.7 adds the craft-only rule from **Set up a project**, item 4. A new project gets it from `craft:setup dev` and `craft:plan`. For a project that is already in craft, add the rule to its `CLAUDE.md`, and paste it into its claude.ai project instructions.
-
 ## Development
 
 - Fix craft here, not in a project.

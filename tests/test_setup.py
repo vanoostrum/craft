@@ -167,10 +167,10 @@ def test_setup_asks_the_owner_to_paste_the_rule_into_the_project_instructions() 
 
 
 def test_plan_writes_the_craft_only_rule_to_claude_md() -> None:
-    """Plan adds the rule from the brief, also in a project that is already in craft."""
+    """Plan writes the rule from the brief when it connects a new project."""
     commit = step(skill("plan"), "Commit")
     assert "craft-only rule" in commit
-    assert "if it is not there yet" in commit
+    assert "if it is not there yet" not in commit
 
 
 def test_the_readme_lists_the_craft_only_rule() -> None:
