@@ -107,10 +107,10 @@ def test_the_results_folder_is_ignored() -> None:
     assert "plugins/craft/evals/results/" in ignored
 
 
-def test_the_plugin_is_version_2_5_0() -> None:
-    """The release that stops setup from starting plan is 2.5.0."""
+def test_the_plugin_is_version_2_6_0() -> None:
+    """The release where brainstorm owns the look is 2.6.0."""
     manifest = ROOT / "plugins" / "craft" / ".claude-plugin" / "plugin.json"
-    assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == "2.5.0"
+    assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == "2.6.0"
 
 
 def test_craft_config_has_the_final_values() -> None:
