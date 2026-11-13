@@ -87,13 +87,14 @@ A step that finds no `Linear project` key asks the owner for it and adds it.
 
 ## Release
 
-Craft PRs merge into `dev`. A merge to `dev` does not reach the projects. A release does, in four steps:
+Craft PRs merge into `dev`. A merge to `dev` does not reach the projects. A release does. The owner starts one with a "release" message in a thread, such as "release" or "release 2.7.0". The thread follows the `release` skill in `.claude/skills/release/`, and the message is the owner's approval for both merges of that release (`docs/adr/0005`). The steps:
 
 1. Bump `version` in `plugins/craft/.claude-plugin/plugin.json` on a PR to `dev`, and merge it. `pyproject.toml` keeps its version.
-2. Open a PR from `dev` to `main`, and merge it with a merge commit, so that `main` and `dev` keep the same history. The account plugin syncs from `main` within seconds.
-3. Tag that merge commit on `main` as `v<version>` on GitHub.
+2. Open a PR from `dev` to `main`, and merge it with a merge commit when its required checks are green, so that `main` and `dev` keep the same history. The account plugin syncs from `main` within seconds.
+3. The `release` workflow (`.github/workflows/release.yml`) tags the merge commit on `main` as `v<version>`, from `plugin.json`. Nobody tags by hand. A later merge to `main` at the same version keeps the tag where it is.
 4. Check that the tag exists: `git ls-remote --tags origin v<version>`.
+5. Write the release note in the project files, and check that the account loads the new version.
 
 Rollback: if a release breaks craft, open a PR to `main` that puts `plugins/craft` back as it is at the last good tag, and merge it. If craft is too broken for that, fix it by hand (`docs/adr/0002-fix-a-broken-craft-by-hand.md`).
 
-Hotfix: branch from `main`, fix and bump `version` on a PR to `main`, tag it, then merge `main` back into `dev`.
+Hotfix: branch from `main`, fix and bump `version` on a PR to `main`, and merge it. The `release` workflow tags it. Then merge `main` back into `dev`.

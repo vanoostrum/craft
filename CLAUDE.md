@@ -12,6 +12,7 @@
 | `tests/` | pytest tests on the skill text, the hooks, and the scripts. |
 | `docs/adr/` | Decisions about how craft is built and released. |
 | `.github/workflows/ci.yml` | CI: the `checks` job, and the `evals` job that runs the smoke suite. |
+| `.github/workflows/release.yml` | Tags `main` as `v<version>` from `plugin.json` on each push. A release runs from the owner's "release" message with the `release` skill. |
 
 - Python 3.12, managed with **uv**. Add dependencies with `uv add`, never `pip`.
 - Lint with **ruff**, format with **ruff format**, type-check with **ty**, check `plugins/craft/skills/rules/scripts/gallery-shot` with **shellcheck**, and test with **pytest**. All must pass.
