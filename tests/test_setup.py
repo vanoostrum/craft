@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Theo van Oostrum
 """Setup describes the environments in a brief, and plan turns it into tickets."""
 
-from tests.test_brainstorm import SKILLS, section, skill, step
+from tests.test_brainstorm import ROOT, SKILLS, section, skill, step
 
 BRIEFS = ("Brief: Dev environment", "Brief: Staging and production")
 
@@ -144,3 +144,36 @@ def test_rules_say_what_the_brief_approval_asks() -> None:
         line for line in steering.splitlines() if line.strip().startswith("| `mode=")
     )
     assert "environment brief" in mode_row
+
+
+CRAFT_ONLY_RULE = (
+    "Every code change goes through craft. Start with `craft:spec` for a single ticket,"
+    " or `craft:plan` for bigger work. Never edit code outside a craft step."
+)
+
+
+def test_setup_puts_the_craft_only_rule_in_the_brief() -> None:
+    """The brief carries the rule word for word, so plan can write it to `CLAUDE.md`."""
+    wiring = step(skill("setup"), "Write the brief.")
+    assert CRAFT_ONLY_RULE in wiring
+    assert "`CLAUDE.md`" in wiring
+
+
+def test_setup_asks_the_owner_to_paste_the_rule_into_the_project_instructions() -> None:
+    """Threads read the claude.ai project instructions, which only the owner sets."""
+    checklist = step(skill("setup"), "Owner checklist.")
+    assert "craft-only rule" in checklist
+    assert "project instructions" in checklist
+
+
+def test_plan_writes_the_craft_only_rule_to_claude_md() -> None:
+    """Plan adds the rule from the brief, also in a project that is already in craft."""
+    commit = step(skill("plan"), "Commit")
+    assert "craft-only rule" in commit
+    assert "if it is not there yet" in commit
+
+
+def test_the_readme_lists_the_craft_only_rule() -> None:
+    """A project set up by hand, or upgraded, gets the same rule."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert CRAFT_ONLY_RULE in readme

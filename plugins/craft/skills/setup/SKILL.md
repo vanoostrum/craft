@@ -43,14 +43,22 @@ Next to this skill, in its base directory:
    - For `dev`, keep the later deploy in mind. If a dev choice limits the deploy, such as a database the preferred host does not offer, say so now.
    - For `deploy`, settle how a merge to the base branch reaches production. Craft merges every ticket to the base branch, so either each merge deploys to production, or a merge deploys to staging and a separate, owner-approved step promotes it. Settle the rollback too.
 5. **Owner checklist.** List what only the owner can do, because no agent has the access. For each item, say where the owner does it and what value to use. Sort the items by when they are needed:
-   - **Before the plan:** the GitHub repo with at least one commit on the base branch, a Linear team or project that `linear_team.py` could not make in step 2, the cloud environment's network access and secrets, and the accounts and plans the first ticket uses.
+   - **Before the plan:** the GitHub repo with at least one commit on the base branch, a Linear team or project that `linear_team.py` could not make in step 2, the cloud environment's network access and secrets, and the accounts and plans the first ticket uses. For `dev`, also the craft-only rule from step 6, which the owner pastes into the instructions of the claude.ai project where the agents work. The coordinator and every project thread read the project instructions, also before they read `CLAUDE.md`, so a request in chat goes to craft instead of straight to the code. Only the owner can set the project instructions.
    - **Owner first:** items that one ticket needs before it is built, such as a secret for an external service. `craft:plan` copies each to that ticket.
    - **Owner after:** items that can only be done after a ticket is merged, such as making the walking skeleton's checks required on the base branch.
 6. **Write the brief.** Write the brief as a Linear document in the Linear project from step 2, or from `.claude/craft.md`, titled `Brief: Dev environment` or `Brief: Staging and production`, with the `craft:clear-technical-prose` skill:
    - **Intent:** who uses this environment and what for. For `dev`, the users are the owner and the agents that build the project.
    - **Parts:** each part and what it is for.
    - **Places:** for `dev`, a section each for **Local**, **Cloud agents**, and **CI**. For `deploy`, a section each for **Staging**, **Production**, **Promotion** (how a merge reaches each one, and who approves it), and **Rollback**. In each, how every part runs there, and how you know it works.
-   - **Craft wiring:** for `dev`, every value for `.claude/craft.md`: the Linear team, the Linear project, the GitHub repo, the base branch, and the required checks, verify skill, and app driver skill that the walking skeleton adds. Also what the verify skill and the app driver skill must do for each part. For `deploy`, the checks the deploy adds, where the app driver runs against staging, and the changes to `.claude/craft.md`.
+   - **Craft wiring:** for `dev`, every value for `.claude/craft.md`: the Linear team, the Linear project, the GitHub repo, the base branch, and the required checks, verify skill, and app driver skill that the walking skeleton adds. Also what the verify skill and the app driver skill must do for each part. Also the lines that `craft:plan` adds to the project's `CLAUDE.md`: the `@.claude/craft.md` import, this line for the project's own skills in project threads:
+
+     > If a skill is unknown, read `.claude/skills/<name>/SKILL.md` and follow it.
+
+     and the craft-only rule, word for word:
+
+     > Every code change goes through craft. Start with `craft:spec` for a single ticket, or `craft:plan` for bigger work. Never edit code outside a craft step.
+
+     For `deploy`, the checks the deploy adds, where the app driver runs against staging, and the changes to `.claude/craft.md`.
    - **Constraints:** hard values, word for word as the owner gave them, such as versions, regions, plan limits, and budgets.
    - **Decisions:** each decision from the conversation, one line each. Mark the ones you took yourself `(agent)`. Mark the lasting ones `(ADR)`: `craft:plan` writes them to `docs/adr/`.
    - **Owner checklist:** from step 5, under its three headings.
