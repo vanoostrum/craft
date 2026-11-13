@@ -63,6 +63,10 @@ When it is done, a project gives craft these things:
 
    > If a skill is unknown, read `.claude/skills/<name>/SKILL.md` and follow it.
 
+   And this craft-only rule, so that an agent does not change code outside craft. Paste it into the claude.ai project instructions too:
+
+   > Every code change goes through craft. Start with `craft:spec` for a single ticket, or `craft:plan` for bigger work. Never edit code outside a craft step.
+
 5. **Fixed paths:** `GLOSSARY.md`, `docs/adr/`, and the design gallery in `design/`. `craft:design` creates the gallery on its first run.
 6. **A Linear team and a Linear project.** One team holds all of the owner's projects; each project is a Linear project in it, with the briefs and plans as documents and the tickets as its backlog. The team has the states Todo, Specifying, Ready to build, Building, In Review, Done, and Needs human, and the label `ui`. `craft:setup` creates the team, or completes an existing team, and creates the project, with `plugins/craft/skills/setup/scripts/linear_team.py`. The script needs a Linear personal API key that can create teams. In the cloud environment, allow the host `api.linear.app` and add a network secret for it: header `Authorization`, the key as the value, without `Bearer`. In a terminal, set `LINEAR_API_KEY`. Linear's Free plan allows two teams.
 7. **A GitHub repository** with the required checks on the base branch and "Automatically delete head branches" on.
@@ -76,6 +80,10 @@ Craft 2.3 keeps all projects in one Linear team, with one Linear project per pro
 3. Add `| Linear project | <name> |` to `.claude/craft.md`, and set `Linear team` to the shared team.
 
 A step that finds no `Linear project` key asks the owner for it and adds it.
+
+## Upgrade to 2.7
+
+Craft 2.7 adds the craft-only rule from **Set up a project**, item 4. A new project gets it from `craft:setup dev` and `craft:plan`. For a project that is already in craft, add the rule to its `CLAUDE.md`, and paste it into its claude.ai project instructions.
 
 ## Development
 
