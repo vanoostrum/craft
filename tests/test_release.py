@@ -17,6 +17,8 @@ CRAFT_CONFIG = ROOT / ".claude" / "craft.md"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 ADR_0003 = ROOT / "docs" / "adr" / "0003-pin-craft-to-a-release-tag.md"
 ADR_0004 = ROOT / "docs" / "adr" / "0004-main-is-the-release-branch.md"
+ADR_0005 = ROOT / "docs" / "adr" / "0005-release-from-the-owners-message.md"
+RELEASE_SKILL = ROOT / ".claude" / "skills" / "release" / "SKILL.md"
 TAG = re.compile(r"^v\d+\.\d+\.\d+$")
 
 type Entry = dict[str, Any]
@@ -61,13 +63,15 @@ def readme_section(heading: str) -> str:
 
 
 def test_readme_release_steps_are_in_order() -> None:
-    """Bump the version on `dev`, merge `dev` into `main`, tag, check the tag."""
+    """Bump on `dev`, merge into `main`, the workflow tags, check, note."""
     release = readme_section("Release")
     marks = [
         "plugin.json",
         "from `dev` to `main`",
+        "`release` workflow",
         "`v<version>`",
         "git ls-remote --tags",
+        "release note",
     ]
     places = [release.find(mark) for mark in marks]
     assert -1 not in places, dict(zip(marks, places, strict=True))
@@ -84,6 +88,71 @@ def test_readme_release_has_rollback_and_hotfix_lines() -> None:
     assert "docs/adr/0002" in release
     assert "Hotfix" in release
     assert "back into `dev`" in release
+    hotfix = release.split("Hotfix", 1)[1]
+    assert "tag it" not in hotfix
+    assert "`release` workflow" in hotfix
+
+
+def test_readme_release_starts_from_the_owners_message() -> None:
+    """A "release" message starts the release skill and approves its merges."""
+    release = readme_section("Release")
+    assert '"release" message' in release
+    assert "`.claude/skills/release/`" in release
+    assert "docs/adr/0005" in release
+    assert "Nobody tags by hand" in release
+
+
+def release_skill() -> str:
+    """Return the text of the repo's release skill."""
+    return RELEASE_SKILL.read_text(encoding="utf-8")
+
+
+def test_release_skill_is_named_and_says_when_to_use_it() -> None:
+    """The skill loads by name, and its description names the message."""
+    head = release_skill().split("---", 2)[1]
+    assert "name: release" in head
+    assert '"release"' in head
+
+
+def test_release_skill_message_is_approval_for_both_merges() -> None:
+    """The message approves the bump merge and the `dev` to `main` merge only."""
+    text = release_skill()
+    assert "approval" in text
+    assert "bump PR" in text
+    assert "`dev` to `main` PR" in text
+    assert "merge commit" in text
+    assert "required checks" in text
+
+
+def test_release_skill_stops_and_asks_when_it_cannot_go_on() -> None:
+    """Red checks, a conflict, an unmerged hotfix, or no tag stop the release."""
+    stops = section(release_skill(), "Stop and ask")
+    for case in ("check fails", "conflict", "hotfix", "tag"):
+        assert case in stops, case
+
+
+def test_release_skill_steps_are_in_order() -> None:
+    """Pick the version, bump, merge into `main`, wait for the tag, note, check."""
+    text = release_skill()
+    marks = [
+        "## Pick the version",
+        "**Bump.**",
+        "**Merge into `main`.**",
+        "**Tag.**",
+        "/mnt/project-files/releases/craft-v<version>.md",
+        "**Check the account.**",
+    ]
+    places = [text.find(mark) for mark in marks]
+    assert -1 not in places, dict(zip(marks, places, strict=True))
+    assert places == sorted(places)
+
+
+def test_adr_0005_records_the_message_as_approval() -> None:
+    """ADR 0005 says why a release needs no merge or tag by the owner."""
+    adr = ADR_0005.read_text(encoding="utf-8")
+    assert "GITHUB_TOKEN" in adr
+    assert '"release"' in adr
+    assert "approval" in adr
 
 
 def test_readme_development_does_not_say_how_to_release() -> None:

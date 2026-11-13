@@ -49,7 +49,7 @@ def test_project_verify_names_the_step_that_failed() -> None:
 def test_verify_runs_the_suite_without_uploads() -> None:
     """`verify` runs the agreed command with the upload hook off, and passes --case."""
     text = repo_skill("verify")
-    assert "env -u CRAFT_GCS_BUCKET -u SOUS_GCS_BUCKET" in text
+    assert "env -u CRAFT_GCS_BUCKET \\\n  claude plugin eval" in text
     assert (
         "claude plugin eval plugins/craft --trust-plugin --no-publish "
         "--ablation none --runs 1"
@@ -107,10 +107,10 @@ def test_the_results_folder_is_ignored() -> None:
     assert "plugins/craft/evals/results/" in ignored
 
 
-def test_the_plugin_is_version_2_5_0() -> None:
-    """The release that stops setup from starting plan is 2.5.0."""
+def test_the_plugin_is_version_2_6_0() -> None:
+    """The release where brainstorm owns the look is 2.6.0."""
     manifest = ROOT / "plugins" / "craft" / ".claude-plugin" / "plugin.json"
-    assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == "2.5.0"
+    assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == "2.6.0"
 
 
 def test_craft_config_has_the_final_values() -> None:

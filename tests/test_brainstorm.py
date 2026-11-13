@@ -125,3 +125,33 @@ def test_brainstorm_asks_again_for_an_unknown_argument() -> None:
     approval = section(skill("brainstorm"), "Approval")
     assert "not an approval" in approval
     assert "ask again" in approval
+
+
+def test_brainstorm_owns_the_look() -> None:
+    """Brainstorm settles the direction, the identity, and the defining screens."""
+    look = step(skill("brainstorm"), "Look and feel.")
+    assert "identity" in look
+    assert "defining screens" in look
+    assert "craft:design" in look
+
+
+def test_brief_look_lists_identity_and_screens() -> None:
+    """The Look section names the identity values and the screens it drew."""
+    brief = step(skill("brainstorm"), "Write the brief.")
+    assert "**Identity:**" in brief
+    assert "**Screens:**" in brief
+
+
+def test_design_freezes_the_brief_look_without_a_new_round() -> None:
+    """With a Look, project mode freezes it and draws only the screens it lacks."""
+    prototype = step(skill("design"), "Prototype with the owner.")
+    assert "Do not prototype again" in prototype
+    assert "only the screens that the Look does not cover" in prototype
+
+
+def test_variants_apply_only_to_new_screens_after_a_brief() -> None:
+    """After a brainstorm, `design-variants` covers only screens the Look lacks."""
+    prototype = step(skill("design"), "Prototype with the owner.")
+    assert "not in the Look" in prototype
+    rules = (SKILLS / "rules" / "SKILL.md").read_text(encoding="utf-8")
+    assert "not in the brief's **Look**" in rules
