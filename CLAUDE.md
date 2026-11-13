@@ -27,3 +27,5 @@
 The `craft:*` skills hold the steps, and `craft:rules` holds the rules for every step. They read the values below.
 
 @.claude/craft.md
+
+Every code change goes through craft. Start with `craft:spec` for a single ticket, or `craft:plan` for bigger work. Never edit code outside a craft step.
