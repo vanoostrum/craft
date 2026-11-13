@@ -1,0 +1,27 @@
+name: Release
+
+# Tags `main` as `v<version>` from plugins/craft/.claude-plugin/plugin.json
+# when a merge brings a new version (README, Release). It uses the built-in
+# GITHUB_TOKEN; a tag pushed with it starts no other workflow.
+'on':
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Tag the version
+        run: python3 .github/scripts/release_tag.py
