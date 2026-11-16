@@ -47,10 +47,12 @@ The command exits non-zero when any case scores below 1.0.
 |---|---|
 | `setup-asks-for-the-repo` | `craft:setup dev` in a repo without `.claude/craft.md`: it asks the owner for the GitHub repo first, and writes no brief. |
 | `spec-loads-rules-first` | `craft:spec` on a ticket key: it loads `craft:rules` before any other skill. This is the first step of every craft step. |
+| `one-shot-grills-one-ticket` | `craft:spec` on a one-shot plan that an earlier session left with three tickets in **Specifying**: the first chat round asks the first ticket's questions only. The state is in the prompt, because the suite cannot reach Linear. |
 
 Not covered by a smoke case:
 
 - `require_bstack.py` (hook `PreToolUse` on `Skill`): pytest covers it in `tests/test_require_bstack.py`.
+- `one_step_per_session.py` (hook `PreToolUse` on `Skill`): pytest covers it in `tests/test_one_step_per_session.py`.
 - `upload_transcripts.py` (hooks `Stop`, `SubagentStop`, `SessionEnd`): pytest covers it in `tests/test_upload_transcripts.py`. The suite runs with it off.
 - Every step that reads or writes Linear or GitHub. The suite cannot reach them (`docs/adr/0001`).
 
