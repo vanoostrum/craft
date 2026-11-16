@@ -97,7 +97,7 @@ def test_one_shot_spec_skips_the_spec_gate() -> None:
 def test_one_shot_merge_needs_a_reviewed_spec() -> None:
     """Without a merge gate, `craft:merge` needs a reviewed spec."""
     step = skill("merge").split("1. **Check the gate.**", 1)[1].split("\n2. ", 1)[0]
-    assert "ticket-scope `🤖 spec review: PASS`" in step
+    assert "ticket-scope `🤖 spec review:`" in step
     assert "🤖 Gate: launch" in step
     assert "unapproved" in step
     assert "PASS" in step
@@ -108,7 +108,7 @@ def test_one_shot_build_does_not_need_a_spec_gate() -> None:
     step = skill("build").split("1. **Check that the ticket is ready.**", 1)[1]
     check = step.split("The spec gate must be approved.", 1)[1].split("\n", 1)[0]
     assert "`mode=one-shot`" in check
-    assert "ticket-scope `🤖 spec review: PASS`" in check
+    assert "ticket-scope `🤖 spec review:`" in check
     assert "🤖 Gate: launch" in check
     assert "unapproved" in check
 

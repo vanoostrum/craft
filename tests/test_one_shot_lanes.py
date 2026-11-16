@@ -216,3 +216,34 @@ def test_spec_subagents_have_a_model(role: str) -> None:
     rows = [line for line in models.splitlines() if line.startswith(f"| {role} |")]
     assert len(rows) == 1
     assert rows[0].endswith("| opus |")
+
+
+@pytest.mark.parametrize("name", ["build", "merge"])
+def test_readiness_reads_the_latest_ticket_review(name: str) -> None:
+    """Readiness reads the latest ticket-scope review, in any order to the spec."""
+    text = skill(name)
+    assert "the latest ticket-scope `🤖 spec review:` on the ticket is PASS" in text
+    assert "PASS` after it" not in text
+
+
+def test_spec_loop_reviews_before_success() -> None:
+    """The loop posts the ticket-scope review before `🤖 spec: success`."""
+    text = section(skill("spec"), "One-shot")
+    assert text.index("**Review.**") < text.index("**Ready.**")
+
+
+def test_loop_calls_next_for_the_build_lane_only() -> None:
+    """The call after each ticket can never start a second spec session."""
+    ready = section(skill("spec"), "One-shot").split("**Ready.**", 1)[1]
+    ready = ready.split("\n", 1)[0]
+    assert "build lane only" in ready
+    step = one_shot().split("**Spec lane.**", 1)[1].split("\n2. ", 1)[0]
+    assert "build lane only" in step
+    assert "always keeps one ticket in **Specifying**" not in step
+
+
+def test_failed_check_after_the_claim_releases_the_ticket() -> None:
+    """A check that fails after the claim moves the ticket out of Building."""
+    step = skill("build").split("1. **Check that the ticket is ready.**", 1)[1]
+    claim = step.split("**Claim.**", 1)[1].split("\n", 1)[0]
+    assert "back to **Ready to build**" in claim
