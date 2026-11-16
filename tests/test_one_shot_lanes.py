@@ -118,10 +118,43 @@ def test_spec_loops_over_the_one_shot_plan() -> None:
         "one-shot plan ticket",
         "left to spec",
         "`mode=gated`",
-        "before the current one leaves **Specifying**",
         "run `craft:next`",
     ):
         assert phrase in text
+
+
+def loop() -> str:
+    """Return step 2 **Loop** of the One-shot section of `craft:spec`."""
+    text = section(skill("spec"), "One-shot")
+    return text.split("2. **Loop.**", 1)[1].split("\n3. **End.**", 1)[0]
+
+
+def test_loop_does_not_take_the_next_ticket_early() -> None:
+    """The next ticket waits until the current one leaves Specifying."""
+    text = section(skill("spec"), "One-shot")
+    assert "before the current one leaves **Specifying**" not in text
+    step = loop()
+    assert "at most one one-shot ticket in **Specifying**" in step
+    assert (
+        "Move, scout, or grill the next ticket only after the current one is in "
+        "**Ready to build** or **Needs human**" in step
+    )
+
+
+def test_a_grill_round_holds_one_ticket() -> None:
+    """A round in chat asks about the current ticket only."""
+    step = loop()
+    assert "A grill round asks about the current ticket only" in step
+    assert "Never put another ticket's questions in it" in step
+
+
+def test_loop_moves_other_specifying_tickets_back_to_todo() -> None:
+    """Taking a ticket clears every other one-shot ticket out of Specifying."""
+    step = loop()
+    assert (
+        "first move every other one-shot ticket in **Specifying** back to **Todo**"
+        in step
+    )
 
 
 def test_spec_hands_off_to_scout_and_writer() -> None:
