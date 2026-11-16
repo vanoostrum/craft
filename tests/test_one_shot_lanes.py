@@ -247,3 +247,10 @@ def test_failed_check_after_the_claim_releases_the_ticket() -> None:
     step = skill("build").split("1. **Check that the ticket is ready.**", 1)[1]
     claim = step.split("**Claim.**", 1)[1].split("\n", 1)[0]
     assert "back to **Ready to build**" in claim
+
+
+def test_plan_scope_problems_stay_off_built_tickets() -> None:
+    """A plan-scope problem goes only on tickets that go back to Todo."""
+    step = one_shot().split("**Plan-scope review.**", 1)[1].split("\n4. ", 1)[0]
+    assert "post each problem on each ticket it concerns" not in step
+    assert "only on the tickets that go back to **Todo**" in step
