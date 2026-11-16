@@ -10,15 +10,16 @@ Load the `craft:rules` skill first, and follow it. Then load `craft:bstack` with
 
 ## Input
 
-A ticket in **Ready to build** whose spec gate is approved. For `mode=one-shot`, a ticket in **Ready to build** whose plan ticket has an approved `🤖 Gate: launch`.
+A ticket in **Ready to build** whose spec gate is approved. For `mode=one-shot`, a ticket in **Ready to build** whose spec passed the spec review, as step 1 says. `craft:next` starts it from its build-lane prompt. A retry after a review FAIL, red CI, or a merge conflict starts it on a ticket that already has its PR.
 
 ## Steps
 
 1. **Check that the ticket is ready.**
-   - The spec gate must be approved. For `mode=one-shot`, there is no spec gate: the ticket must have a `🤖 spec: success` comment, and its plan ticket an approved `🤖 Gate: launch`.
+   - **Claim.** For `mode=one-shot`, when this step starts from the build-lane prompt of `craft:next`, claim the ticket first: stop if it is not in **Ready to build**, or if another ticket of the plan is in **Building**, gated or not; else move it to **Building** before the other checks. If a later check in this step fails and does not move the ticket itself, move it back to **Ready to build** before you stop, so the plan's build lane does not stall. A retry on a ticket that already has its PR skips the claim.
+   - The spec gate must be approved. For `mode=one-shot`, there is no spec gate: the ticket must have a `🤖 spec: success` comment, and the latest ticket-scope `🤖 spec review:` on the ticket is PASS, or a plan-scope `🤖 spec review: PASS` on its plan ticket is newer than its `🤖 spec: success`. For a plan from before craft 2.8, an approved `🤖 Gate: launch` on the plan ticket counts instead, if no ticket of the plan went back to **Todo** after the approval; an unapproved `🤖 Gate: launch` counts too, unless the owner commented after it, because owner feedback there moves its tickets back to **Todo**.
    - Each ticket that blocks it must be **Done**.
-   - **Owner first.** If the ticket lists **Owner first** items, such as a secret or a cloud environment setting, check each one you can, for example that the secret is set. For one you cannot check, or that is missing, comment `🤖 build: escalated — owner first: <item>`, tell the owner in chat what to do and where, and stop. For `mode=one-shot`, also move the ticket to **Needs human** and run `craft:next`, so the run goes on with other tickets.
-   - **Stale spec.** Read the glossary terms, ADRs, and code merged since the `🤖 Gate: spec` comment, or for `mode=one-shot` since the `🤖 spec: success` comment. If they contradict the spec, do not guess. Move the ticket to **Todo**, comment `🤖 build: escalated — stale spec: <what changed>`, and tell the owner. The spec lane grills only the decisions that changed. For `mode=one-shot`, move it to **Needs human** instead of **Todo**, and run `craft:next`: the done report lists it.
+   - **Owner first.** If the ticket lists **Owner first** items, such as a secret or a cloud environment setting, check each one you can, for example that the secret is set. For one you cannot check, or that is missing, comment `🤖 build: escalated — owner first: <item>`, tell the owner in chat what to do and where, and stop. For `mode=one-shot`, also move the ticket to **Needs human**, send the Needs human notice from `craft:next`, and run `craft:next`, so the run goes on with other tickets.
+   - **Stale spec.** Read the glossary terms, ADRs, and code merged since the `🤖 Gate: spec` comment, or for `mode=one-shot` since the `🤖 spec: success` comment. If they contradict the spec, do not guess. Move the ticket to **Todo**, comment `🤖 build: escalated — stale spec: <what changed>`, and tell the owner. The spec lane grills only the decisions that changed. For `mode=one-shot`, move it to **Needs human** instead of **Todo**, send the Needs human notice from `craft:next`, and run `craft:next`.
    - If a check fails for another reason, stop and say so.
    Then move the ticket to **Building**.
 2. **Branch.** Create or check out the branch from the naming rule, based on the latest base branch.
