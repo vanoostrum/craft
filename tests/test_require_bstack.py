@@ -76,7 +76,7 @@ def test_other_skills_pass(tmp_path: Path) -> None:
 
 
 def test_plugin_runs_the_hook_before_each_skill() -> None:
-    """The plugin runs the hook before every Skill call."""
+    """The plugin runs the hook before every Skill call, next to other Skill hooks."""
     hooks_file = HOOK.parent / "hooks.json"
     groups = json.loads(hooks_file.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
     commands = [
@@ -85,4 +85,4 @@ def test_plugin_runs_the_hook_before_each_skill() -> None:
         if group["matcher"] == "Skill"
         for hook in group["hooks"]
     ]
-    assert commands == ['python3 "${CLAUDE_PLUGIN_ROOT}/hooks/require_bstack.py"']
+    assert 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/require_bstack.py"' in commands
