@@ -1,6 +1,6 @@
 ---
 name: build
-description: Craft step 2. Implement an approved spec with tests first, verify it, and open a pull request. Use after the spec gate is approved, or when CI fails on a craft PR.
+description: Craft step 2. Implement an approved spec with tests first, verify it, and open a pull request. Use after the spec gate is approved, in a new session, never in the session that ran `craft:spec`, or when CI fails on a craft PR.
 model: sonnet
 ---
 
@@ -11,6 +11,8 @@ Load the `craft:rules` skill first, and follow it. Then load `craft:bstack` with
 ## Input
 
 A ticket in **Ready to build** whose spec gate is approved. For `mode=one-shot`, a ticket in **Ready to build** whose spec passed the spec review, as step 1 says. `craft:next` starts it from its build-lane prompt. A retry after a review FAIL, red CI, or a merge conflict starts it on a ticket that already has its PR.
+
+It runs in a new session, never in the session that ran `craft:spec`. A hook denies `craft:build`, `craft:review`, and `craft:merge` there.
 
 ## Steps
 
