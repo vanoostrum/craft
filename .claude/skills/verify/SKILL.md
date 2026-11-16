@@ -51,6 +51,7 @@ The command exits non-zero when any case scores below 1.0.
 Not covered by a smoke case:
 
 - `require_bstack.py` (hook `PreToolUse` on `Skill`): pytest covers it in `tests/test_require_bstack.py`.
+- `one_step_per_session.py` (hook `PreToolUse` on `Skill`): pytest covers it in `tests/test_one_step_per_session.py`.
 - `upload_transcripts.py` (hooks `Stop`, `SubagentStop`, `SessionEnd`): pytest covers it in `tests/test_upload_transcripts.py`. The suite runs with it off.
 - Every step that reads or writes Linear or GitHub. The suite cannot reach them (`docs/adr/0001`).
 

@@ -4,6 +4,7 @@
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -171,7 +172,7 @@ def spec_gate_step() -> str:
 
 
 @pytest.mark.parametrize("text", [after_approval, spec_gate_step])
-def test_spec_ends_at_the_handoff(text: Any) -> None:
+def test_spec_ends_at_the_handoff(text: Callable[[], str]) -> None:
     """The spec step says that its session never runs the build steps."""
     body = text()
     for step in BUILD_STEPS:
@@ -189,11 +190,13 @@ def one_step_rule() -> str:
 def work_on_paragraph() -> str:
     """Return the Flow paragraph of `craft:rules` on "work on"."""
     flow = section(skill("rules"), "Flow")
-    return next(p for p in flow.split("\n\n") if p.startswith('When asked to "work on"'))
+    return next(
+        p for p in flow.split("\n\n") if p.startswith('When asked to "work on"')
+    )
 
 
 @pytest.mark.parametrize("text", [one_step_rule, work_on_paragraph])
-def test_rules_end_a_spec_session_at_its_handoff(text: Any) -> None:
+def test_rules_end_a_spec_session_at_its_handoff(text: Callable[[], str]) -> None:
     """The rules end a spec session at its handoff, and a one-shot one at End."""
     body = text()
     assert "spec handoff" in body

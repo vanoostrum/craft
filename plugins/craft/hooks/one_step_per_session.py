@@ -52,7 +52,7 @@ def typed_step(entry: dict[str, Any]) -> str | None:
     for text in texts:
         for name in SLASH_COMMAND.findall(text):
             if name in STEPS:
-                return name
+                return str(name)
     return None
 
 
@@ -83,7 +83,7 @@ def session_step(transcript: Path) -> str | None:
             continue
         if entry.get("type") == "user":
             typed = typed_step(entry)
-            if typed and (step is None or typed in BUILD_STEPS):
+            if typed is not None and (step is None or typed in BUILD_STEPS):
                 step = typed
         elif entry.get("type") == "assistant" and step is None:
             step = next(iter(called_steps(entry)), None)
