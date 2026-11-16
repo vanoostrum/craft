@@ -2,8 +2,8 @@
 
 A fresh agent reviews specs before the owner approves them, so the review is not biased by having written them. It runs on the `spec reviewer` model from `models.md`.
 
-- **Ticket scope.** `craft:spec` runs it on one spec, before the spec gate, in the gated flow.
-- **Plan scope.** `craft:next` runs it on all specs of a one-shot plan at once, before the launch gate.
+- **Ticket scope.** `craft:spec` runs it on one spec: before the spec gate in the gated flow, and before **Ready to build** in one-shot mode, against the specs written so far.
+- **Plan scope.** `craft:next` runs it on all specs of a one-shot plan at once, after the last spec, as a last check.
 
 The calling step gives the subagent only the ticket key or the plan ticket key, the scope, and the task below, copied word for word.
 

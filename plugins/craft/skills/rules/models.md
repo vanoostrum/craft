@@ -31,6 +31,8 @@ A craft step starts each of these subagents with the model in this table.
 | brief reviewer | `craft:brainstorm`, `craft:setup` | opus |
 | plan reviewer | `craft:plan` | opus |
 | spec reviewer | `craft:spec`, `craft:next` | opus |
+| spec scout | `craft:spec` | opus |
+| spec writer | `craft:spec` | opus |
 | replan check | `craft:merge` | opus |
 
 ## pstack roles

@@ -1,8 +1,8 @@
 ---
 name: spec
-description: Craft step 1. Turn a feature description or a Linear ticket into a spec with testable acceptance criteria, then stop at the spec gate. Use when the owner asks to work on a ticket or describes a new feature.
+description: Craft step 1. Turn a feature description or a Linear ticket into a spec with testable acceptance criteria, then stop at the spec gate. In one-shot mode, grill every ticket of the plan in one session, with no gate. Use when the owner asks to work on a ticket or describes a new feature.
 model: opus
-argument-hint: "<ticket key or feature> [design-variants=<n>] [platforms=<list>] [note=<text, file, or link>]..."
+argument-hint: "<ticket key, one-shot plan key, or feature> [design-variants=<n>] [platforms=<list>] [note=<text, file, or link>]..."
 ---
 
 # craft:spec
@@ -13,7 +13,8 @@ Load the `craft:rules` skill first, and follow it. Then load `craft:bstack` with
 
 One of:
 - a ticket key, e.g. `ABC-12`;
-- a feature description typed by the owner.
+- a feature description typed by the owner;
+- a one-shot plan ticket, from the prompt `Run craft:spec on the one-shot plan <plan key>.`, which `craft:next` sends. Run **One-shot** below. A ticket key of a one-shot ticket runs **One-shot** too, starting with that ticket.
 
 Optional steering arguments follow it, as Steering in `craft:rules` describes.
 
@@ -58,21 +59,29 @@ When `craft:next` starts this step, the prompt also has a `Brief:`, the blocker 
    - **Domain docs:** only if there are any. The exact `GLOSSARY.md` entries and ADR files to add or change, in the formats of the `craft:domain-modeling` skill.
    - **Risks:** only if there are any.
    If a spec already exists and the owner gave feedback, update it instead and note what changed.
-6. **Spec review.** For a ticket with `mode=one-shot`, skip this step: the spec review in plan scope runs before the launch gate. Otherwise, run the spec review in ticket scope, as `spec-review.md` from `craft:rules` describes. Give the subagent the ticket key. Post the review on the ticket as `🤖 spec review: <PASS or FAIL> — <one line>`, with the review below it. If it ends in FAIL, fix the spec. For a problem that needs the owner, ask in chat, as a grill round. For a problem in another ticket's spec, propose the change in the replan check. Then review again. That counts as a failed attempt.
+6. **Spec review.** For a ticket with `mode=one-shot`, **One-shot** below runs it instead. Otherwise, run the spec review in ticket scope, as `spec-review.md` from `craft:rules` describes. Give the subagent the ticket key. Post the review on the ticket as `🤖 spec review: <PASS or FAIL> — <one line>`, with the review below it. If it ends in FAIL, fix the spec. For a problem that needs the owner, ask in chat, as a grill round. For a problem in another ticket's spec, propose the change in the replan check. Then review again. That counts as a failed attempt.
 7. **Replan check.** Run the replan check from `craft:next` with this spec's decisions and domain docs.
 8. **Gate.** Post `🤖 Gate: spec` with the spec review link, the acceptance criteria, the `(default)` decisions, the replan proposals, and "Reply approve, or give feedback." For a `ui` ticket, the gate also approves the gallery pages: list them, and point to their screenshots on the ticket. In chat, ask for approval, by 👍 on the message or a reply "approve", with the ticket link, the number of criteria, and the `(default)` decisions, one line each, so the owner can override any of them before approving. If there are none, leave the list out. Stop.
 
 ## One-shot
 
-**One-shot.** A ticket with `mode=one-shot` in `## Steering` has no spec gate. The grill and the owner's answers are its approval, and the launch gate shows its `(default)` decisions. So, instead of steps 6 and 8 and **After approval**:
+**One-shot.** A ticket with `mode=one-shot` in `## Steering` has no spec gate: the grill and the owner's answers are its approval. One session grills every one-shot ticket of the plan, one after another, so the owner answers all grills in one place. The terms **one-shot ticket**, **stuck**, and **left to spec** are the ones in **One-shot** in `craft:next`. Do not post `🤖 Gate: spec`.
 
-1. Post the replan proposals as **Replan check** in `craft:next` says for one-shot. Do not post `🤖 Gate: spec`.
-2. Move the ticket to **Ready to build**. Comment `🤖 spec: success — <n> criteria (one-shot)`.
-3. Tell the owner in chat, in one line, that the spec is done. Run `craft:next`, which starts the next grill or posts the launch gate.
+This session keeps only the rules, the plan document, and a **decision log**: two to four lines per specified ticket, as a blocker brief has. The heavy reading and writing for each ticket runs in fresh subagents, one at a time, so the session stays small and each spec gets a clean context. If the session was compacted, load `craft:rules` and `craft:spec` again before the next ticket.
+
+1. **Start.** Read the one-shot plan ticket, the plan document, `GLOSSARY.md`, and `docs/adr/`. Build the decision log from the `## Spec` of each one-shot ticket that has one. Read the state from Linear, so a new session goes on where an earlier one stopped.
+2. **Loop.** While a one-shot ticket is left to spec, take the first one in build order whose blockers are all in **Ready to build**, **Building**, **In Review**, or **Done**, skipping tickets with `mode=gated`. Move it to **Specifying**. When the next ticket can already be taken, move it to **Specifying** before the current one leaves **Specifying**, for any state. A gap does no harm: the loop's own `craft:next` calls run the build lane only. For each ticket:
+   1. **Scout.** Start a fresh subagent on the `spec scout` model from `models.md`. Give it the ticket key, the plan document, and the decision log. It loads `craft:bstack`, reads the ticket with its comments, the code, and the docs, as steps 1 and 3 describe, and returns: the facts from the code; the open questions in the **What to ask** scope, each with a recommended answer and how sure it is; and the `(agent)` and `(default)` decisions it proposes.
+   2. **Grill.** Ask the owner the open questions in rounds in chat, as step 3 describes, and follow **How sure you are**. If an answer opens a question that needs more facts, ask the scout again. Run `craft:design` in ticket mode here for a `ui` ticket, because design rounds need the owner.
+   3. **Write.** Start a fresh subagent on the `spec writer` model from `models.md`. Give it the ticket key, the scout's facts, each question with the owner's answer word for word, the decisions, the gallery pages, and the decision log. It writes `## Spec` as step 5 describes, and returns the number of criteria, the `(default)` lines, and a decision log entry. The owner's answers win over any default it proposes.
+   4. **Review.** Run the spec review in ticket scope, as `spec-review.md` describes, against the specs written so far. Post it on the ticket as step 6 says. Fix a FAIL in this session: ask the owner a problem that needs them as a grill round, and let the spec writer fix the spec. After the third FAIL, counted after the latest `🤖 resume:` comment, move the ticket to **Needs human**, send the Needs human notice from `craft:next`, and go on with the loop.
+   5. **Replan.** Run the replan check from `craft:next` with this spec's decisions and domain docs, and follow its one-shot rule.
+   6. **Ready.** Move the ticket to **Ready to build**. Comment `🤖 spec: success — <n> criteria (one-shot)`. Add its entry to the decision log. Send no chat message: the next grill round follows. Then run `craft:next` for the build lane only, which may start a build of this or another ticket. This call never starts a spec session or the plan-scope review.
+3. **End.** When no one-shot ticket is left to spec, run `craft:next`. It runs the plan-scope review and, when the run is done, the done report. This session's work ends here.
 
 ## Done when
 
-The ticket has a `## Spec` section and a `🤖 Gate: spec` comment, and the owner has been asked. For `mode=one-shot`, the ticket is in **Ready to build** instead. A `ui` ticket also has its gallery pages committed on its branch.
+The ticket has a `## Spec` section and a `🤖 Gate: spec` comment, and the owner has been asked. For `mode=one-shot`, no one-shot ticket of the plan is left to spec, and each specified one is in **Ready to build** or **Needs human**. A `ui` ticket also has its gallery pages committed on its branch.
 
 ## After approval
 

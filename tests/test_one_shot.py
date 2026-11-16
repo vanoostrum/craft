@@ -37,18 +37,23 @@ def test_rules_define_the_mode_argument() -> None:
 
 
 def test_rules_describe_one_shot_mode() -> None:
-    """`craft:rules` describes the one-shot flow and its launch gate."""
+    """`craft:rules` describes the one-shot flow: only the plan gate, two lanes."""
     text = section(skill("rules"), "One-shot mode")
-    assert "🤖 Gate: launch" in text
+    assert "only one approval from the owner: the plan gate" in text
+    assert "🤖 Gate: launch" not in text
+    assert "in parallel" in text
     assert "staging" in text
     assert "production" in text
 
 
-def test_launch_gate_is_a_gate() -> None:
-    """The gate rule names the launch gate, so 👍 and "approve" work on it."""
+def test_launch_gate_is_an_old_marker() -> None:
+    """The gate rule keeps the launch gate only as an old marker."""
     rules = skill("rules")
     gate = rules.split("- **The gate.**", 1)[1].split("\n- **", 1)[0]
     assert "🤖 Gate: launch" in gate
+    assert "old marker" in gate
+    terms = rules.split("## Terms", 1)[1].split("\n## ", 1)[0]
+    assert "launch" not in terms
 
 
 def test_plan_lists_manual_actions_and_paid_services_up_front() -> None:
@@ -60,18 +65,19 @@ def test_plan_lists_manual_actions_and_paid_services_up_front() -> None:
     assert "Owner checklist" in step
 
 
-def test_next_has_the_one_shot_phases() -> None:
-    """`craft:next` runs a spec phase, the launch gate, a build phase, and a report."""
+def test_next_has_the_one_shot_lanes() -> None:
+    """`craft:next` runs two lanes, a plan-scope review, and a report."""
     text = section(skill("next"), "One-shot")
-    for phase in (
-        "Spec phase",
-        "Spec review",
-        "Launch gate",
-        "Build phase",
+    for part in (
+        "Spec lane",
+        "Build lane",
+        "Plan-scope review",
+        "Needs human notice",
+        "Resume",
         "Done report",
     ):
-        assert f"**{phase}.**" in text
-    assert "👍" in text
+        assert f"**{part}.**" in text
+    assert "👍" not in text
 
 
 @pytest.mark.parametrize("name", ["spec", "review", "merge", "build"])
@@ -88,19 +94,23 @@ def test_one_shot_spec_skips_the_spec_gate() -> None:
     assert "Do not post `🤖 Gate: spec`" in step
 
 
-def test_one_shot_merge_needs_the_launch_gate() -> None:
-    """Without a merge gate, `craft:merge` needs the approved launch gate instead."""
+def test_one_shot_merge_needs_a_reviewed_spec() -> None:
+    """Without a merge gate, `craft:merge` needs a reviewed spec."""
     step = skill("merge").split("1. **Check the gate.**", 1)[1].split("\n2. ", 1)[0]
-    assert "launch" in step
+    assert "ticket-scope `🤖 spec review:`" in step
+    assert "🤖 Gate: launch" in step
+    assert "unapproved" in step
     assert "PASS" in step
 
 
 def test_one_shot_build_does_not_need_a_spec_gate() -> None:
-    """`craft:build`'s readiness check accepts the launch gate for one-shot tickets."""
+    """`craft:build` accepts a reviewed spec for one-shot tickets."""
     step = skill("build").split("1. **Check that the ticket is ready.**", 1)[1]
     check = step.split("The spec gate must be approved.", 1)[1].split("\n", 1)[0]
     assert "`mode=one-shot`" in check
+    assert "ticket-scope `🤖 spec review:`" in check
     assert "🤖 Gate: launch" in check
+    assert "unapproved" in check
 
 
 def test_one_shot_retries_keep_the_run_going() -> None:
@@ -114,13 +124,25 @@ def test_next_finds_the_one_shot_phase_from_the_plan_ticket() -> None:
     """`craft:next` picks the phase from the plan ticket and routes gated tickets."""
     text = section(skill("next"), "One-shot")
     assert "Find the phase" in text
-    rows = [line for line in text.splitlines() if line.startswith("| a `🤖 one-shot:`")]
+    rows = [
+        line
+        for line in text.splitlines()
+        if line.startswith("| a `🤖 one-shot: success`")
+    ]
     assert len(rows) == 1
     assert "`mode=gated`" in rows[0]
+    partial = [
+        line
+        for line in text.splitlines()
+        if "`🤖 one-shot: partial`" in line and line.startswith("|")
+    ]
+    assert len(partial) == 1
+    table = [line for line in text.splitlines() if line.startswith("|")]
+    assert not any("Gate: launch" in line for line in table)
 
 
 def test_one_shot_plan_ticket_stays_open() -> None:
-    """With one-shot, the plan ticket stays open for the launch gate."""
+    """With one-shot, the plan ticket stays open for the run and its done report."""
     after = section(skill("plan"), "After approval")
     assert "For `mode=one-shot`, leave it open" in after
 
@@ -135,11 +157,14 @@ def test_spec_review_checks_each_spec_and_all_specs_together() -> None:
 
 
 def test_one_shot_runs_the_spec_review_in_plan_scope() -> None:
-    """Before the launch gate, `craft:next` reviews all specs and reopens bad ones."""
+    """After the last spec, `craft:next` reviews all specs together."""
     text = section(skill("next"), "One-shot")
-    step = text.split("**Spec review.**", 1)[1].split("**Launch gate.**", 1)[0]
+    step = text.split("**Plan-scope review.**", 1)[1].split("\n4. ", 1)[0]
     assert "plan scope" in step
+    assert "Only `craft:next` run from `craft:spec`, or on the owner's request" in step
+    assert "newer than the latest `🤖 spec: success`" in step
     assert "back to **Todo**" in step
+    assert "`🤖 replan: pending`" in step
 
 
 def test_gated_spec_runs_the_spec_review_before_the_gate() -> None:
