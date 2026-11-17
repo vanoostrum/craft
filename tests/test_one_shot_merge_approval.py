@@ -160,6 +160,7 @@ def test_merge_uses_the_github_merge_tool() -> None:
     """Step 3 uses merge_pull_request with MCP tools, and gh api otherwise."""
     step = skill("merge").split("3. **Merge.**", 1)[1].split("\n4. ", 1)[0]
     assert "`merge_pull_request` tool" in step
+    assert "`expectedHeadSha` set to the head SHA" in step
     assert "GitHub MCP tools" in step
     assert "Otherwise" in step
     assert "gh api -X PUT" in step
