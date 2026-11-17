@@ -114,7 +114,7 @@ def test_one_shot_build_does_not_need_a_spec_gate() -> None:
 
 
 def test_one_shot_retries_keep_the_run_going() -> None:
-    """After the third failure in one-shot mode, Retries starts the next ticket."""
+    """After the fifth failure in one-shot mode, Retries starts the next ticket."""
     rules = skill("rules")
     retries = rules.split("- **Retries.**", 1)[1].split("\n- **", 1)[0]
     assert "run `craft:next`" in retries.split("In one-shot mode", 1)[1]
