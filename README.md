@@ -91,13 +91,13 @@ A step that finds no `Linear project` key asks the owner for it and adds it.
 
 ## Release
 
-Craft PRs merge into `dev`. A merge to `dev` does not reach the projects. A release does. The owner starts one with a "release" message in a thread, such as "release" or "release 2.7.0". The thread follows the `release` skill in `.claude/skills/release/`, and the message is the owner's approval for both merges of that release (`docs/adr/0005`). The steps:
+Craft PRs merge into `dev`. A merge to `dev` does not reach the projects. A release does. The owner starts one with a "release" message in a thread, such as "release" or "release 2.7.0". The thread follows the `release` skill in `.claude/skills/release/`, and the message is the owner's approval for both merges of that release (`docs/adr/0005`). Both release PRs use GitHub auto-merge (`docs/adr/0006`). The steps:
 
-1. Bump `version` in `plugins/craft/.claude-plugin/plugin.json` on a PR to `dev`, and merge it. `pyproject.toml` keeps its version.
-2. Open a PR from `dev` to `main`, and merge it with a merge commit when its required checks are green, so that `main` and `dev` keep the same history. The account plugin syncs from `main` within seconds.
-3. The `release` workflow (`.github/workflows/release.yml`) tags the merge commit on `main` as `v<version>`, from `plugin.json`. Nobody tags by hand. A later merge to `main` at the same version keeps the tag where it is.
-4. Check that the tag exists: `git ls-remote --tags origin v<version>`.
-5. Write the release note in the project files, and check that the account loads the new version.
+1. `release_prep.py status` checks the start: no unmerged hotfix on `main`, and something to release. It lists the PRs since the last tag.
+2. `release_prep.py bump` sets `version` in `plugins/craft/.claude-plugin/plugin.json` on a branch from `dev`. The bump PR to `dev` merges with squash auto-merge when its required checks are green. `pyproject.toml` keeps its version.
+3. A PR from `dev` to `main` merges with auto-merge as a merge commit when its required checks are green, so that `main` and `dev` keep the same history. The account plugin syncs from `main` within seconds.
+4. The `release` workflow (`.github/workflows/release.yml`) tags the merge commit on `main` as `v<version>`, from `plugin.json`. Nobody tags by hand. A later merge to `main` at the same version keeps the tag where it is.
+5. The thread writes the release note while CI runs, and `release_prep.py wait-tag` waits for the tag in the same turn. The owner checks the account version in a new thread.
 
 Rollback: if a release breaks craft, open a PR to `main` that puts `plugins/craft` back as it is at the last good tag, and merge it. If craft is too broken for that, fix it by hand (`docs/adr/0002-fix-a-broken-craft-by-hand.md`).
 
