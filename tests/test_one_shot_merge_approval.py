@@ -247,7 +247,7 @@ def test_missing_merge_approval_is_asked_once_in_the_notice() -> None:
 def test_recorded_approval_resumes_waiting_merges() -> None:
     """Once recorded, craft:next sends waiting merges back to In Review."""
     resume = next_item("Resume")
-    assert "gets the merge approval sentence from the owner records it" in resume
+    assert "gets the merge approval sentence from the owner posts" in resume
     assert "**In Review**" in resume
     assert "`Run craft:merge on <key>.`" in resume
 
