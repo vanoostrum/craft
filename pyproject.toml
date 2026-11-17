@@ -48,6 +48,8 @@ ignore = [
 "plugins/craft/hooks/*.py" = ["INP001"]
 # GitHub Actions runs CI scripts as standalone files, not as a package.
 ".github/scripts/*.py" = ["INP001"]
+# The release skill runs its script as a standalone file, not as a package.
+".claude/skills/*/scripts/*.py" = ["INP001"]
 
 [tool.ty.environment]
 python-version = "3.12"
