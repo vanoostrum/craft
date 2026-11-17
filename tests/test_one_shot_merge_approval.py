@@ -284,3 +284,10 @@ def test_rf2_no_recorded_approval_is_not_resumed_by_fixed() -> None:
     assert "`(refused)`" in escalated
     assert "`(no merge approval)` with no newer recorded merge approval" in escalated
     assert "leaves such a ticket where it is" in escalated
+
+
+def test_builds_start_without_a_recorded_merge_approval() -> None:
+    """Criterion 9: a running plan with no recorded approval still builds."""
+    assert "With no recorded merge approval, start the build anyway" in next_item(
+        "Build lane"
+    )
