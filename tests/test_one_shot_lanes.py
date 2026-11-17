@@ -175,7 +175,7 @@ def test_one_shot_spec_gets_the_ticket_scope_review() -> None:
     text = section(skill("spec"), "One-shot")
     review = text.split("**Review.**", 1)[1].split("\n", 1)[0]
     assert "ticket scope" in review
-    assert "third FAIL" in review
+    assert "fifth FAIL" in review
     assert "**Needs human**" in review
 
 

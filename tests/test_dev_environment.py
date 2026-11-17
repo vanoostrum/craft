@@ -107,10 +107,10 @@ def test_the_results_folder_is_ignored() -> None:
     assert "plugins/craft/evals/results/" in ignored
 
 
-def test_the_plugin_is_version_2_8_1() -> None:
-    """The release where a spec session never runs the build is 2.8.1."""
+def test_the_plugin_is_version_2_8_2() -> None:
+    """The release where a failed step gets five attempts is 2.8.2."""
     manifest = ROOT / "plugins" / "craft" / ".claude-plugin" / "plugin.json"
-    assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == "2.8.1"
+    assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == "2.8.2"
 
 
 def test_craft_config_has_the_final_values() -> None:

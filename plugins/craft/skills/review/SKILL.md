@@ -30,7 +30,7 @@ The PR has a review comment ending in PASS and the ticket has a `🤖 Gate: merg
 
 ## Escalation
 
-After 3 failed attempts in the shared count, follow Retries in `craft:rules`.
+After 5 failed attempts in the shared count, follow Retries in `craft:rules`.
 
 ## Next
 

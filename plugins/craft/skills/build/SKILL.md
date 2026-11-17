@@ -56,7 +56,7 @@ The PR is open, each required check is green on its latest commit, every accepta
 
 ## Escalation
 
-After 3 failed attempts (app driver, CI, or a review FAIL from `craft:review`), follow Retries in `craft:rules`.
+After 5 failed attempts (app driver, CI, or a review FAIL from `craft:review`), follow Retries in `craft:rules`.
 
 ## Next
 

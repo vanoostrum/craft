@@ -91,7 +91,7 @@ An idea that is not yet clear, with no answer yet to what it is for and why, sta
 
 ## Escalation
 
-After 3 failed attempts (review or CI), follow Retries in `craft:rules`.
+After 5 failed attempts (review or CI), follow Retries in `craft:rules`.
 
 ## After approval
 
