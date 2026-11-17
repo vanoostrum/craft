@@ -5,11 +5,15 @@ A fresh agent reviews specs before the owner approves them, so the review is not
 - **Ticket scope.** `craft:spec` runs it on one spec: before the spec gate in the gated flow, and before **Ready to build** in one-shot mode, against the specs written so far.
 - **Plan scope.** `craft:next` runs it on all specs of a one-shot plan at once, after the last spec, as a last check.
 
-The calling step gives the subagent only the ticket key or the plan ticket key, the scope, and the task below, copied word for word.
+The review follows `findings.md`: the first review of a spec is a full review, and each later one is a follow-up review.
+
+The calling step gives the subagent only the ticket key or the plan ticket key, the scope, and the task below, copied word for word. For a follow-up review, it also gives the previous review and the fix summaries since it:
+- **Ticket scope:** the `🤖 spec review:` comment and the `🤖 fix:` comments since it on the ticket. After a re-spec from a plan-scope FAIL, the previous review is the plan-scope review, and its findings on this ticket.
+- **Plan scope:** the plan-scope `🤖 spec review:` comment on the plan ticket, and the fix summary of each ticket that went back to **Todo** since it.
 
 ## Task
 
-> Load the `craft:bstack` skill first. Read `GLOSSARY.md` and `docs/adr/` on the base branch, and the plan document, if the ticket came from a plan: the `Plan: <name>` document that the plan ticket links.
+> Load the `craft:bstack` skill first. Follow `findings.md` from `craft:rules`: a full review, or a follow-up review if you got a previous review. Read `GLOSSARY.md` and `docs/adr/` on the base branch, and the plan document, if the ticket came from a plan: the `Plan: <name>` document that the plan ticket links.
 >
 > - **Ticket scope:** the spec under review is the `## Spec` of the given ticket. The other specs are the `## Spec` of each other sub-issue of its plan ticket, of each other open ticket in its Linear project, and of the tickets that block it.
 > - **Plan scope:** the specs under review are the `## Spec` of each sub-issue of the plan ticket that does not have `mode=gated`. The other specs are all of them.
@@ -17,6 +21,7 @@ The calling step gives the subagent only the ticket key or the plan ticket key, 
 > Check each spec under review on its own:
 > - each acceptance criterion is testable, and a client can observe it at the test seam that the spec names;
 > - each line under **Review focus** has a task in **Plan** that tests it;
+> - each **Paths** row has an acceptance criterion that covers it, and each state change that the spec adds is a row;
 > - the spec keeps the ticket's goal, its Consumes, Produces, and Constraints word for word, and the plan's decisions.
 >
 > Then check it against the other specs, as one system:
@@ -26,4 +31,4 @@ The calling step gives the subagent only the ticket key or the plan ticket key, 
 > - in plan scope, the specs together cover the plan's **Scope**, and nothing in its **Out of scope**;
 > - where the flows of `ui` tickets meet, their gallery pages agree on navigation, names, and states.
 >
-> List real problems only. For each one, name the tickets and the spec lines it concerns, and say whether the fix needs the owner: a question on behavior, UX, or an architecture choice against `docs/adr/`. Write the review with the `craft:clear-technical-prose` skill. End with PASS or FAIL.
+> Report every finding at once, blocking or non-blocking, as `findings.md` says. For each one, name the tickets and the spec lines it concerns, and say whether the fix needs the owner: a question on behavior, UX, or an architecture choice against `docs/adr/`. Write the review with the `craft:clear-technical-prose` skill. End with the verdict line, with the counts, such as `PASS — 0 blocking, 2 non-blocking`.
