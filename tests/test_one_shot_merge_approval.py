@@ -275,3 +275,12 @@ def test_terminal_escalation_gives_the_command() -> None:
     escalation = merge_escalation()
     assert COMMAND in escalation
     assert "merges at once" in escalation
+
+
+def test_rf2_no_recorded_approval_is_not_resumed_by_fixed() -> None:
+    """RF2: "fixed" before the sentence arrives leaves a (no merge approval) merge."""
+    escalated = next_item("Resume").split("**An escalated merge.**", 1)[1]
+    escalated = escalated.split("\n   - ", 1)[0]
+    assert "`(refused)`" in escalated
+    assert "`(no merge approval)` with no newer recorded merge approval" in escalated
+    assert "leaves such a ticket where it is" in escalated
