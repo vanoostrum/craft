@@ -305,3 +305,10 @@ def test_late_merge_approval_does_not_rerun_after_approval() -> None:
     missing = next_item("Resume").split("**A missing merge approval.**", 1)[1]
     assert "without running **After approval** in `craft:plan` again" in missing
     assert "already ran" in plan_merge_approval()
+
+
+def test_late_merge_approval_resumes_only_needs_human_tickets() -> None:
+    """Criterion 9: the resume after a late approval is scoped and runs once."""
+    missing = next_item("Resume").split("**A missing merge approval.**", 1)[1]
+    assert "A ticket in **Needs human** whose latest escalation" in missing
+    assert "needs no owner reply on the ticket" in missing
