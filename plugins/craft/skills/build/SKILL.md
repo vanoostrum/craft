@@ -10,7 +10,7 @@ Load the `craft:rules` skill first, and follow it. Then load `craft:bstack` with
 
 ## Input
 
-A ticket in **Ready to build** whose spec gate is approved. For `mode=one-shot`, a ticket in **Ready to build** whose spec passed the spec review, as step 1 says. `craft:next` starts it from its build-lane prompt. A retry after a review FAIL, red CI, or a merge conflict starts it on a ticket that already has its PR.
+A ticket in **Ready to build** whose spec gate is approved. For `mode=one-shot`, a ticket in **Ready to build** whose spec passed the spec review, as step 1 says. `craft:next` starts it from its build-lane prompt. A retry after a review FAIL, red CI, or a merge conflict starts it on a ticket that already has its PR. A retry after a review FAIL, or after owner feedback at the merge gate, runs **Fix** below.
 
 It runs in a new session, never in the session that ran `craft:spec`. A hook denies `craft:build`, `craft:review`, and `craft:merge` there.
 
@@ -49,6 +49,10 @@ It runs in a new session, never in the session that ran `craft:spec`. A hook den
    - the domain docs that the PR adds or changes, if any.
 8. **Wait for CI** in a subagent on the `CI polling and log reading` model from `models.md` from `craft:rules`. It polls `gh api repos/<repo>/commits/<head sha>/check-runs` about every 30 seconds until each required check has completed, for at most 30 minutes. A required check that has not completed by then, or has not started, counts as failed. If a check failed, the subagent reads the job log with `gh api repos/<repo>/actions/jobs/<job id>/logs` and returns the error. Fix and push. That counts as a failed attempt.
 9. Comment `🤖 build: success — PR <url>` on the ticket. Tell the owner in chat in one line, with the PR link. For `mode=one-shot`, send no chat message.
+
+## Fix
+
+**Fix.** A retry after a review FAIL from `craft:review`, or after owner feedback at the merge gate, fixes the PR on its branch. Fix each blocking finding of the review, or each item of the owner's feedback, and follow **Ripple check** in `findings.md` from `craft:rules`. Do not fix a non-blocking finding unless the owner turned it into feedback. Run steps 4 to 8 for what the fix changes, so tests, verify, app evidence, and CI cover it. Then post the fix summary as a PR comment, and continue with `craft:review`: its next review is a follow-up review.
 
 ## Done when
 
