@@ -1,6 +1,6 @@
 {
   "name": "craft",
-  "version": "2.8.1",
+  "version": "2.8.2",
   "description": "Craft runs Linear tickets through spec, build, review, and merge with Claude Code, and stops at each gate for the owner's approval.",
   "author": {
     "name": "Theo van Oostrum",
