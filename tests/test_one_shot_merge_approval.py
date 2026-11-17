@@ -298,3 +298,10 @@ def test_merge_after_a_refused_plan_pr_merge_goes_on() -> None:
     after = merge_escalation().split("**After an escalation.**", 1)[1]
     assert "For the plan PR, run **Check CI** and **Merge** again" in after
     assert "**After approval** step 2 in `craft:plan`" in after
+
+
+def test_late_merge_approval_does_not_rerun_after_approval() -> None:
+    """Criterion 9: a running plan records the approval, and nothing else."""
+    missing = next_item("Resume").split("**A missing merge approval.**", 1)[1]
+    assert "without running **After approval** in `craft:plan` again" in missing
+    assert "already ran" in plan_merge_approval()

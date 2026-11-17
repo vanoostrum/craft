@@ -97,7 +97,7 @@ After 5 failed attempts (review or CI), follow Retries in `craft:rules`.
 
 Only with `mode=one-shot`. Build threads merge on their own only with the owner's own words that name the merges and their target (`docs/adr/0007`). The merge approval sentence at the gate gives them those words.
 
-1. When the owner replies with the sentence, the plan gate is approved. Post `🤖 Approved: plan (merge approval in chat, message <message id>)` on the plan ticket, with the id of the owner's message. Run **After approval**.
+1. When the owner replies with the sentence, the plan gate is approved. Post `🤖 Approved: plan (merge approval in chat, message <message id>)` on the plan ticket, with the id of the owner's message. Run **After approval**, unless it already ran for this plan: a sentence that arrives in a running plan is recorded, and `craft:next` resumes the waiting merges.
 2. When the owner approves with a bare "approve" or 👍, the plan is approved, but the sentence is still missing. Post the usual `🤖 Approved: plan ...` comment, ask once in the same chat for the sentence, ready to copy, and post `🤖 merge approval: asked` on the plan ticket. Do not ask again. Wait for the sentence before **After approval**: the sentence is the go-ahead to merge the plan PR and to start the run. When it arrives, record it as in item 1, and run **After approval**.
 3. A sentence that names another plan, repo, or base is not the merge approval. Say what differs, and wait for the right one.
 
