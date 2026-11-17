@@ -38,7 +38,7 @@ def write_version(repo: Path, version: str) -> None:
 
 def commit(repo: Path, subject: str, version: str | None = None) -> str:
     """Commit a change with `subject`, and return its short SHA."""
-    if version:
+    if version is not None:
         write_version(repo, version)
     else:
         notes = repo / "notes.txt"

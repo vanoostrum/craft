@@ -86,7 +86,7 @@ def last_tag() -> Version:
 def dev_version() -> str:
     """Return `version` from `plugin.json` on `origin/dev`."""
     manifest = git("show", f"origin/dev:{PLUGIN_JSON.as_posix()}")
-    return json.loads(manifest)["version"]
+    return str(json.loads(manifest)["version"])
 
 
 def pr_line(sha: str, subject: str) -> str:
