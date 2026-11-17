@@ -291,3 +291,10 @@ def test_builds_start_without_a_recorded_merge_approval() -> None:
     assert "With no recorded merge approval, start the build anyway" in next_item(
         "Build lane"
     )
+
+
+def test_merge_after_a_refused_plan_pr_merge_goes_on() -> None:
+    """Criterion 11: "merge" for the plan PR merges it and starts the run."""
+    after = merge_escalation().split("**After an escalation.**", 1)[1]
+    assert "For the plan PR, run **Check CI** and **Merge** again" in after
+    assert "**After approval** step 2 in `craft:plan`" in after
