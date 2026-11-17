@@ -7,3 +7,4 @@
 | Smoke suite | The `claude plugin eval` cases in `plugins/craft/evals/`. They load the plugin in a real Claude Code session and check that key steps behave. |
 | Smoke case | One case of the smoke suite. |
 | Feature map | The table in the skill verify that names, for each smoke case, the craft step or hook it covers. |
+| Merge approval | The owner's own chat message at a one-shot plan gate that lets craft merge the plan PR and each ticket PR of that plan into its base branch of its repo once review passes and checks are green. Craft attaches it by message id to each one-shot build thread. |
