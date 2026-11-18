@@ -793,6 +793,7 @@ def test_each_segment_has_the_new_fields(
             "model",
             "work_seconds",
             "wait_seconds",
+            "brief",
         }
 
 
@@ -1091,3 +1092,459 @@ def test_a_lost_store_takes_the_current_version(
     wait_for_uploads(tmp_path, 2)
 
     assert versions(tmp_path) == ["3.2.0", "3.2.0", "3.2.0"]
+
+
+# A spec session splits per ticket on moves to Specifying (CRAFT-73).
+
+PLAN = "CRAFT-40"
+A = "CRAFT-41"
+B = "CRAFT-42"
+BRANCH_TICKET = "LIBRAG-12"
+SAVE_ISSUE = "mcp__Linear__save_issue"
+STATE_ID = "12c9a27c-cde3-413e-a70a-ebdeb48c7f23"
+
+
+def tool_call(
+    minute: int, call_id: str, name: str, tool_input: dict[str, Any]
+) -> dict[str, Any]:
+    """Return an assistant line that calls a tool, such as a Linear tool."""
+    block = {"type": "tool_use", "id": call_id, "name": name, "input": tool_input}
+    return reply(minute, f"r-{call_id}", OPUS, 1, block)
+
+
+def call_result(
+    minute: int, call_id: str, result: dict[str, Any] | str, *, error: bool = False
+) -> dict[str, Any]:
+    """Return the user line with a tool's result, as a text block of JSON."""
+    text = result if isinstance(result, str) else json.dumps(result)
+    block: dict[str, Any] = {
+        "type": "tool_result",
+        "tool_use_id": call_id,
+        "content": [{"type": "text", "text": text}],
+    }
+    if error:
+        block["is_error"] = True
+    return {"type": "user", "timestamp": stamp(minute), "message": {"content": [block]}}
+
+
+def move(  # noqa: PLR0913 - a move and its result, with their options.
+    minute: int,
+    ticket: str,
+    state: str,
+    *,
+    result_id: str | None = None,
+    error: bool = False,
+    name: str = SAVE_ISSUE,
+) -> list[dict[str, Any]]:
+    """Return a Linear call that moves a ticket, and its result a minute later."""
+    call_id = f"move-{minute}"
+    result = {"id": result_id or ticket, "status": state}
+    return [
+        tool_call(minute, call_id, name, {"id": ticket, "state": state}),
+        call_result(minute + 1, call_id, result, error=error),
+    ]
+
+
+def prompt(minute: int, text: str) -> dict[str, Any]:
+    """Return a prompt that the owner, or `craft:next`, types."""
+    return {"type": "user", "timestamp": stamp(minute), "message": {"content": text}}
+
+
+def session_with(
+    tmp_path: Path, project: Path, lines: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Run the hook on a session in the project, and return its metadata."""
+    session = tmp_path / "session.jsonl"
+    write_jsonl(session, [in_dir(project, lines[0]), *lines[1:]])
+    run_hook(configured_env(tmp_path), session, project)
+    wait_for_uploads(tmp_path, 1)
+    return metadata(tmp_path)["segments"]
+
+
+def spec_session(
+    tmp_path: Path, project: Path, lines: list[dict[str, Any]]
+) -> list[tuple[str, str]]:
+    """Run a spec session on PLAN with `lines` from minute 2, return (step, ticket)."""
+    first = reply(1, "m1", OPUS, 1, skill("craft:spec", PLAN))
+    segments = session_with(tmp_path, project, [first, *lines])
+    return [(s["step"], s["ticket"]) for s in segments]
+
+
+def test_one_shot_spec_session_charges_each_ticket(
+    tmp_path: Path, project: Path
+) -> None:
+    """Each ticket's span is its own segment; the work in between goes to the plan."""
+    scout = {
+        "type": "tool_use",
+        "id": "call-scout",
+        "name": "Agent",
+        "input": {"description": "spec scout"},
+    }
+    lines = [
+        prompt(0, f"Run craft:spec on the one-shot plan {PLAN}."),
+        reply(1, "m1", OPUS, 1, skill("craft:spec")),
+        *move(2, A, "Specifying"),
+        reply(4, "m4", OPUS, 30, scout),
+        {
+            "type": "user",
+            "timestamp": stamp(6),
+            "toolUseResult": {"agentId": "s1"},
+            "message": {
+                "content": [{"type": "tool_result", "tool_use_id": "call-scout"}]
+            },
+        },
+        *move(7, A, "Ready to build"),
+        reply(9, "m9", OPUS, 5, skill("craft:next")),
+        *move(10, B, "Specifying"),
+        reply(12, "m12", OPUS, 7, {"type": "text", "text": "Grill B."}),
+    ]
+    session = tmp_path / "one-shot.jsonl"
+    write_jsonl(session, [in_dir(project, lines[0]), *lines[1:]])
+    subagents = tmp_path / "one-shot" / "subagents"
+    subagents.mkdir(parents=True)
+    write_jsonl(subagents / "agent-s1.jsonl", [reply(5, "x1", OPUS, 50)])
+    run_hook(configured_env(tmp_path), session, project)
+    wait_for_uploads(tmp_path, 1)
+
+    data = metadata(tmp_path)
+    segments = data["segments"]
+    assert [(s["step"], s["ticket"]) for s in segments] == [
+        ("spec", PLAN),
+        ("spec", A),
+        ("spec", PLAN),
+        ("next", PLAN),
+        ("spec", B),
+    ]
+    assert data["tickets"] == sorted([A, B, PLAN])
+    assert [s["started_at"] for s in segments] == [
+        stamp(1),
+        stamp(3),
+        stamp(8),
+        stamp(9),
+        stamp(11),
+    ]
+    spec_a = segments[1]
+    # The reply that moves A out still counts toward A: its result starts the next.
+    assert spec_a["tokens"] == tokens(OPUS, 31, 2)
+    assert [s["agent_id"] for s in spec_a["subagents"]] == ["s1"]
+    assert spec_a["subagents"][0]["role"] == "spec scout"
+    assert segments[4]["tokens"] == tokens(OPUS, 7, 1)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (A, f"Run craft:spec on the one-shot plan {PLAN}.", "", A),
+        ("", f"Run craft:spec on the one-shot plan {PLAN}.", "", PLAN),
+        ("", "<session-context>…</session-context> one-shot plan CRAFT-40", "", PLAN),
+        ("", "Spec the next ticket.", f"one-shot plan {B}", BRANCH_TICKET),
+        ("", "", "", BRANCH_TICKET),
+    ],
+    ids=[
+        "arguments",
+        "one-shot prompt",
+        "cloud thread prompt",
+        "prompt after the call",
+        "branch",
+    ],
+)
+def test_session_ticket(
+    tmp_path: Path, project: Path, case: tuple[str, str, str, str]
+) -> None:
+    """The first spec call's key, else the one-shot prompt's, else the branch's."""
+    args, before, after, expected = case
+    first = prompt(0, before)
+    if before.startswith("<session-context>"):
+        # A cloud project thread writes its first prompt as an `isMeta` line.
+        first["isMeta"] = True
+    lines = [first] if before else []
+    lines += [reply(1, "m1", OPUS, 1, skill("craft:spec", args))]
+    lines += [prompt(2, after)] if after else []
+    lines += [reply(3, "m3", OPUS, 1, skill("craft:design"))]
+    segments = session_with(tmp_path, project, lines)
+
+    assert [(s["step"], s["ticket"]) for s in segments] == [
+        ("spec", expected),
+        ("design", expected),
+    ]
+
+
+SESSION_SPEC = ("spec", PLAN)
+
+PATHS = {
+    "session ticket, move of another ticket in": (
+        move(2, A, "Specifying"),
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "session ticket, move of itself in": (
+        move(2, PLAN, "Specifying"),
+        [SESSION_SPEC],
+    ),
+    "session ticket, move of itself out": (
+        move(2, PLAN, "Ready to build"),
+        [SESSION_SPEC],
+    ),
+    "session ticket, move of another ticket out": (
+        move(2, A, "Todo"),
+        [SESSION_SPEC],
+    ),
+    "current ticket to Ready to build": (
+        [*move(2, A, "Specifying"), *move(4, A, "Ready to build")],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC],
+    ),
+    "current ticket to Needs human": (
+        [*move(2, A, "Specifying"), *move(4, A, "Needs human")],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC],
+    ),
+    "current ticket back to Todo": (
+        [*move(2, A, "Specifying"), *move(4, A, "Todo")],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC],
+    ),
+    "current ticket, move of another ticket in": (
+        [*move(2, A, "Specifying"), *move(4, B, "Specifying")],
+        [SESSION_SPEC, ("spec", A), ("spec", B)],
+    ),
+    "move in after a design call": (
+        [
+            *move(2, A, "Specifying"),
+            reply(4, "m4", OPUS, 1, skill("craft:design")),
+            *move(5, B, "Specifying"),
+        ],
+        [SESSION_SPEC, ("spec", A), ("design", A), ("spec", B)],
+    ),
+    "current ticket, move of itself in again": (
+        [*move(2, A, "Specifying"), *move(4, A, "specifying")],
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "current ticket, move of another ticket out": (
+        [*move(2, A, "Specifying"), *move(4, B, "Todo")],
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "same ticket twice": (
+        [
+            *move(2, A, "Specifying"),
+            *move(4, A, "Ready to build"),
+            *move(6, A, "Specifying"),
+        ],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC, ("spec", A)],
+    ),
+    "failed move": (
+        move(2, A, "Specifying", error=True),
+        [SESSION_SPEC],
+    ),
+    "failed move out": (
+        [*move(2, A, "Specifying"), *move(4, A, "Todo", error=True)],
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "move with a state id": (
+        move(2, A, STATE_ID),
+        [SESSION_SPEC],
+    ),
+    "move of an id that is no key": (
+        move(2, "04923b2d-0105", "Specifying", result_id="04923b2d-0105"),
+        [SESSION_SPEC],
+    ),
+    "move of an id with the key in the result": (
+        move(2, "04923b2d-0105", "Specifying", result_id=A),
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "move with update_issue": (
+        move(2, A, "Specifying", name="mcp__linear__update_issue"),
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "a call of another tool": (
+        move(2, A, "Specifying", name="mcp__Linear__get_issue"),
+        [SESSION_SPEC],
+    ),
+    "step call without a key": (
+        [
+            *move(2, A, "Specifying"),
+            reply(4, "m4", OPUS, 1, skill("craft:spec")),
+            reply(5, "m5", OPUS, 1, skill("craft:next")),
+        ],
+        [SESSION_SPEC, ("spec", A), ("spec", A), ("next", A)],
+    ),
+    "step call with a key": (
+        [
+            *move(2, A, "Specifying"),
+            reply(4, "m4", OPUS, 1, skill("craft:design", B)),
+            reply(5, "m5", OPUS, 1, skill("craft:next")),
+        ],
+        [SESSION_SPEC, ("spec", A), ("design", B), ("next", A)],
+    ),
+}
+
+
+@pytest.mark.parametrize(("lines", "expected"), PATHS.values(), ids=PATHS.keys())
+def test_spec_session_paths(
+    tmp_path: Path,
+    project: Path,
+    lines: list[dict[str, Any]],
+    expected: list[tuple[str, str]],
+) -> None:
+    """Each path of the current ticket in a spec session gives its segments."""
+    assert spec_session(tmp_path, project, lines) == expected
+
+
+@pytest.mark.parametrize(("step", "args"), [("plan", ""), ("plan", PLAN), ("build", A)])
+def test_other_sessions_do_not_split(
+    tmp_path: Path, project: Path, step: str, args: str
+) -> None:
+    """A session that does not start with a spec ignores moves to Specifying."""
+    lines = [
+        reply(1, "m1", OPUS, 1, skill(f"craft:{step}", args)),
+        *move(2, PLAN, "Specifying"),
+        *move(4, A, "Specifying"),
+        reply(6, "m6", OPUS, 1, skill("craft:next")),
+    ]
+    segments = session_with(tmp_path, project, lines)
+
+    assert [(s["step"], s["ticket"]) for s in segments] == [
+        (step, args or BRANCH_TICKET),
+        ("next", BRANCH_TICKET),
+    ]
+
+
+# A brainstorm or setup segment records its brief (CRAFT-73).
+
+BRIEF_URL = (
+    "https://linear.app/clearblocks/document/brief-craft-console-v1-959b353787a7"
+)
+DEV_URL = "https://linear.app/clearblocks/document/brief-dev-environment-0a1b2c3d"
+
+
+def save(
+    minute: int,
+    result: dict[str, Any] | str,
+    *,
+    doc_id: str | None = None,
+    error: bool = False,
+    name: str = "mcp__Linear__save_document",
+) -> list[dict[str, Any]]:
+    """Return a document save, with an `id` when it changes a document."""
+    call_id = f"save-{minute}"
+    tool_input: dict[str, Any] = {"title": "Brief", "content": "..."}
+    if doc_id is not None:
+        tool_input["id"] = doc_id
+    return [
+        tool_call(minute, call_id, name, tool_input),
+        call_result(minute + 1, call_id, result, error=error),
+    ]
+
+
+def brief(title: str, url: str) -> dict[str, Any]:
+    """Return the result of a document save."""
+    return {"id": "doc", "title": title, "url": url}
+
+
+BRIEFS = {
+    "created brief": (
+        "brainstorm",
+        save(2, brief("Brief: Craft Console v1", BRIEF_URL)),
+        BRIEF_URL,
+    ),
+    "setup brief with create_document": (
+        "setup",
+        save(2, brief("Brief: Dev environment", DEV_URL), name="create_document"),
+        DEV_URL,
+    ),
+    "a created brief wins over a changed one": (
+        "setup",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL)),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL), doc_id="d1"),
+        ],
+        DEV_URL,
+    ),
+    "the last of two changed briefs": (
+        "brainstorm",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL), doc_id="d1"),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL), doc_id="d2"),
+        ],
+        BRIEF_URL,
+    ),
+    "the last of two created briefs": (
+        "brainstorm",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL)),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL)),
+        ],
+        BRIEF_URL,
+    ),
+    "a failed save, then a good one": (
+        "brainstorm",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL), doc_id="d", error=True),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL), doc_id="d"),
+        ],
+        BRIEF_URL,
+    ),
+    "only a failed save": (
+        "setup",
+        save(2, brief("Brief: Dev environment", DEV_URL), error=True),
+        None,
+    ),
+    "a document that is no brief": (
+        "brainstorm",
+        save(2, brief("Plan: Craft Console v1", BRIEF_URL)),
+        None,
+    ),
+    "a result that is not JSON": (
+        "brainstorm",
+        save(2, "Saved the document."),
+        None,
+    ),
+    "a result without a url": (
+        "brainstorm",
+        save(2, {"title": "Brief: Craft Console v1", "url": 3}),
+        None,
+    ),
+    "a read of a brief": (
+        "brainstorm",
+        save(2, brief("Brief: Craft Console v1", BRIEF_URL), name="get_document"),
+        None,
+    ),
+    "a brief saved in another step": (
+        "plan",
+        save(2, brief("Brief: Craft Console v1", BRIEF_URL)),
+        None,
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    ("step", "lines", "expected"), BRIEFS.values(), ids=BRIEFS.keys()
+)
+def test_brief_of_a_segment(
+    tmp_path: Path,
+    project: Path,
+    step: str,
+    lines: list[dict[str, Any]],
+    expected: str | None,
+) -> None:
+    """A brainstorm or setup segment holds the URL of the brief that it saved."""
+    first = reply(1, "m1", OPUS, 1, skill(f"craft:{step}"))
+    segments = session_with(tmp_path, project, [first, *lines])
+
+    assert [s["brief"] for s in segments] == [expected]
+
+
+def test_brief_belongs_to_the_segment_that_saved_it(
+    tmp_path: Path, project: Path
+) -> None:
+    """A brief saved in setup does not go to the brainstorm before it."""
+    lines = [
+        reply(1, "m1", OPUS, 1, skill("craft:brainstorm")),
+        *save(2, brief("Brief: Craft Console v1", BRIEF_URL)),
+        reply(4, "m4", OPUS, 1, skill("craft:setup")),
+        *save(5, brief("Brief: Dev environment", DEV_URL)),
+        reply(7, "m7", OPUS, 1, skill("craft:plan")),
+    ]
+    segments = session_with(tmp_path, project, lines)
+
+    assert [(s["step"], s["brief"]) for s in segments] == [
+        ("brainstorm", BRIEF_URL),
+        ("setup", DEV_URL),
+        ("plan", None),
+    ]
