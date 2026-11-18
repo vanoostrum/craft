@@ -85,6 +85,11 @@ logs each upload, or its error, to `craft-transcripts/upload.log` in the
 temp folder.
 
 The service account needs only the Storage Object User role on the bucket.
+
+The re-process command, `reprocess_transcripts.py` next to this hook, rebuilds
+`metadata.json` of stored sessions with this hook's code
+(`craft_segments` and `metadata_json`), for sessions that an older hook
+uploaded.
 """
 
 import base64
@@ -735,6 +740,39 @@ def segment_json(segment: Segment) -> dict[str, Any]:
     }
 
 
+def craft_segments(transcript: Path, branch: str) -> list[Segment] | None:
+    """Return the segments of a session on `branch`, or None without a craft step.
+
+    The re-process command calls this too, so both compute the same segments.
+    """
+    segments = segment_session(transcript, ticket_of(branch))
+    if all(segment.step is None for segment in segments):
+        return None
+    return segments
+
+
+def metadata_json(  # noqa: PLR0913 - the fields of `metadata.json`.
+    *,
+    repo: object,
+    branch: object,
+    session: object,
+    segments: list[Segment],
+    event: object,
+    uploaded_at: object,
+) -> str:
+    """Return the text of `metadata.json`."""
+    metadata = {
+        "repo": repo,
+        "branch": branch,
+        "session_id": session,
+        "tickets": sorted({s.ticket for s in segments if s.ticket is not None}),
+        "segments": [segment_json(segment) for segment in segments],
+        "event": event,
+        "uploaded_at": uploaded_at,
+    }
+    return json.dumps(metadata, indent=2) + "\n"
+
+
 def stage(event: dict[str, Any], out: Path) -> str | None:
     """Write the gzipped transcripts and metadata to `out`. Return the prefix.
 
@@ -748,8 +786,8 @@ def stage(event: dict[str, Any], out: Path) -> str | None:
     branch = (
         "" if repo.toplevel is None else git(repo.toplevel, "branch", "--show-current")
     )
-    segments = segment_session(transcript, ticket_of(branch))
-    if all(segment.step is None for segment in segments):
+    segments = craft_segments(transcript, branch)
+    if segments is None:
         return None
     add_versions(segments, str(session))
     values = secrets()
@@ -758,16 +796,16 @@ def stage(event: dict[str, Any], out: Path) -> str | None:
         target.parent.mkdir(parents=True, exist_ok=True)
         text = path.read_text(encoding="utf-8", errors="replace")
         target.write_bytes(gzip.compress(redact(text, values).encode(), mtime=0))
-    metadata = {
-        "repo": repo.name,
-        "branch": branch,
-        "session_id": session,
-        "tickets": sorted({s.ticket for s in segments if s.ticket is not None}),
-        "segments": [segment_json(segment) for segment in segments],
-        "event": event.get("hook_event_name"),
-        "uploaded_at": datetime.now(UTC).isoformat(),
-    }
-    (out / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    (out / "metadata.json").write_text(
+        metadata_json(
+            repo=repo.name,
+            branch=branch,
+            session=session,
+            segments=segments,
+            event=event.get("hook_event_name"),
+            uploaded_at=datetime.now(UTC).isoformat(),
+        )
+    )
     return f"{repo.name}/sessions/{session}"
 
 
@@ -776,8 +814,10 @@ def proxy_auth() -> bool:
     return os.environ.get(TOKEN_ENV, "") == PROXY_TOKEN
 
 
-def gcloud(config: Path, *args: str, keep_token: bool) -> None:
-    """Run gcloud with its own config folder, so the user's login stays as it is.
+def gcloud(config: Path, *args: str, keep_token: bool) -> bytes:
+    """Run gcloud with its own config folder, and return its output.
+
+    The own config folder keeps the user's login as it is.
 
     With a service account key, the sandbox's `CLOUDSDK_AUTH_ACCESS_TOKEN` is
     dropped, because it would override the key.
@@ -788,12 +828,34 @@ def gcloud(config: Path, *args: str, keep_token: bool) -> None:
         if keep_token or name != TOKEN_ENV
     }
     env["CLOUDSDK_CONFIG"] = str(config)
-    subprocess.run(  # noqa: S603
+    return subprocess.run(  # noqa: S603
         ["gcloud", *args, "--quiet"],  # noqa: S607
         env=env,
         check=True,
         capture_output=True,
-    )
+    ).stdout
+
+
+def sign_in(work: Path) -> tuple[Path, bool]:
+    """Sign gcloud in with the service account key, if there is one.
+
+    Return gcloud's config folder in `work`, and whether gcloud keeps the
+    proxy's access token: only without a key.
+    """
+    config = work / "gcloud"
+    raw_key = setting(KEY_ENV)
+    if raw_key:
+        key = work / "key.json"
+        key.write_text(key_json(raw_key), encoding="utf-8")
+        key.chmod(0o600)
+        gcloud(
+            config,
+            "auth",
+            "activate-service-account",
+            f"--key-file={key}",
+            keep_token=False,
+        )
+    return config, not raw_key
 
 
 def upload(event: dict[str, Any]) -> bool:
@@ -806,19 +868,7 @@ def upload(event: dict[str, Any]) -> bool:
         prefix = stage(event, out)
         if prefix is None:
             return False
-        config = work / "gcloud"
-        raw_key = setting(KEY_ENV)
-        if raw_key:
-            key = work / "key.json"
-            key.write_text(key_json(raw_key), encoding="utf-8")
-            key.chmod(0o600)
-            gcloud(
-                config,
-                "auth",
-                "activate-service-account",
-                f"--key-file={key}",
-                keep_token=False,
-            )
+        config, keep_token = sign_in(work)
         gcloud(
             config,
             "storage",
@@ -826,7 +876,7 @@ def upload(event: dict[str, Any]) -> bool:
             str(out),
             f"gs://{bucket}/{prefix}",
             "--recursive",
-            keep_token=not raw_key,
+            keep_token=keep_token,
         )
     return True
 
