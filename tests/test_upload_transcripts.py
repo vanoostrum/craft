@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,12 @@ fi
 def stamp(minute: int) -> str:
     """Return a transcript timestamp at a minute past 10:00."""
     return f"2026-11-02T10:{minute:02d}:00.000Z"
+
+
+def at(seconds: float) -> str:
+    """Return a transcript timestamp `seconds` after 10:00, to the millisecond."""
+    moment = datetime(2026, 11, 2, 10, tzinfo=UTC) + timedelta(seconds=seconds)
+    return moment.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def reply(
@@ -212,7 +219,11 @@ def configured_env(tmp_path: Path, key: str = json.dumps(KEY)) -> dict[str, str]
 
 
 def run_hook(
-    env: dict[str, str], transcript: Path, cwd: Path, event: str = "Stop"
+    env: dict[str, str],
+    transcript: Path,
+    cwd: Path,
+    event: str = "Stop",
+    hook: Path = HOOK,
 ) -> None:
     """Run the hook as Claude Code does."""
     payload = {
@@ -222,7 +233,7 @@ def run_hook(
         "hook_event_name": event,
     }
     subprocess.run(  # noqa: S603
-        [sys.executable, str(HOOK)],
+        [sys.executable, str(hook)],
         input=json.dumps(payload),
         text=True,
         env=env,
@@ -734,3 +745,349 @@ def test_old_names_are_gone(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     assert "SOUS_GCS" not in text
     assert "sous:" not in text
+
+
+def step_session(tmp_path: Path, project: Path, lines: list[dict[str, Any]]) -> Path:
+    """Write a build session in the project: its step call, then `lines`."""
+    session = tmp_path / "step.jsonl"
+    first = in_dir(project, reply(1, "m0", OPUS, 9, skill("craft:build")))
+    write_jsonl(session, [first, *lines])
+    return session
+
+
+def uploaded_segments(
+    tmp_path: Path, session: Path, project: Path
+) -> list[dict[str, Any]]:
+    """Run the hook on a session, and return the uploaded segments."""
+    run_hook(configured_env(tmp_path), session, project)
+    wait_for_uploads(tmp_path, 1)
+    return metadata(tmp_path)["segments"]
+
+
+def test_each_segment_has_the_new_fields(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """Each segment adds craft version, model, and times to the earlier fields."""
+    run_hook(configured_env(tmp_path), transcript, project)
+    wait_for_uploads(tmp_path, 1)
+
+    data = metadata(tmp_path)
+    assert set(data) == {
+        "repo",
+        "branch",
+        "session_id",
+        "tickets",
+        "segments",
+        "event",
+        "uploaded_at",
+    }
+    for segment in data["segments"]:
+        assert set(segment) == {
+            "step",
+            "ticket",
+            "started_at",
+            "ended_at",
+            "tokens",
+            "subagents",
+            "craft_version",
+            "model",
+            "work_seconds",
+            "wait_seconds",
+        }
+
+
+def test_model_is_the_model_of_most_replies(tmp_path: Path, project: Path) -> None:
+    """A reply written as several lines counts once."""
+    session = step_session(
+        tmp_path,
+        project,
+        [
+            reply(2, "m1", OPUS, 9, {"type": "text", "text": "One"}),
+            reply(2, "m1", OPUS, 9, {"type": "text", "text": "reply"}),
+            reply(2, "m1", OPUS, 9, {"type": "text", "text": "in three lines."}),
+            reply(3, "m2", SONNET, 9),
+            reply(4, "m3", SONNET, 9),
+            reply(5, "m4", SONNET, 9),
+        ],
+    )
+
+    assert uploaded_segments(tmp_path, session, project)[0]["model"] == SONNET
+
+
+@pytest.mark.parametrize(("earlier", "later"), [(OPUS, SONNET), (SONNET, OPUS)])
+def test_a_tie_goes_to_the_latest_reply(
+    tmp_path: Path, project: Path, earlier: str, later: str
+) -> None:
+    """With as many replies per model, the model of the latest reply wins."""
+    session = tmp_path / "tie.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(project, reply(1, "m1", earlier, 9, skill("craft:build"))),
+            reply(2, "m2", earlier, 9),
+            reply(3, "m3", later, 9),
+            reply(4, "m4", later, 9),
+        ],
+    )
+
+    assert uploaded_segments(tmp_path, session, project)[0]["model"] == later
+
+
+def test_synthetic_replies_do_not_count(tmp_path: Path, project: Path) -> None:
+    """Claude Code's `<synthetic>` replies, such as an error, are not a model."""
+    session = step_session(
+        tmp_path,
+        project,
+        [reply(2, "m1", "<synthetic>", 0), reply(3, "m2", "<synthetic>", 0)],
+    )
+
+    assert uploaded_segments(tmp_path, session, project)[0]["model"] == OPUS
+
+
+def test_segment_without_own_replies_has_no_model(
+    tmp_path: Path, project: Path
+) -> None:
+    """A typed step whose only work is a subagent's has no model, and uploads."""
+    session = tmp_path / "typed.jsonl"
+    subagents = tmp_path / "typed" / "subagents"
+    subagents.mkdir(parents=True)
+    write_jsonl(session, [in_dir(project, slash_command(1, "craft:build"))])
+    write_jsonl(subagents / "agent-c3.jsonl", [reply(2, "s1", SONNET, 40)])
+
+    (segment,) = uploaded_segments(tmp_path, session, project)
+
+    assert segment["model"] is None
+    assert segment["subagents"][0]["tokens"] == tokens(SONNET, 40, 1)
+
+
+def test_subagent_replies_do_not_change_the_model(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """The build's subagent runs Sonnet, the review's Opus; neither counts."""
+    subagents = transcript.parent / SESSION / "subagents"
+    write_jsonl(
+        subagents / "agent-a1.jsonl",
+        [reply(3, f"s{n}", OPUS, 40) for n in range(5)],
+    )
+    write_jsonl(
+        subagents / "agent-b2.jsonl",
+        [reply(12, f"t{n}", SONNET, 50) for n in range(5)],
+    )
+
+    build, review, merge = uploaded_segments(tmp_path, transcript, project)
+
+    assert (build["model"], review["model"], merge["model"]) == (SONNET, OPUS, OPUS)
+
+
+def timed(seconds: float, line: dict[str, Any]) -> dict[str, Any]:
+    """Return a transcript line at `seconds` after 10:00."""
+    return {**line, "timestamp": at(seconds)}
+
+
+def typed(seconds: float, text: str = "Go on.") -> dict[str, Any]:
+    """Return a prompt that the owner types, or a wake as Claude Code writes it."""
+    return {"type": "user", "timestamp": at(seconds), "message": {"content": text}}
+
+
+def queue(seconds: float, operation: str) -> dict[str, Any]:
+    """Return a `queue-operation` line, as a cloud session writes it."""
+    line = {"type": "queue-operation", "operation": operation, "timestamp": at(seconds)}
+    return {**line, "content": "Go on."} if operation == "enqueue" else line
+
+
+def tool_result(seconds: float) -> dict[str, Any]:
+    """Return the user line with a tool result."""
+    block = {"type": "tool_result", "tool_use_id": "call-x", "content": "ok"}
+    return {"type": "user", "timestamp": at(seconds), "message": {"content": [block]}}
+
+
+def skill_text(seconds: float) -> dict[str, Any]:
+    """Return the `isMeta` user line that holds a loaded skill's text."""
+    return {**typed(seconds, "Base directory for this skill: ..."), "isMeta": True}
+
+
+def times(segment: dict[str, Any]) -> tuple[float, float]:
+    """Return the work and wait seconds of a segment."""
+    return float(segment["work_seconds"]), float(segment["wait_seconds"])
+
+
+def test_gaps_split_into_craft_time_and_waiting(tmp_path: Path, project: Path) -> None:
+    """A gap that ends with an incoming message is waiting; other gaps are work.
+
+    The wait before the review's step call belongs to the build, which stopped
+    at its gate. The gap into the step call belongs to the review.
+    """
+    session = tmp_path / "timed.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(project, typed(0, "Build CRAFT-12.")),
+            timed(10, reply(0, "m1", SONNET, 9, skill("craft:build"))),
+            tool_result(25),
+            timed(30, reply(0, "m2", SONNET, 9)),
+            queue(100, "enqueue"),
+            queue(100.5, "dequeue"),
+            typed(101),
+            skill_text(101.2),
+            timed(105, reply(0, "m3", SONNET, 9)),
+            queue(150, "enqueue"),
+            typed(151, "approve"),
+            timed(160, reply(0, "m4", OPUS, 9, skill("craft:review"))),
+            timed(170, reply(0, "m5", OPUS, 9)),
+        ],
+    )
+
+    build, review = uploaded_segments(tmp_path, session, project)
+
+    # Work: 10 into the step call, 15, 5, 0.5 to the dequeue, 0.2, 3.8.
+    # Wait: 70 to the enqueue, 0.5 to the typed prompt, 45, and 1.
+    assert times(build) == (34.5, 116.5)
+    assert times(review) == (19.0, 0.0)
+
+
+def test_lines_out_of_order_give_no_negative_gap(tmp_path: Path, project: Path) -> None:
+    """Lines are sorted by time; lines without a time and subagents do not count."""
+    session = tmp_path / "unordered.jsonl"
+    subagents = tmp_path / "unordered" / "subagents"
+    subagents.mkdir(parents=True)
+    attachment = {"type": "attachment", "attachment": {"type": "hook_success"}}
+    write_jsonl(
+        session,
+        [
+            in_dir(project, timed(10, reply(0, "m1", SONNET, 9, skill("craft:build")))),
+            timed(20, reply(0, "m2", SONNET, 9)),
+            # Claude Code writes this line after the one above, but it is older.
+            # Unsorted, the gap into it would be -0.5 s, and the gap out 10.5 s.
+            timed(19.5, attachment),
+            {"type": "last-prompt", "leafUuid": "x"},
+            {"type": "tools-used", "tools": ["Skill"]},
+            queue(30.001, "enqueue"),
+            timed(31.234, reply(0, "m3", SONNET, 9)),
+        ],
+    )
+    write_jsonl(subagents / "agent-d4.jsonl", [timed(25, reply(0, "s1", OPUS, 9))])
+
+    (build,) = uploaded_segments(tmp_path, session, project)
+
+    # Work: 9.5, 0.5, and 1.233 to the reply. Wait: 10.001 to the enqueue.
+    assert times(build) == (11.2, 10.0)
+
+
+def plugin_copy(tmp_path: Path, manifest: str | None) -> Path:
+    """Copy the hook into a plugin folder whose `plugin.json` holds `manifest`.
+
+    With None, the plugin has no `plugin.json`. Return the copied hook.
+    """
+    root = tmp_path / "plugin"
+    (root / "hooks").mkdir(parents=True, exist_ok=True)
+    hook = root / "hooks" / HOOK.name
+    hook.write_bytes(HOOK.read_bytes())
+    set_manifest(hook, manifest)
+    return hook
+
+
+def set_manifest(hook: Path, manifest: str | None) -> None:
+    """Write, or with None remove, the `plugin.json` of a copied hook's plugin."""
+    path = hook.parents[1] / ".claude-plugin" / "plugin.json"
+    path.parent.mkdir(exist_ok=True)
+    if manifest is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(manifest, "utf-8")
+
+
+def release(version: str) -> str:
+    """Return a `plugin.json` with a version."""
+    return json.dumps({"name": "craft", "version": version})
+
+
+def versions(tmp_path: Path) -> list[str | None]:
+    """Return the craft version of each uploaded segment."""
+    return [s["craft_version"] for s in metadata(tmp_path)["segments"]]
+
+
+def versioned_env(tmp_path: Path) -> dict[str, str]:
+    """Return a configured environment where every Stop uploads."""
+    return {**configured_env(tmp_path), "CRAFT_GCS_STOP_INTERVAL": "0"}
+
+
+def test_craft_version_comes_from_plugin_json(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """Each segment gets the version in the hook's own plugin."""
+    hook = plugin_copy(tmp_path, release("3.1.4"))
+    run_hook(versioned_env(tmp_path), transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+
+    assert versions(tmp_path) == ["3.1.4", "3.1.4", "3.1.4"]
+
+
+@pytest.mark.parametrize(
+    "manifest",
+    [
+        None,
+        "{not json",
+        json.dumps({"name": "craft"}),
+        json.dumps({"name": "craft", "version": 3}),
+        json.dumps(["2.9.0"]),
+    ],
+)
+def test_unknown_craft_version_is_null_until_known(
+    tmp_path: Path, project: Path, transcript: Path, manifest: str | None
+) -> None:
+    """A missing or broken `plugin.json` gives null and stores nothing."""
+    env = versioned_env(tmp_path)
+    hook = plugin_copy(tmp_path, manifest)
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+    assert versions(tmp_path) == [None, None, None]
+
+    set_manifest(hook, release("3.1.4"))
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 2)
+    assert versions(tmp_path) == ["3.1.4", "3.1.4", "3.1.4"]
+
+
+def test_a_release_during_a_session_keeps_earlier_versions(
+    tmp_path: Path, project: Path
+) -> None:
+    """Segments keep the version of their first upload; new ones get the new one."""
+    env = versioned_env(tmp_path)
+    session = tmp_path / "long.jsonl"
+    build = [in_dir(project, reply(1, "m1", SONNET, 9, skill("craft:build")))]
+    write_jsonl(session, build)
+    hook = plugin_copy(tmp_path, release("3.1.4"))
+    run_hook(env, session, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+
+    write_jsonl(session, [*build, reply(5, "m2", OPUS, 9, skill("craft:review"))])
+    set_manifest(hook, release("3.2.0"))
+    run_hook(env, session, project, hook=hook)
+    wait_for_uploads(tmp_path, 2)
+    assert versions(tmp_path) == ["3.1.4", "3.2.0"]
+
+    for manifest in ("{not json", release("4.0.0")):
+        set_manifest(hook, manifest)
+        run_hook(env, session, project, hook=hook)
+    wait_for_uploads(tmp_path, 4)
+    assert versions(tmp_path) == ["3.1.4", "3.2.0"]
+
+
+def test_a_lost_store_takes_the_current_version(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """In a new container, with no stored version, segments get the current one."""
+    env = versioned_env(tmp_path)
+    hook = plugin_copy(tmp_path, release("3.1.4"))
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+
+    state = tmp_path / "tmp" / "craft-transcripts"
+    for stored in state.glob(f"{SESSION}.*"):
+        if stored.suffix != ".log":
+            stored.unlink()
+    set_manifest(hook, release("3.2.0"))
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 2)
+
+    assert versions(tmp_path) == ["3.2.0", "3.2.0", "3.2.0"]
