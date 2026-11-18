@@ -957,7 +957,8 @@ def test_lines_out_of_order_give_no_negative_gap(tmp_path: Path, project: Path) 
             in_dir(project, timed(10, reply(0, "m1", SONNET, 9, skill("craft:build")))),
             timed(20, reply(0, "m2", SONNET, 9)),
             # Claude Code writes this line after the one above, but it is older.
-            timed(19.995, attachment),
+            # Unsorted, the gap into it would be -0.5 s, and the gap out 10.5 s.
+            timed(19.5, attachment),
             {"type": "last-prompt", "leafUuid": "x"},
             {"type": "tools-used", "tools": ["Skill"]},
             queue(30.001, "enqueue"),
@@ -968,7 +969,7 @@ def test_lines_out_of_order_give_no_negative_gap(tmp_path: Path, project: Path) 
 
     (build,) = uploaded_segments(tmp_path, session, project)
 
-    # Work: 9.995, 0.005, and 1.233 to the reply. Wait: 10.001 to the enqueue.
+    # Work: 9.5, 0.5, and 1.233 to the reply. Wait: 10.001 to the enqueue.
     assert times(build) == (11.2, 10.0)
 
 
