@@ -9,9 +9,7 @@ would land in the bucket.
 import base64
 import gzip
 import json
-import os
 import subprocess
-import sys
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -19,108 +17,44 @@ from typing import Any
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-HOOKS = ROOT / "plugins" / "craft" / "hooks"
-HOOK = HOOKS / "upload_transcripts.py"
-SESSION = "0b1c2d3e-session"
-SECRET = "sk-test-0123456789abcdef"  # noqa: S105 - a fake secret to redact.
-KEY = {"type": "service_account", "client_email": "factory@example.iam"}
-OPUS = "claude-opus"
-SONNET = "claude-sonnet"
+from tests.transcripts import (
+    HOOK,
+    HOOKS,
+    KEY,
+    OPUS,
+    PLAN,
+    ROOT,
+    SECRET,
+    SESSION,
+    SONNET,
+    A,
+    B,
+    call_result,
+    configured_env,
+    fake_env,
+    git_repo,
+    in_dir,
+    metadata,
+    move,
+    prompt,
+    reply,
+    run_hook,
+    session_folder,
+    skill,
+    stamp,
+    tool_call,
+    wait_for_uploads,
+    write_jsonl,
+)
 
-FAKE_GCLOUD = """#!/bin/sh
-echo "$* token=${CLOUDSDK_AUTH_ACCESS_TOKEN:-none}" >> "$FAKE_GCLOUD_LOG"
-if [ "$1" = "storage" ] && [ "$2" = "rsync" ]; then
-  dest="$FAKE_BUCKET_ROOT/${4#gs://}"
-  mkdir -p "$dest" && cp -R "$3"/. "$dest"/
-fi
-"""
-
-
-def stamp(minute: int) -> str:
-    """Return a transcript timestamp at a minute past 10:00."""
-    return f"2026-11-02T10:{minute:02d}:00.000Z"
+BRANCH_TICKET = "LIBRAG-12"
+STATE_ID = "12c9a27c-cde3-413e-a70a-ebdeb48c7f23"
 
 
 def at(seconds: float) -> str:
     """Return a transcript timestamp `seconds` after 10:00, to the millisecond."""
     moment = datetime(2026, 11, 2, 10, tzinfo=UTC) + timedelta(seconds=seconds)
     return moment.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
-def reply(
-    minute: int, message_id: str, model: str, tokens: int, *content: dict[str, Any]
-) -> dict[str, Any]:
-    """Return an assistant line with its token usage."""
-    usage = {
-        "input_tokens": tokens,
-        "output_tokens": 1,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-    }
-    return {
-        "type": "assistant",
-        "timestamp": stamp(minute),
-        "message": {
-            "id": message_id,
-            "model": model,
-            "usage": usage,
-            "content": list(content),
-        },
-    }
-
-
-def skill(name: str, args: str = "") -> dict[str, Any]:
-    """Return a Skill tool call block."""
-    return {
-        "type": "tool_use",
-        "id": f"call-{name}",
-        "name": "Skill",
-        "input": {"skill": name, "args": args},
-    }
-
-
-def write_jsonl(path: Path, lines: list[dict[str, Any]]) -> None:
-    """Write transcript lines to a file."""
-    path.write_text("".join(json.dumps(line) + "\n" for line in lines), "utf-8")
-
-
-def git_repo(path: Path, branch: str, origin: str | None) -> Path:
-    """Create a git checkout at `path` on `branch`, with an `origin` remote."""
-    path.mkdir(parents=True)
-    subprocess.run(  # noqa: S603
-        ["git", "init", "-q", "-b", branch, str(path)],  # noqa: S607
-        check=True,
-    )
-    if origin is not None:
-        subprocess.run(  # noqa: S603
-            ["git", "-C", str(path), "remote", "add", "origin", origin],  # noqa: S607
-            check=True,
-        )
-    return path
-
-
-@pytest.fixture
-def project(tmp_path: Path) -> Path:
-    """Return a git checkout on a ticket branch, with a GitHub `origin`."""
-    return git_repo(
-        tmp_path / "checkout",
-        "librag-12/version-endpoint",
-        "https://github.com/vanoostrum/librag.git",
-    )
-
-
-@pytest.fixture
-def outside(tmp_path: Path) -> Path:
-    """Return a folder that is not inside a git repo, such as `/home/user`."""
-    folder = tmp_path / "home"
-    folder.mkdir()
-    return folder
-
-
-def in_dir(cwd: Path, line: dict[str, Any]) -> dict[str, Any]:
-    """Return a transcript line with the working directory Claude Code records."""
-    return {**line, "cwd": str(cwd)}
 
 
 def slash_command(minute: int, name: str, args: str = "") -> dict[str, Any]:
@@ -131,139 +65,6 @@ def slash_command(minute: int, name: str, args: str = "") -> dict[str, Any]:
         f"<command-args>{args}</command-args>"
     )
     return {"type": "user", "timestamp": stamp(minute), "message": {"content": text}}
-
-
-@pytest.fixture
-def transcript(tmp_path: Path, project: Path, outside: Path) -> Path:
-    """Return a build session: build, review, and merge, with two subagents.
-
-    The session starts outside any repo and then works in the project. Subagent
-    a1 is linked to its `Agent` call. Subagent b2 is not, and wrote its first
-    line during the review.
-    """
-    sessions = tmp_path / "sessions"
-    main = sessions / f"{SESSION}.jsonl"
-    subagents = sessions / SESSION / "subagents"
-    subagents.mkdir(parents=True)
-    agent_call = {
-        "type": "tool_use",
-        "id": "call-agent",
-        "name": "Agent",
-        "input": {"description": "app driver", "subagent_type": "general-purpose"},
-    }
-    first = {
-        "type": "user",
-        "timestamp": stamp(0),
-        "message": {"content": f"key {SECRET}, token proxy-injected"},
-    }
-    write_jsonl(
-        main,
-        [
-            in_dir(outside, first),
-            # One reply written as two lines, each with the same usage.
-            reply(1, "m1", SONNET, 100, {"type": "text", "text": "Building."}),
-            reply(1, "m1", SONNET, 100, skill("craft:build", "LIBRAG-12")),
-            # Loading the rules, or any other craft skill, starts no segment.
-            reply(1, "m1", SONNET, 100, skill("craft:rules")),
-            reply(2, "m2", SONNET, 20, agent_call),
-            {
-                "type": "user",
-                "timestamp": stamp(5),
-                "toolUseResult": {"agentId": "a1"},
-                "message": {
-                    "content": [{"type": "tool_result", "tool_use_id": "call-agent"}]
-                },
-            },
-            in_dir(
-                project, reply(10, "m3", OPUS, 300, skill("craft:review", "LIBRAG-12"))
-            ),
-            reply(20, "m4", OPUS, 7, skill("craft:merge")),
-            reply(21, "m5", OPUS, 5, {"type": "text", "text": "Merged."}),
-        ],
-    )
-    write_jsonl(subagents / "agent-a1.jsonl", [reply(3, "s1", SONNET, 40)])
-    (subagents / "agent-a1.meta.json").write_text('{"agentType": "general"}', "utf-8")
-    write_jsonl(subagents / "agent-b2.jsonl", [reply(12, "s2", OPUS, 50)])
-    return main
-
-
-def fake_env(tmp_path: Path, **extra: str) -> dict[str, str]:
-    """Return an environment whose `gcloud` is the fake one."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir(exist_ok=True)
-    gcloud = bin_dir / "gcloud"
-    gcloud.write_text(FAKE_GCLOUD, encoding="utf-8")
-    gcloud.chmod(0o755)
-    temp = tmp_path / "tmp"
-    temp.mkdir(exist_ok=True)
-    env = {
-        key: value
-        for key, value in os.environ.items()
-        if not key.startswith(("CRAFT_GCS_", "SOUS_GCS_"))
-    }
-    env.update(
-        PATH=f"{bin_dir}{os.pathsep}{env['PATH']}",
-        TMPDIR=str(temp),
-        FAKE_GCLOUD_LOG=str(tmp_path / "gcloud.log"),
-        FAKE_BUCKET_ROOT=str(tmp_path / "gcs"),
-        OPENAI_API_KEY=SECRET,
-        CLOUDSDK_AUTH_ACCESS_TOKEN="proxy-injected",  # noqa: S106 - as in the sandbox.
-        **extra,
-    )
-    return env
-
-
-def configured_env(tmp_path: Path, key: str = json.dumps(KEY)) -> dict[str, str]:
-    """Return an environment with a bucket and a service account key."""
-    return fake_env(tmp_path, CRAFT_GCS_BUCKET="factory-logs", CRAFT_GCS_KEY=key)
-
-
-def run_hook(
-    env: dict[str, str],
-    transcript: Path,
-    cwd: Path,
-    event: str = "Stop",
-    hook: Path = HOOK,
-) -> None:
-    """Run the hook as Claude Code does."""
-    payload = {
-        "session_id": SESSION,
-        "transcript_path": str(transcript),
-        "cwd": str(cwd),
-        "hook_event_name": event,
-    }
-    subprocess.run(  # noqa: S603
-        [sys.executable, str(hook)],
-        input=json.dumps(payload),
-        text=True,
-        env=env,
-        check=True,
-        timeout=10,
-    )
-
-
-def wait_for_uploads(tmp_path: Path, count: int) -> None:
-    """Wait until the background process has logged `count` uploads."""
-    upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
-    deadline = time.monotonic() + 20
-    while True:
-        text = upload_log.read_text("utf-8") if upload_log.exists() else ""
-        if text.count(" uploaded ") >= count:
-            return
-        if " failed " in text or time.monotonic() > deadline:
-            pytest.fail(f"the upload did not finish: {text!r}")
-        time.sleep(0.1)
-
-
-def session_folder(tmp_path: Path, repo: str = "vanoostrum/librag") -> Path:
-    """Return the session's folder in the fake bucket."""
-    return tmp_path / "gcs" / "factory-logs" / repo / "sessions" / SESSION
-
-
-def metadata(tmp_path: Path, repo: str = "vanoostrum/librag") -> dict[str, Any]:
-    """Return the uploaded metadata of the session."""
-    path = session_folder(tmp_path, repo) / "metadata.json"
-    return json.loads(path.read_text("utf-8"))
 
 
 def assert_no_upload(tmp_path: Path) -> None:
@@ -1095,59 +896,6 @@ def test_a_lost_store_takes_the_current_version(
 
 
 # A spec session splits per ticket on moves to Specifying (CRAFT-73).
-
-PLAN = "CRAFT-40"
-A = "CRAFT-41"
-B = "CRAFT-42"
-BRANCH_TICKET = "LIBRAG-12"
-SAVE_ISSUE = "mcp__Linear__save_issue"
-STATE_ID = "12c9a27c-cde3-413e-a70a-ebdeb48c7f23"
-
-
-def tool_call(
-    minute: int, call_id: str, name: str, tool_input: dict[str, Any]
-) -> dict[str, Any]:
-    """Return an assistant line that calls a tool, such as a Linear tool."""
-    block = {"type": "tool_use", "id": call_id, "name": name, "input": tool_input}
-    return reply(minute, f"r-{call_id}", OPUS, 1, block)
-
-
-def call_result(
-    minute: int, call_id: str, result: dict[str, Any] | str, *, error: bool = False
-) -> dict[str, Any]:
-    """Return the user line with a tool's result, as a text block of JSON."""
-    text = result if isinstance(result, str) else json.dumps(result)
-    block: dict[str, Any] = {
-        "type": "tool_result",
-        "tool_use_id": call_id,
-        "content": [{"type": "text", "text": text}],
-    }
-    if error:
-        block["is_error"] = True
-    return {"type": "user", "timestamp": stamp(minute), "message": {"content": [block]}}
-
-
-def move(  # noqa: PLR0913 - a move and its result, with their options.
-    minute: int,
-    ticket: str,
-    state: str,
-    *,
-    result_id: str | None = None,
-    error: bool = False,
-    name: str = SAVE_ISSUE,
-) -> list[dict[str, Any]]:
-    """Return a Linear call that moves a ticket, and its result a minute later."""
-    call_id = f"move-{minute}"
-    result = {"id": result_id or ticket, "status": state}
-    return [
-        tool_call(minute, call_id, name, {"id": ticket, "state": state}),
-        call_result(minute + 1, call_id, result, error=error),
-    ]
-
-
-def prompt(minute: int, text: str) -> dict[str, Any]:
-    """Return a prompt that the owner, or `craft:next`, types."""
-    return {"type": "user", "timestamp": stamp(minute), "message": {"content": text}}
 
 
 def session_with(
