@@ -36,7 +36,23 @@ value in `repo`, and the branch of that repo in `branch`.
 
 `metadata.json` splits the session into segments. Each step call starts a
 segment. A segment has its step, its ticket, its start and end time, its
-tokens per model, and its subagents with their own tokens.
+tokens per model, its subagents with their own tokens, and these fields:
+
+- `craft_version`: the `version` in the `.claude-plugin/plugin.json` of the
+  plugin that holds this hook, at the first upload that saw the segment. The
+  hook stores it per session in its temp folder, keyed by the segment's step
+  and start, so a release during a session does not change earlier segments.
+  It is null while the version is not known; only a known version is stored.
+- `model`: the model of most of the segment's own replies, each reply counted
+  once. A tie goes to the model of the latest reply. `<synthetic>` replies do
+  not count. Null without own replies.
+- `work_seconds` and `wait_seconds`: craft time and waiting time, rounded to
+  one decimal. The main transcript's lines with a `timestamp` are sorted by
+  time. Each gap between two lines belongs to the segment running at the later
+  line. It is waiting when that line is an incoming message: a
+  `queue-operation` `enqueue` line, or a `user` line that is not `isMeta` and
+  has no tool result. Any other gap is work. Subagent lines do not count,
+  because subagents run inside the main session's time.
 
 - The ticket of a segment comes from the step's arguments, such as `ABC-12`,
   or else from the branch name, such as `abc-12/version-endpoint`.
@@ -72,6 +88,7 @@ import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -83,6 +100,7 @@ PROXY_TOKEN = "proxy-injected"  # noqa: S105 - a marker, not a secret.
 INTERVAL_ENV = "CRAFT_GCS_STOP_INTERVAL"
 DEFAULT_STOP_INTERVAL = 300.0
 UPLOAD_FLAG = "--upload"
+PLUGIN_JSON = Path(__file__).resolve().parents[1] / ".claude-plugin" / "plugin.json"
 TICKET_BRANCH = re.compile(r"^([a-z]+)-(\d+)/")
 TICKET_KEY = re.compile(r"\b[A-Z][A-Z0-9]*-\d+\b")
 STEP_SKILL = re.compile(
@@ -97,6 +115,7 @@ SCP_URL = re.compile(r"^[^/:]+:")
 SECRET_NAME = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", re.IGNORECASE)
 MIN_SECRET_LENGTH = 8
 AGENT_TOOLS = {"Agent", "Task"}
+SYNTHETIC_MODEL = "<synthetic>"
 USAGE_FIELDS = (
     "input_tokens",
     "output_tokens",
@@ -289,6 +308,25 @@ class Segment:
     tokens: Tokens = field(default_factory=dict)
     subagents: list[Subagent] = field(default_factory=list)
     agent_calls: dict[str, str | None] = field(default_factory=dict)
+    replies: dict[str, int] = field(default_factory=dict)
+    latest: dict[str, str] = field(default_factory=dict)
+    work_seconds: float = 0.0
+    wait_seconds: float = 0.0
+    craft_version: str | None = None
+
+    def add_reply(self, stamp: str, model: str) -> None:
+        """Count one of the segment's own replies toward its model."""
+        if not model or model == SYNTHETIC_MODEL:
+            return
+        self.replies[model] = self.replies.get(model, 0) + 1
+        self.latest[model] = max(self.latest.get(model, ""), stamp)
+
+    @property
+    def model(self) -> str | None:
+        """Return the model of most replies; a tie goes to the latest reply."""
+        if not self.replies:
+            return None
+        return max(self.replies, key=lambda m: (self.replies[m], self.latest[m]))
 
 
 def failed_calls(path: Path) -> set[str]:
@@ -381,11 +419,62 @@ def segment_at(segments: list[Segment], stamp: str | None) -> Segment:
     return current
 
 
+def incoming(entry: dict[str, Any]) -> bool:
+    """Return whether a line is an incoming message: a queued or typed prompt.
+
+    A `dequeue` line, a tool result, and a skill's `isMeta` text are not.
+    """
+    if entry.get("type") == "queue-operation":
+        return bool(entry.get("operation") == "enqueue")
+    return bool(
+        entry.get("type") == "user"
+        and entry.get("isMeta") is not True
+        and not any(block.get("type") == "tool_result" for block in blocks(entry))
+    )
+
+
+def timed_lines(path: Path) -> list[tuple[datetime, str, bool]]:
+    """Return the time, timestamp, and incoming flag of each line, in time order.
+
+    Claude Code writes some lines a few milliseconds out of order, so the lines
+    are sorted. Lines without a valid `timestamp` are left out.
+    """
+    lines = []
+    for entry in entries(path):
+        stamp = entry.get("timestamp")
+        if not isinstance(stamp, str):
+            continue
+        try:
+            moment = datetime.fromisoformat(stamp)
+        except ValueError:
+            continue
+        lines.append((moment, stamp, incoming(entry)))
+    return sorted(lines, key=lambda line: line[0])
+
+
+def add_times(segments: list[Segment], path: Path) -> None:
+    """Add each gap between two lines to the segment running at the later line.
+
+    A gap that ends with an incoming message is waiting; any other gap is work.
+    """
+    lines = timed_lines(path)
+    for (before, _, _), (after, stamp, is_incoming) in pairwise(lines):
+        segment = segment_at(segments, stamp)
+        gap = (after - before).total_seconds()
+        if is_incoming:
+            segment.wait_seconds += gap
+        else:
+            segment.work_seconds += gap
+
+
 def segment_session(transcript: Path, branch_ticket: str | None) -> list[Segment]:
-    """Split a session into segments and add the tokens of each."""
+    """Split a session into segments; add the tokens, model, and times of each."""
     segments = segment_starts(transcript, branch_ticket)
+    add_times(segments, transcript)
     for stamp, model, usage in usage_by_reply(transcript).values():
-        add_usage(segment_at(segments, stamp).tokens, model, usage)
+        segment = segment_at(segments, stamp)
+        add_usage(segment.tokens, model, usage)
+        segment.add_reply(stamp, model)
     links = agent_links(transcript)
     folder = transcript.with_suffix("")
     for path in sorted(folder.rglob("agent-*.jsonl")) if folder.is_dir() else []:
@@ -408,6 +497,41 @@ def segment_session(transcript: Path, branch_ticket: str | None) -> list[Segment
     return [s for s in segments if s.step is not None or s.tokens or s.subagents]
 
 
+def plugin_version() -> str | None:
+    """Return the `version` in the plugin's `plugin.json`, or None if unknown."""
+    try:
+        manifest = json.loads(PLUGIN_JSON.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    return version if isinstance(version, str) else None
+
+
+def add_versions(segments: list[Segment], session: str) -> None:
+    """Give each segment the craft version of the first upload that saw it.
+
+    The versions are stored per session, keyed by each segment's step and start,
+    so a release during a session does not change earlier segments. Only a
+    known version is stored, so a segment uploaded with an unknown version gets
+    the version of a later upload.
+    """
+    store = session_file(session, "versions")
+    try:
+        stored = json.loads(store.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        stored = {}
+    if not isinstance(stored, dict):
+        stored = {}
+    current = plugin_version()
+    for segment in segments:
+        key = json.dumps([segment.step, segment.started_at])
+        known = stored.get(key)
+        segment.craft_version = known if isinstance(known, str) else current
+        if segment.craft_version is not None:
+            stored[key] = segment.craft_version
+    store.write_text(json.dumps(stored), encoding="utf-8")
+
+
 def segment_json(segment: Segment) -> dict[str, Any]:
     """Return a segment as it goes into `metadata.json`."""
     return {
@@ -426,6 +550,10 @@ def segment_json(segment: Segment) -> dict[str, Any]:
             }
             for subagent in segment.subagents
         ],
+        "craft_version": segment.craft_version,
+        "model": segment.model,
+        "work_seconds": round(segment.work_seconds, 1),
+        "wait_seconds": round(segment.wait_seconds, 1),
     }
 
 
@@ -445,6 +573,7 @@ def stage(event: dict[str, Any], out: Path) -> str | None:
     segments = segment_session(transcript, ticket_of(branch))
     if all(segment.step is None for segment in segments):
         return None
+    add_versions(segments, str(session))
     values = secrets()
     for name, path in transcripts(transcript).items():
         target = out / f"{name}.gz"
