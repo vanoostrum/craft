@@ -13,3 +13,8 @@
 | Non-blocking finding | A finding that does not make the review FAIL. The gate lists it, and the owner decides whether to fix it. Not a note: a note is a `note=` argument. |
 | Follow-up review | A review after a fix. It checks the earlier blocking findings, the changed text, and every place that states a changed rule. |
 | Ripple check | The search a fix step makes for every other place that states the rule it changed. |
+| Segment | The part of a session from one craft step call to the next, with its own ticket, tokens, and times. `metadata.json` lists the segments of a session. |
+| Incoming message | A message that reaches a session from outside: a `queue-operation` line with `operation` `enqueue`, or a typed prompt. Not a tool result, and not a skill's text. |
+| Craft time | The working time of a segment: the gaps between transcript lines, except the gaps that end with an incoming message. `metadata.json` holds it as `work_seconds`. |
+| Waiting time | The gaps of a segment that end with an incoming message. `metadata.json` holds it as `wait_seconds`. The Console shows it as "Waiting on you". |
+| Craft version | The version of craft that ran a segment, such as `2.9.0`, from the plugin's `plugin.json`. `metadata.json` holds it as `craft_version`. |
