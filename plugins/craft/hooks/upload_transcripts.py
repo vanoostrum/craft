@@ -434,7 +434,7 @@ def spec_session_ticket(
                 return False, None
             found = TICKET_KEY.search(args)
             return True, str(found.group(0)) if found else prompt_key or branch_ticket
-        if prompt_key is None and entry.get("isMeta") is not True:
+        if prompt_key is None:
             for text in texts(entry):
                 plan = ONE_SHOT_PLAN.search(text)
                 if plan is not None:

@@ -1236,17 +1236,28 @@ def test_one_shot_spec_session_charges_each_ticket(
     [
         (A, f"Run craft:spec on the one-shot plan {PLAN}.", "", A),
         ("", f"Run craft:spec on the one-shot plan {PLAN}.", "", PLAN),
+        ("", "<session-context>…</session-context> one-shot plan CRAFT-40", "", PLAN),
         ("", "Spec the next ticket.", f"one-shot plan {B}", BRANCH_TICKET),
         ("", "", "", BRANCH_TICKET),
     ],
-    ids=["arguments", "one-shot prompt", "prompt after the call", "branch"],
+    ids=[
+        "arguments",
+        "one-shot prompt",
+        "cloud thread prompt",
+        "prompt after the call",
+        "branch",
+    ],
 )
 def test_session_ticket(
     tmp_path: Path, project: Path, case: tuple[str, str, str, str]
 ) -> None:
     """The first spec call's key, else the one-shot prompt's, else the branch's."""
     args, before, after, expected = case
-    lines = [prompt(0, before)] if before else []
+    first = prompt(0, before)
+    if before.startswith("<session-context>"):
+        # A cloud project thread writes its first prompt as an `isMeta` line.
+        first["isMeta"] = True
+    lines = [first] if before else []
     lines += [reply(1, "m1", OPUS, 1, skill("craft:spec", args))]
     lines += [prompt(2, after)] if after else []
     lines += [reply(3, "m3", OPUS, 1, skill("craft:design"))]
