@@ -22,3 +22,5 @@
 | Session ticket | The ticket of a spec session as a whole: the ticket key in the arguments of its first `craft:spec` call, else the key in its `one-shot plan <key>` prompt, else the branch's ticket. In a one-shot run that `craft:next` starts, it is the plan ticket. |
 | Current ticket | In a spec session, the ticket that was last moved to **Specifying**, until it moves to another state. Otherwise the session ticket. |
 | Brief URL | The URL of the `Brief: <name>` document that a brainstorm or setup segment saved. `metadata.json` holds it as `brief`. |
+| Re-process | A run of `plugins/craft/hooks/reprocess_transcripts.py`. It rebuilds `metadata.json` of each stored session that lacks the ADR 0005 fields, from the session's transcripts, with the upload hook's code. |
+| Release time | The committer time of the commit that a release tag `v<version>` points to. The re-process uses it to find the craft version of a session from before craft recorded it. |
