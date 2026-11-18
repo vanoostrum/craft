@@ -36,10 +36,40 @@ value in `repo`, and the branch of that repo in `branch`.
 
 `metadata.json` splits the session into segments. Each step call starts a
 segment. A segment has its step, its ticket, its start and end time, its
-tokens per model, and its subagents with their own tokens.
+tokens per model, its subagents with their own tokens, and these fields:
+
+- `craft_version`: the `version` in the `.claude-plugin/plugin.json` of the
+  plugin that holds this hook, at the first upload that saw the segment. The
+  hook stores it per session in its temp folder, keyed by the segment's step
+  and start, so a release during a session does not change earlier segments.
+  It is null while the version is not known; only a known version is stored.
+- `model`: the model of most of the segment's own replies, each reply counted
+  once. A tie goes to the model of the latest reply. `<synthetic>` replies do
+  not count. Null without own replies.
+- `work_seconds` and `wait_seconds`: craft time and waiting time, rounded to
+  one decimal. The main transcript's lines with a `timestamp` are sorted by
+  time. Each gap between two lines belongs to the segment running at the later
+  line. It is waiting when that line is an incoming message: a
+  `queue-operation` `enqueue` line, or a `user` line that is not `isMeta` and
+  has no tool result. Any other gap is work. Subagent lines do not count,
+  because subagents run inside the main session's time.
+
+- `brief`: for a `brainstorm` or `setup` segment, the `url` in the result of
+  a successful `save_document` or `create_document` call of that segment whose
+  result `title` starts with `Brief: `. A save that created the document (a
+  call without `id`) wins over a save that changed one; else the last save
+  wins. Null for other steps, and without such a save.
 
 - The ticket of a segment comes from the step's arguments, such as `ABC-12`,
   or else from the branch name, such as `abc-12/version-endpoint`.
+- A spec session, whose first step call is `craft:spec`, splits per ticket.
+  Its session ticket is the key in the arguments of that call, else the key
+  after `one-shot plan` in a user line before it, else the branch's ticket.
+  Its current ticket is the ticket last moved to Specifying (a successful
+  `save_issue` or `update_issue` call with that `state`), until it moves to
+  another state; else the session ticket. Each change of the current ticket
+  starts a `spec` segment at the line of the call's result, and a step call
+  without a ticket key gets the current ticket.
 - A subagent belongs to the segment whose `Agent` call started it. When the
   transcript does not link the two, it belongs to the segment that was running
   when the subagent wrote its first line.
@@ -55,6 +85,11 @@ logs each upload, or its error, to `craft-transcripts/upload.log` in the
 temp folder.
 
 The service account needs only the Storage Object User role on the bucket.
+
+The re-process command, `reprocess_transcripts.py` next to this hook, rebuilds
+`metadata.json` of stored sessions with this hook's code
+(`craft_segments` and `metadata_json`), for sessions that an older hook
+uploaded.
 """
 
 import base64
@@ -72,6 +107,7 @@ import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -83,6 +119,7 @@ PROXY_TOKEN = "proxy-injected"  # noqa: S105 - a marker, not a secret.
 INTERVAL_ENV = "CRAFT_GCS_STOP_INTERVAL"
 DEFAULT_STOP_INTERVAL = 300.0
 UPLOAD_FLAG = "--upload"
+PLUGIN_JSON = Path(__file__).resolve().parents[1] / ".claude-plugin" / "plugin.json"
 TICKET_BRANCH = re.compile(r"^([a-z]+)-(\d+)/")
 TICKET_KEY = re.compile(r"\b[A-Z][A-Z0-9]*-\d+\b")
 STEP_SKILL = re.compile(
@@ -97,6 +134,16 @@ SCP_URL = re.compile(r"^[^/:]+:")
 SECRET_NAME = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", re.IGNORECASE)
 MIN_SECRET_LENGTH = 8
 AGENT_TOOLS = {"Agent", "Task"}
+MOVE_TOOLS = ("save_issue", "update_issue")
+BRIEF_TOOLS = ("save_document", "create_document")
+BRIEF_STEPS = {"brainstorm", "setup"}
+BRIEF_TITLE = "Brief: "
+SPECIFYING = "specifying"
+STATE_ID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
+ONE_SHOT_PLAN = re.compile(r"one-shot plan ([A-Z][A-Z0-9]*-\d+)\b")
+SYNTHETIC_MODEL = "<synthetic>"
 USAGE_FIELDS = (
     "input_tokens",
     "output_tokens",
@@ -289,6 +336,46 @@ class Segment:
     tokens: Tokens = field(default_factory=dict)
     subagents: list[Subagent] = field(default_factory=list)
     agent_calls: dict[str, str | None] = field(default_factory=dict)
+    replies: dict[str, int] = field(default_factory=dict)
+    latest: dict[str, str] = field(default_factory=dict)
+    work_seconds: float = 0.0
+    wait_seconds: float = 0.0
+    craft_version: str | None = None
+    created_brief: str | None = None
+    changed_brief: str | None = None
+
+    def add_brief(self, tool_input: dict[str, Any], result: dict[str, Any]) -> None:
+        """Note a document save of the segment when it saved a brief."""
+        title, url = result.get("title"), result.get("url")
+        if not (isinstance(title, str) and title.startswith(BRIEF_TITLE)):
+            return
+        if not isinstance(url, str):
+            return
+        if "id" in tool_input:
+            self.changed_brief = url
+        else:
+            self.created_brief = url
+
+    @property
+    def brief(self) -> str | None:
+        """Return the URL of the brief that a brainstorm or setup segment saved."""
+        if self.step not in BRIEF_STEPS:
+            return None
+        return self.created_brief or self.changed_brief
+
+    def add_reply(self, stamp: str, model: str) -> None:
+        """Count one of the segment's own replies toward its model."""
+        if not model or model == SYNTHETIC_MODEL:
+            return
+        self.replies[model] = self.replies.get(model, 0) + 1
+        self.latest[model] = max(self.latest.get(model, ""), stamp)
+
+    @property
+    def model(self) -> str | None:
+        """Return the model of most replies; a tie goes to the latest reply."""
+        if not self.replies:
+            return None
+        return max(self.replies, key=lambda m: (self.replies[m], self.latest[m]))
 
 
 def failed_calls(path: Path) -> set[str]:
@@ -336,21 +423,154 @@ def step_calls(entry: dict[str, Any], failed: set[str]) -> Iterator[tuple[str, s
             yield str(match.group(1)), args
 
 
+def spec_session_ticket(
+    path: Path, failed: set[str], branch_ticket: str | None
+) -> tuple[bool, str | None]:
+    """Return whether the session is a spec session, and its session ticket.
+
+    The session ticket is the key in the arguments of the first `craft:spec`
+    call, else the key after `one-shot plan` in a user line before it, else the
+    branch's ticket.
+    """
+    prompt_key: str | None = None
+    for entry in entries(path):
+        for step, args in step_calls(entry, failed):
+            if step != "spec":
+                return False, None
+            found = TICKET_KEY.search(args)
+            return True, str(found.group(0)) if found else prompt_key or branch_ticket
+        if prompt_key is None:
+            for text in texts(entry):
+                plan = ONE_SHOT_PLAN.search(text)
+                if plan is not None:
+                    prompt_key = str(plan.group(1))
+                    break
+    return False, None
+
+
+def result_json(block: dict[str, Any]) -> dict[str, Any]:
+    """Return a tool result as a JSON object, or {} when it is none."""
+    content = block.get("content")
+    if isinstance(content, list):
+        text = "".join(
+            str(part.get("text") or "") for part in content if isinstance(part, dict)
+        )
+    else:
+        text = str(content or "")
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def ticket_key(value: object) -> str | None:
+    """Return `value` when it is a ticket key, such as `ABC-12`, or None."""
+    return value if isinstance(value, str) and TICKET_KEY.fullmatch(value) else None
+
+
+def move_of(
+    tool_input: dict[str, Any], result: dict[str, Any]
+) -> tuple[str, bool] | None:
+    """Return the ticket that a call moved, and whether it moved to Specifying.
+
+    Return None when the call names no state, a state id, or no ticket key.
+    """
+    state = tool_input.get("state")
+    if not isinstance(state, str) or STATE_ID.match(state):
+        return None
+    ticket = ticket_key(tool_input.get("id")) or ticket_key(result.get("id"))
+    if ticket is None:
+        return None
+    return ticket, bool(state.casefold() == SPECIFYING)
+
+
+@dataclass
+class ToolCall:
+    """A Linear call that waits for its result, and the segment that made it."""
+
+    name: str
+    tool_input: dict[str, Any]
+    segment: Segment
+
+
+@dataclass
+class Splitter:
+    """Split the main transcript into segments, one line at a time."""
+
+    branch_ticket: str | None
+    spec: bool
+    session_ticket: str | None
+    segments: list[Segment]
+    current: str | None = None
+    calls: dict[str, ToolCall] = field(default_factory=dict)
+
+    def start(self, step: str, ticket: str | None, stamp: str | None) -> None:
+        """Start a segment at a line."""
+        self.segments.append(Segment(step, ticket, stamp, stamp))
+
+    def step_call(self, step: str, args: str, stamp: str | None) -> None:
+        """Start the segment of a step call; without a key it gets the default."""
+        found = TICKET_KEY.search(args)
+        default = self.current if self.spec else self.branch_ticket
+        self.start(step, found.group(0) if found else default, stamp)
+
+    def tool_use(self, block: dict[str, Any]) -> None:
+        """Note an `Agent` call, or a Linear call that may move a ticket or a brief."""
+        name = str(block.get("name") or "")
+        tool_input = block.get("input") or {}
+        if name in AGENT_TOOLS:
+            role = tool_input.get("description") or tool_input.get("subagent_type")
+            self.segments[-1].agent_calls[str(block.get("id"))] = role
+        elif name.endswith(MOVE_TOOLS + BRIEF_TOOLS) and isinstance(tool_input, dict):
+            self.calls[str(block.get("id"))] = ToolCall(
+                name, tool_input, self.segments[-1]
+            )
+
+    def tool_result(self, block: dict[str, Any], stamp: str | None) -> None:
+        """Apply the successful result of a Linear call: a brief, or a move."""
+        call = self.calls.pop(str(block.get("tool_use_id")), None)
+        if call is None or block.get("is_error") is True:
+            return
+        result = result_json(block)
+        if call.name.endswith(BRIEF_TOOLS):
+            call.segment.add_brief(call.tool_input, result)
+            return
+        if not self.spec or len(self.segments) == 1:
+            return
+        moved = move_of(call.tool_input, result)
+        if moved is None:
+            return
+        ticket, specifying = moved
+        if specifying and ticket != self.current:
+            self.current = ticket
+            self.start("spec", ticket, stamp)
+        elif not specifying and self.session_ticket != ticket == self.current:
+            self.current = self.session_ticket
+            self.start("spec", self.session_ticket, stamp)
+
+
 def segment_starts(path: Path, branch_ticket: str | None) -> list[Segment]:
     """Return the segments of the main transcript, with their `Agent` calls."""
     failed = failed_calls(path)
-    segments = [Segment(step=None, ticket=branch_ticket, started_at=None)]
+    spec, session_ticket = spec_session_ticket(path, failed, branch_ticket)
+    splitter = Splitter(
+        branch_ticket=branch_ticket,
+        spec=spec,
+        session_ticket=session_ticket,
+        segments=[Segment(step=None, ticket=branch_ticket, started_at=None)],
+        current=session_ticket,
+    )
+    segments = splitter.segments
     for entry in entries(path):
         stamp = entry.get("timestamp")
         for step, args in step_calls(entry, failed):
-            found = TICKET_KEY.search(args)
-            ticket = found.group(0) if found else branch_ticket
-            segments.append(Segment(step, ticket, stamp, stamp))
+            splitter.step_call(step, args, stamp)
         for block in blocks(entry):
-            if block.get("type") == "tool_use" and block.get("name") in AGENT_TOOLS:
-                tool_input = block.get("input") or {}
-                role = tool_input.get("description") or tool_input.get("subagent_type")
-                segments[-1].agent_calls[str(block.get("id"))] = role
+            if block.get("type") == "tool_use":
+                splitter.tool_use(block)
+            elif block.get("type") == "tool_result":
+                splitter.tool_result(block, stamp)
         if stamp:
             segments[-1].started_at = segments[-1].started_at or stamp
             segments[-1].ended_at = stamp
@@ -381,11 +601,62 @@ def segment_at(segments: list[Segment], stamp: str | None) -> Segment:
     return current
 
 
+def incoming(entry: dict[str, Any]) -> bool:
+    """Return whether a line is an incoming message: a queued or typed prompt.
+
+    A `dequeue` line, a tool result, and a skill's `isMeta` text are not.
+    """
+    if entry.get("type") == "queue-operation":
+        return bool(entry.get("operation") == "enqueue")
+    return bool(
+        entry.get("type") == "user"
+        and entry.get("isMeta") is not True
+        and not any(block.get("type") == "tool_result" for block in blocks(entry))
+    )
+
+
+def timed_lines(path: Path) -> list[tuple[datetime, str, bool]]:
+    """Return the time, timestamp, and incoming flag of each line, in time order.
+
+    Claude Code writes some lines a few milliseconds out of order, so the lines
+    are sorted. Lines without a valid `timestamp` are left out.
+    """
+    lines = []
+    for entry in entries(path):
+        stamp = entry.get("timestamp")
+        if not isinstance(stamp, str):
+            continue
+        try:
+            moment = datetime.fromisoformat(stamp)
+        except ValueError:
+            continue
+        lines.append((moment, stamp, incoming(entry)))
+    return sorted(lines, key=lambda line: line[0])
+
+
+def add_times(segments: list[Segment], path: Path) -> None:
+    """Add each gap between two lines to the segment running at the later line.
+
+    A gap that ends with an incoming message is waiting; any other gap is work.
+    """
+    lines = timed_lines(path)
+    for (before, _, _), (after, stamp, is_incoming) in pairwise(lines):
+        segment = segment_at(segments, stamp)
+        gap = (after - before).total_seconds()
+        if is_incoming:
+            segment.wait_seconds += gap
+        else:
+            segment.work_seconds += gap
+
+
 def segment_session(transcript: Path, branch_ticket: str | None) -> list[Segment]:
-    """Split a session into segments and add the tokens of each."""
+    """Split a session into segments; add the tokens, model, and times of each."""
     segments = segment_starts(transcript, branch_ticket)
+    add_times(segments, transcript)
     for stamp, model, usage in usage_by_reply(transcript).values():
-        add_usage(segment_at(segments, stamp).tokens, model, usage)
+        segment = segment_at(segments, stamp)
+        add_usage(segment.tokens, model, usage)
+        segment.add_reply(stamp, model)
     links = agent_links(transcript)
     folder = transcript.with_suffix("")
     for path in sorted(folder.rglob("agent-*.jsonl")) if folder.is_dir() else []:
@@ -408,6 +679,41 @@ def segment_session(transcript: Path, branch_ticket: str | None) -> list[Segment
     return [s for s in segments if s.step is not None or s.tokens or s.subagents]
 
 
+def plugin_version() -> str | None:
+    """Return the `version` in the plugin's `plugin.json`, or None if unknown."""
+    try:
+        manifest = json.loads(PLUGIN_JSON.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    return version if isinstance(version, str) else None
+
+
+def add_versions(segments: list[Segment], session: str) -> None:
+    """Give each segment the craft version of the first upload that saw it.
+
+    The versions are stored per session, keyed by each segment's step and start,
+    so a release during a session does not change earlier segments. Only a
+    known version is stored, so a segment uploaded with an unknown version gets
+    the version of a later upload.
+    """
+    store = session_file(session, "versions")
+    try:
+        stored = json.loads(store.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        stored = {}
+    if not isinstance(stored, dict):
+        stored = {}
+    current = plugin_version()
+    for segment in segments:
+        key = json.dumps([segment.step, segment.started_at])
+        known = stored.get(key)
+        segment.craft_version = known if isinstance(known, str) else current
+        if segment.craft_version is not None:
+            stored[key] = segment.craft_version
+    store.write_text(json.dumps(stored), encoding="utf-8")
+
+
 def segment_json(segment: Segment) -> dict[str, Any]:
     """Return a segment as it goes into `metadata.json`."""
     return {
@@ -426,7 +732,45 @@ def segment_json(segment: Segment) -> dict[str, Any]:
             }
             for subagent in segment.subagents
         ],
+        "craft_version": segment.craft_version,
+        "model": segment.model,
+        "work_seconds": round(segment.work_seconds, 1),
+        "wait_seconds": round(segment.wait_seconds, 1),
+        "brief": segment.brief,
     }
+
+
+def craft_segments(transcript: Path, branch: str) -> list[Segment] | None:
+    """Return the segments of a session on `branch`, or None without a craft step.
+
+    The re-process command calls this too, so both compute the same segments.
+    """
+    segments = segment_session(transcript, ticket_of(branch))
+    if all(segment.step is None for segment in segments):
+        return None
+    return segments
+
+
+def metadata_json(  # noqa: PLR0913 - the fields of `metadata.json`.
+    *,
+    repo: object,
+    branch: object,
+    session: object,
+    segments: list[Segment],
+    event: object,
+    uploaded_at: object,
+) -> str:
+    """Return the text of `metadata.json`."""
+    metadata = {
+        "repo": repo,
+        "branch": branch,
+        "session_id": session,
+        "tickets": sorted({s.ticket for s in segments if s.ticket is not None}),
+        "segments": [segment_json(segment) for segment in segments],
+        "event": event,
+        "uploaded_at": uploaded_at,
+    }
+    return json.dumps(metadata, indent=2) + "\n"
 
 
 def stage(event: dict[str, Any], out: Path) -> str | None:
@@ -442,25 +786,26 @@ def stage(event: dict[str, Any], out: Path) -> str | None:
     branch = (
         "" if repo.toplevel is None else git(repo.toplevel, "branch", "--show-current")
     )
-    segments = segment_session(transcript, ticket_of(branch))
-    if all(segment.step is None for segment in segments):
+    segments = craft_segments(transcript, branch)
+    if segments is None:
         return None
+    add_versions(segments, str(session))
     values = secrets()
     for name, path in transcripts(transcript).items():
         target = out / f"{name}.gz"
         target.parent.mkdir(parents=True, exist_ok=True)
         text = path.read_text(encoding="utf-8", errors="replace")
         target.write_bytes(gzip.compress(redact(text, values).encode(), mtime=0))
-    metadata = {
-        "repo": repo.name,
-        "branch": branch,
-        "session_id": session,
-        "tickets": sorted({s.ticket for s in segments if s.ticket is not None}),
-        "segments": [segment_json(segment) for segment in segments],
-        "event": event.get("hook_event_name"),
-        "uploaded_at": datetime.now(UTC).isoformat(),
-    }
-    (out / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    (out / "metadata.json").write_text(
+        metadata_json(
+            repo=repo.name,
+            branch=branch,
+            session=session,
+            segments=segments,
+            event=event.get("hook_event_name"),
+            uploaded_at=datetime.now(UTC).isoformat(),
+        )
+    )
     return f"{repo.name}/sessions/{session}"
 
 
@@ -469,8 +814,10 @@ def proxy_auth() -> bool:
     return os.environ.get(TOKEN_ENV, "") == PROXY_TOKEN
 
 
-def gcloud(config: Path, *args: str, keep_token: bool) -> None:
-    """Run gcloud with its own config folder, so the user's login stays as it is.
+def gcloud(config: Path, *args: str, keep_token: bool) -> bytes:
+    """Run gcloud with its own config folder, and return its output.
+
+    The own config folder keeps the user's login as it is.
 
     With a service account key, the sandbox's `CLOUDSDK_AUTH_ACCESS_TOKEN` is
     dropped, because it would override the key.
@@ -481,12 +828,34 @@ def gcloud(config: Path, *args: str, keep_token: bool) -> None:
         if keep_token or name != TOKEN_ENV
     }
     env["CLOUDSDK_CONFIG"] = str(config)
-    subprocess.run(  # noqa: S603
+    return subprocess.run(  # noqa: S603
         ["gcloud", *args, "--quiet"],  # noqa: S607
         env=env,
         check=True,
         capture_output=True,
-    )
+    ).stdout
+
+
+def sign_in(work: Path) -> tuple[Path, bool]:
+    """Sign gcloud in with the service account key, if there is one.
+
+    Return gcloud's config folder in `work`, and whether gcloud keeps the
+    proxy's access token: only without a key.
+    """
+    config = work / "gcloud"
+    raw_key = setting(KEY_ENV)
+    if raw_key:
+        key = work / "key.json"
+        key.write_text(key_json(raw_key), encoding="utf-8")
+        key.chmod(0o600)
+        gcloud(
+            config,
+            "auth",
+            "activate-service-account",
+            f"--key-file={key}",
+            keep_token=False,
+        )
+    return config, not raw_key
 
 
 def upload(event: dict[str, Any]) -> bool:
@@ -499,19 +868,7 @@ def upload(event: dict[str, Any]) -> bool:
         prefix = stage(event, out)
         if prefix is None:
             return False
-        config = work / "gcloud"
-        raw_key = setting(KEY_ENV)
-        if raw_key:
-            key = work / "key.json"
-            key.write_text(key_json(raw_key), encoding="utf-8")
-            key.chmod(0o600)
-            gcloud(
-                config,
-                "auth",
-                "activate-service-account",
-                f"--key-file={key}",
-                keep_token=False,
-            )
+        config, keep_token = sign_in(work)
         gcloud(
             config,
             "storage",
@@ -519,7 +876,7 @@ def upload(event: dict[str, Any]) -> bool:
             str(out),
             f"gs://{bucket}/{prefix}",
             "--recursive",
-            keep_token=not raw_key,
+            keep_token=keep_token,
         )
     return True
 

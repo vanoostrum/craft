@@ -9,111 +9,52 @@ would land in the bucket.
 import base64
 import gzip
 import json
-import os
 import subprocess
-import sys
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-HOOKS = ROOT / "plugins" / "craft" / "hooks"
-HOOK = HOOKS / "upload_transcripts.py"
-SESSION = "0b1c2d3e-session"
-SECRET = "sk-test-0123456789abcdef"  # noqa: S105 - a fake secret to redact.
-KEY = {"type": "service_account", "client_email": "factory@example.iam"}
-OPUS = "claude-opus"
-SONNET = "claude-sonnet"
+from tests.transcripts import (
+    HOOK,
+    HOOKS,
+    KEY,
+    OPUS,
+    PLAN,
+    ROOT,
+    SECRET,
+    SESSION,
+    SONNET,
+    A,
+    B,
+    call_result,
+    configured_env,
+    fake_env,
+    git_repo,
+    in_dir,
+    metadata,
+    move,
+    prompt,
+    reply,
+    run_hook,
+    session_folder,
+    skill,
+    stamp,
+    tool_call,
+    wait_for_uploads,
+    write_jsonl,
+)
 
-FAKE_GCLOUD = """#!/bin/sh
-echo "$* token=${CLOUDSDK_AUTH_ACCESS_TOKEN:-none}" >> "$FAKE_GCLOUD_LOG"
-if [ "$1" = "storage" ] && [ "$2" = "rsync" ]; then
-  dest="$FAKE_BUCKET_ROOT/${4#gs://}"
-  mkdir -p "$dest" && cp -R "$3"/. "$dest"/
-fi
-"""
-
-
-def stamp(minute: int) -> str:
-    """Return a transcript timestamp at a minute past 10:00."""
-    return f"2026-11-02T10:{minute:02d}:00.000Z"
-
-
-def reply(
-    minute: int, message_id: str, model: str, tokens: int, *content: dict[str, Any]
-) -> dict[str, Any]:
-    """Return an assistant line with its token usage."""
-    usage = {
-        "input_tokens": tokens,
-        "output_tokens": 1,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-    }
-    return {
-        "type": "assistant",
-        "timestamp": stamp(minute),
-        "message": {
-            "id": message_id,
-            "model": model,
-            "usage": usage,
-            "content": list(content),
-        },
-    }
+BRANCH_TICKET = "LIBRAG-12"
+STATE_ID = "12c9a27c-cde3-413e-a70a-ebdeb48c7f23"
 
 
-def skill(name: str, args: str = "") -> dict[str, Any]:
-    """Return a Skill tool call block."""
-    return {
-        "type": "tool_use",
-        "id": f"call-{name}",
-        "name": "Skill",
-        "input": {"skill": name, "args": args},
-    }
-
-
-def write_jsonl(path: Path, lines: list[dict[str, Any]]) -> None:
-    """Write transcript lines to a file."""
-    path.write_text("".join(json.dumps(line) + "\n" for line in lines), "utf-8")
-
-
-def git_repo(path: Path, branch: str, origin: str | None) -> Path:
-    """Create a git checkout at `path` on `branch`, with an `origin` remote."""
-    path.mkdir(parents=True)
-    subprocess.run(  # noqa: S603
-        ["git", "init", "-q", "-b", branch, str(path)],  # noqa: S607
-        check=True,
-    )
-    if origin is not None:
-        subprocess.run(  # noqa: S603
-            ["git", "-C", str(path), "remote", "add", "origin", origin],  # noqa: S607
-            check=True,
-        )
-    return path
-
-
-@pytest.fixture
-def project(tmp_path: Path) -> Path:
-    """Return a git checkout on a ticket branch, with a GitHub `origin`."""
-    return git_repo(
-        tmp_path / "checkout",
-        "librag-12/version-endpoint",
-        "https://github.com/vanoostrum/librag.git",
-    )
-
-
-@pytest.fixture
-def outside(tmp_path: Path) -> Path:
-    """Return a folder that is not inside a git repo, such as `/home/user`."""
-    folder = tmp_path / "home"
-    folder.mkdir()
-    return folder
-
-
-def in_dir(cwd: Path, line: dict[str, Any]) -> dict[str, Any]:
-    """Return a transcript line with the working directory Claude Code records."""
-    return {**line, "cwd": str(cwd)}
+def at(seconds: float) -> str:
+    """Return a transcript timestamp `seconds` after 10:00, to the millisecond."""
+    moment = datetime(2026, 11, 2, 10, tzinfo=UTC) + timedelta(seconds=seconds)
+    return moment.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def slash_command(minute: int, name: str, args: str = "") -> dict[str, Any]:
@@ -124,135 +65,6 @@ def slash_command(minute: int, name: str, args: str = "") -> dict[str, Any]:
         f"<command-args>{args}</command-args>"
     )
     return {"type": "user", "timestamp": stamp(minute), "message": {"content": text}}
-
-
-@pytest.fixture
-def transcript(tmp_path: Path, project: Path, outside: Path) -> Path:
-    """Return a build session: build, review, and merge, with two subagents.
-
-    The session starts outside any repo and then works in the project. Subagent
-    a1 is linked to its `Agent` call. Subagent b2 is not, and wrote its first
-    line during the review.
-    """
-    sessions = tmp_path / "sessions"
-    main = sessions / f"{SESSION}.jsonl"
-    subagents = sessions / SESSION / "subagents"
-    subagents.mkdir(parents=True)
-    agent_call = {
-        "type": "tool_use",
-        "id": "call-agent",
-        "name": "Agent",
-        "input": {"description": "app driver", "subagent_type": "general-purpose"},
-    }
-    first = {
-        "type": "user",
-        "timestamp": stamp(0),
-        "message": {"content": f"key {SECRET}, token proxy-injected"},
-    }
-    write_jsonl(
-        main,
-        [
-            in_dir(outside, first),
-            # One reply written as two lines, each with the same usage.
-            reply(1, "m1", SONNET, 100, {"type": "text", "text": "Building."}),
-            reply(1, "m1", SONNET, 100, skill("craft:build", "LIBRAG-12")),
-            # Loading the rules, or any other craft skill, starts no segment.
-            reply(1, "m1", SONNET, 100, skill("craft:rules")),
-            reply(2, "m2", SONNET, 20, agent_call),
-            {
-                "type": "user",
-                "timestamp": stamp(5),
-                "toolUseResult": {"agentId": "a1"},
-                "message": {
-                    "content": [{"type": "tool_result", "tool_use_id": "call-agent"}]
-                },
-            },
-            in_dir(
-                project, reply(10, "m3", OPUS, 300, skill("craft:review", "LIBRAG-12"))
-            ),
-            reply(20, "m4", OPUS, 7, skill("craft:merge")),
-            reply(21, "m5", OPUS, 5, {"type": "text", "text": "Merged."}),
-        ],
-    )
-    write_jsonl(subagents / "agent-a1.jsonl", [reply(3, "s1", SONNET, 40)])
-    (subagents / "agent-a1.meta.json").write_text('{"agentType": "general"}', "utf-8")
-    write_jsonl(subagents / "agent-b2.jsonl", [reply(12, "s2", OPUS, 50)])
-    return main
-
-
-def fake_env(tmp_path: Path, **extra: str) -> dict[str, str]:
-    """Return an environment whose `gcloud` is the fake one."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir(exist_ok=True)
-    gcloud = bin_dir / "gcloud"
-    gcloud.write_text(FAKE_GCLOUD, encoding="utf-8")
-    gcloud.chmod(0o755)
-    temp = tmp_path / "tmp"
-    temp.mkdir(exist_ok=True)
-    env = {
-        key: value
-        for key, value in os.environ.items()
-        if not key.startswith(("CRAFT_GCS_", "SOUS_GCS_"))
-    }
-    env.update(
-        PATH=f"{bin_dir}{os.pathsep}{env['PATH']}",
-        TMPDIR=str(temp),
-        FAKE_GCLOUD_LOG=str(tmp_path / "gcloud.log"),
-        FAKE_BUCKET_ROOT=str(tmp_path / "gcs"),
-        OPENAI_API_KEY=SECRET,
-        CLOUDSDK_AUTH_ACCESS_TOKEN="proxy-injected",  # noqa: S106 - as in the sandbox.
-        **extra,
-    )
-    return env
-
-
-def configured_env(tmp_path: Path, key: str = json.dumps(KEY)) -> dict[str, str]:
-    """Return an environment with a bucket and a service account key."""
-    return fake_env(tmp_path, CRAFT_GCS_BUCKET="factory-logs", CRAFT_GCS_KEY=key)
-
-
-def run_hook(
-    env: dict[str, str], transcript: Path, cwd: Path, event: str = "Stop"
-) -> None:
-    """Run the hook as Claude Code does."""
-    payload = {
-        "session_id": SESSION,
-        "transcript_path": str(transcript),
-        "cwd": str(cwd),
-        "hook_event_name": event,
-    }
-    subprocess.run(  # noqa: S603
-        [sys.executable, str(HOOK)],
-        input=json.dumps(payload),
-        text=True,
-        env=env,
-        check=True,
-        timeout=10,
-    )
-
-
-def wait_for_uploads(tmp_path: Path, count: int) -> None:
-    """Wait until the background process has logged `count` uploads."""
-    upload_log = tmp_path / "tmp" / "craft-transcripts" / "upload.log"
-    deadline = time.monotonic() + 20
-    while True:
-        text = upload_log.read_text("utf-8") if upload_log.exists() else ""
-        if text.count(" uploaded ") >= count:
-            return
-        if " failed " in text or time.monotonic() > deadline:
-            pytest.fail(f"the upload did not finish: {text!r}")
-        time.sleep(0.1)
-
-
-def session_folder(tmp_path: Path, repo: str = "vanoostrum/librag") -> Path:
-    """Return the session's folder in the fake bucket."""
-    return tmp_path / "gcs" / "factory-logs" / repo / "sessions" / SESSION
-
-
-def metadata(tmp_path: Path, repo: str = "vanoostrum/librag") -> dict[str, Any]:
-    """Return the uploaded metadata of the session."""
-    path = session_folder(tmp_path, repo) / "metadata.json"
-    return json.loads(path.read_text("utf-8"))
 
 
 def assert_no_upload(tmp_path: Path) -> None:
@@ -734,3 +546,753 @@ def test_old_names_are_gone(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     assert "SOUS_GCS" not in text
     assert "sous:" not in text
+
+
+def step_session(tmp_path: Path, project: Path, lines: list[dict[str, Any]]) -> Path:
+    """Write a build session in the project: its step call, then `lines`."""
+    session = tmp_path / "step.jsonl"
+    first = in_dir(project, reply(1, "m0", OPUS, 9, skill("craft:build")))
+    write_jsonl(session, [first, *lines])
+    return session
+
+
+def uploaded_segments(
+    tmp_path: Path, session: Path, project: Path
+) -> list[dict[str, Any]]:
+    """Run the hook on a session, and return the uploaded segments."""
+    run_hook(configured_env(tmp_path), session, project)
+    wait_for_uploads(tmp_path, 1)
+    return metadata(tmp_path)["segments"]
+
+
+def test_each_segment_has_the_new_fields(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """Each segment adds craft version, model, and times to the earlier fields."""
+    run_hook(configured_env(tmp_path), transcript, project)
+    wait_for_uploads(tmp_path, 1)
+
+    data = metadata(tmp_path)
+    assert set(data) == {
+        "repo",
+        "branch",
+        "session_id",
+        "tickets",
+        "segments",
+        "event",
+        "uploaded_at",
+    }
+    for segment in data["segments"]:
+        assert set(segment) == {
+            "step",
+            "ticket",
+            "started_at",
+            "ended_at",
+            "tokens",
+            "subagents",
+            "craft_version",
+            "model",
+            "work_seconds",
+            "wait_seconds",
+            "brief",
+        }
+
+
+def test_model_is_the_model_of_most_replies(tmp_path: Path, project: Path) -> None:
+    """A reply written as several lines counts once."""
+    session = step_session(
+        tmp_path,
+        project,
+        [
+            reply(2, "m1", OPUS, 9, {"type": "text", "text": "One"}),
+            reply(2, "m1", OPUS, 9, {"type": "text", "text": "reply"}),
+            reply(2, "m1", OPUS, 9, {"type": "text", "text": "in three lines."}),
+            reply(3, "m2", SONNET, 9),
+            reply(4, "m3", SONNET, 9),
+            reply(5, "m4", SONNET, 9),
+        ],
+    )
+
+    assert uploaded_segments(tmp_path, session, project)[0]["model"] == SONNET
+
+
+@pytest.mark.parametrize(("earlier", "later"), [(OPUS, SONNET), (SONNET, OPUS)])
+def test_a_tie_goes_to_the_latest_reply(
+    tmp_path: Path, project: Path, earlier: str, later: str
+) -> None:
+    """With as many replies per model, the model of the latest reply wins."""
+    session = tmp_path / "tie.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(project, reply(1, "m1", earlier, 9, skill("craft:build"))),
+            reply(2, "m2", earlier, 9),
+            reply(3, "m3", later, 9),
+            reply(4, "m4", later, 9),
+        ],
+    )
+
+    assert uploaded_segments(tmp_path, session, project)[0]["model"] == later
+
+
+def test_synthetic_replies_do_not_count(tmp_path: Path, project: Path) -> None:
+    """Claude Code's `<synthetic>` replies, such as an error, are not a model."""
+    session = step_session(
+        tmp_path,
+        project,
+        [reply(2, "m1", "<synthetic>", 0), reply(3, "m2", "<synthetic>", 0)],
+    )
+
+    assert uploaded_segments(tmp_path, session, project)[0]["model"] == OPUS
+
+
+def test_segment_without_own_replies_has_no_model(
+    tmp_path: Path, project: Path
+) -> None:
+    """A typed step whose only work is a subagent's has no model, and uploads."""
+    session = tmp_path / "typed.jsonl"
+    subagents = tmp_path / "typed" / "subagents"
+    subagents.mkdir(parents=True)
+    write_jsonl(session, [in_dir(project, slash_command(1, "craft:build"))])
+    write_jsonl(subagents / "agent-c3.jsonl", [reply(2, "s1", SONNET, 40)])
+
+    (segment,) = uploaded_segments(tmp_path, session, project)
+
+    assert segment["model"] is None
+    assert segment["subagents"][0]["tokens"] == tokens(SONNET, 40, 1)
+
+
+def test_subagent_replies_do_not_change_the_model(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """The build's subagent runs Sonnet, the review's Opus; neither counts."""
+    subagents = transcript.parent / SESSION / "subagents"
+    write_jsonl(
+        subagents / "agent-a1.jsonl",
+        [reply(3, f"s{n}", OPUS, 40) for n in range(5)],
+    )
+    write_jsonl(
+        subagents / "agent-b2.jsonl",
+        [reply(12, f"t{n}", SONNET, 50) for n in range(5)],
+    )
+
+    build, review, merge = uploaded_segments(tmp_path, transcript, project)
+
+    assert (build["model"], review["model"], merge["model"]) == (SONNET, OPUS, OPUS)
+
+
+def timed(seconds: float, line: dict[str, Any]) -> dict[str, Any]:
+    """Return a transcript line at `seconds` after 10:00."""
+    return {**line, "timestamp": at(seconds)}
+
+
+def typed(seconds: float, text: str = "Go on.") -> dict[str, Any]:
+    """Return a prompt that the owner types, or a wake as Claude Code writes it."""
+    return {"type": "user", "timestamp": at(seconds), "message": {"content": text}}
+
+
+def queue(seconds: float, operation: str) -> dict[str, Any]:
+    """Return a `queue-operation` line, as a cloud session writes it."""
+    line = {"type": "queue-operation", "operation": operation, "timestamp": at(seconds)}
+    return {**line, "content": "Go on."} if operation == "enqueue" else line
+
+
+def tool_result(seconds: float) -> dict[str, Any]:
+    """Return the user line with a tool result."""
+    block = {"type": "tool_result", "tool_use_id": "call-x", "content": "ok"}
+    return {"type": "user", "timestamp": at(seconds), "message": {"content": [block]}}
+
+
+def skill_text(seconds: float) -> dict[str, Any]:
+    """Return the `isMeta` user line that holds a loaded skill's text."""
+    return {**typed(seconds, "Base directory for this skill: ..."), "isMeta": True}
+
+
+def times(segment: dict[str, Any]) -> tuple[float, float]:
+    """Return the work and wait seconds of a segment."""
+    return float(segment["work_seconds"]), float(segment["wait_seconds"])
+
+
+def test_gaps_split_into_craft_time_and_waiting(tmp_path: Path, project: Path) -> None:
+    """A gap that ends with an incoming message is waiting; other gaps are work.
+
+    The wait before the review's step call belongs to the build, which stopped
+    at its gate. The gap into the step call belongs to the review.
+    """
+    session = tmp_path / "timed.jsonl"
+    write_jsonl(
+        session,
+        [
+            in_dir(project, typed(0, "Build CRAFT-12.")),
+            timed(10, reply(0, "m1", SONNET, 9, skill("craft:build"))),
+            tool_result(25),
+            timed(30, reply(0, "m2", SONNET, 9)),
+            queue(100, "enqueue"),
+            queue(100.5, "dequeue"),
+            typed(101),
+            skill_text(101.2),
+            timed(105, reply(0, "m3", SONNET, 9)),
+            queue(150, "enqueue"),
+            typed(151, "approve"),
+            timed(160, reply(0, "m4", OPUS, 9, skill("craft:review"))),
+            timed(170, reply(0, "m5", OPUS, 9)),
+        ],
+    )
+
+    build, review = uploaded_segments(tmp_path, session, project)
+
+    # Work: 10 into the step call, 15, 5, 0.5 to the dequeue, 0.2, 3.8.
+    # Wait: 70 to the enqueue, 0.5 to the typed prompt, 45, and 1.
+    assert times(build) == (34.5, 116.5)
+    assert times(review) == (19.0, 0.0)
+
+
+def test_lines_out_of_order_give_no_negative_gap(tmp_path: Path, project: Path) -> None:
+    """Lines are sorted by time; lines without a time and subagents do not count."""
+    session = tmp_path / "unordered.jsonl"
+    subagents = tmp_path / "unordered" / "subagents"
+    subagents.mkdir(parents=True)
+    attachment = {"type": "attachment", "attachment": {"type": "hook_success"}}
+    write_jsonl(
+        session,
+        [
+            in_dir(project, timed(10, reply(0, "m1", SONNET, 9, skill("craft:build")))),
+            timed(20, reply(0, "m2", SONNET, 9)),
+            # Claude Code writes this line after the one above, but it is older.
+            # Unsorted, the gap into it would be -0.5 s, and the gap out 10.5 s.
+            timed(19.5, attachment),
+            {"type": "last-prompt", "leafUuid": "x"},
+            {"type": "tools-used", "tools": ["Skill"]},
+            queue(30.001, "enqueue"),
+            timed(31.234, reply(0, "m3", SONNET, 9)),
+        ],
+    )
+    write_jsonl(subagents / "agent-d4.jsonl", [timed(25, reply(0, "s1", OPUS, 9))])
+
+    (build,) = uploaded_segments(tmp_path, session, project)
+
+    # Work: 9.5, 0.5, and 1.233 to the reply. Wait: 10.001 to the enqueue.
+    assert times(build) == (11.2, 10.0)
+
+
+def plugin_copy(tmp_path: Path, manifest: str | None) -> Path:
+    """Copy the hook into a plugin folder whose `plugin.json` holds `manifest`.
+
+    With None, the plugin has no `plugin.json`. Return the copied hook.
+    """
+    root = tmp_path / "plugin"
+    (root / "hooks").mkdir(parents=True, exist_ok=True)
+    hook = root / "hooks" / HOOK.name
+    hook.write_bytes(HOOK.read_bytes())
+    set_manifest(hook, manifest)
+    return hook
+
+
+def set_manifest(hook: Path, manifest: str | None) -> None:
+    """Write, or with None remove, the `plugin.json` of a copied hook's plugin."""
+    path = hook.parents[1] / ".claude-plugin" / "plugin.json"
+    path.parent.mkdir(exist_ok=True)
+    if manifest is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(manifest, "utf-8")
+
+
+def release(version: str) -> str:
+    """Return a `plugin.json` with a version."""
+    return json.dumps({"name": "craft", "version": version})
+
+
+def versions(tmp_path: Path) -> list[str | None]:
+    """Return the craft version of each uploaded segment."""
+    return [s["craft_version"] for s in metadata(tmp_path)["segments"]]
+
+
+def versioned_env(tmp_path: Path) -> dict[str, str]:
+    """Return a configured environment where every Stop uploads."""
+    return {**configured_env(tmp_path), "CRAFT_GCS_STOP_INTERVAL": "0"}
+
+
+def test_craft_version_comes_from_plugin_json(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """Each segment gets the version in the hook's own plugin."""
+    hook = plugin_copy(tmp_path, release("3.1.4"))
+    run_hook(versioned_env(tmp_path), transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+
+    assert versions(tmp_path) == ["3.1.4", "3.1.4", "3.1.4"]
+
+
+@pytest.mark.parametrize(
+    "manifest",
+    [
+        None,
+        "{not json",
+        json.dumps({"name": "craft"}),
+        json.dumps({"name": "craft", "version": 3}),
+        json.dumps(["2.9.0"]),
+    ],
+)
+def test_unknown_craft_version_is_null_until_known(
+    tmp_path: Path, project: Path, transcript: Path, manifest: str | None
+) -> None:
+    """A missing or broken `plugin.json` gives null and stores nothing."""
+    env = versioned_env(tmp_path)
+    hook = plugin_copy(tmp_path, manifest)
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+    assert versions(tmp_path) == [None, None, None]
+
+    set_manifest(hook, release("3.1.4"))
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 2)
+    assert versions(tmp_path) == ["3.1.4", "3.1.4", "3.1.4"]
+
+
+def test_a_release_during_a_session_keeps_earlier_versions(
+    tmp_path: Path, project: Path
+) -> None:
+    """Segments keep the version of their first upload; new ones get the new one."""
+    env = versioned_env(tmp_path)
+    session = tmp_path / "long.jsonl"
+    build = [in_dir(project, reply(1, "m1", SONNET, 9, skill("craft:build")))]
+    write_jsonl(session, build)
+    hook = plugin_copy(tmp_path, release("3.1.4"))
+    run_hook(env, session, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+
+    write_jsonl(session, [*build, reply(5, "m2", OPUS, 9, skill("craft:review"))])
+    set_manifest(hook, release("3.2.0"))
+    run_hook(env, session, project, hook=hook)
+    wait_for_uploads(tmp_path, 2)
+    assert versions(tmp_path) == ["3.1.4", "3.2.0"]
+
+    for manifest in ("{not json", release("4.0.0")):
+        set_manifest(hook, manifest)
+        run_hook(env, session, project, hook=hook)
+    wait_for_uploads(tmp_path, 4)
+    assert versions(tmp_path) == ["3.1.4", "3.2.0"]
+
+
+def test_a_lost_store_takes_the_current_version(
+    tmp_path: Path, project: Path, transcript: Path
+) -> None:
+    """In a new container, with no stored version, segments get the current one."""
+    env = versioned_env(tmp_path)
+    hook = plugin_copy(tmp_path, release("3.1.4"))
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 1)
+
+    state = tmp_path / "tmp" / "craft-transcripts"
+    for stored in state.glob(f"{SESSION}.*"):
+        if stored.suffix != ".log":
+            stored.unlink()
+    set_manifest(hook, release("3.2.0"))
+    run_hook(env, transcript, project, hook=hook)
+    wait_for_uploads(tmp_path, 2)
+
+    assert versions(tmp_path) == ["3.2.0", "3.2.0", "3.2.0"]
+
+
+# A spec session splits per ticket on moves to Specifying (CRAFT-73).
+
+
+def session_with(
+    tmp_path: Path, project: Path, lines: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Run the hook on a session in the project, and return its metadata."""
+    session = tmp_path / "session.jsonl"
+    write_jsonl(session, [in_dir(project, lines[0]), *lines[1:]])
+    run_hook(configured_env(tmp_path), session, project)
+    wait_for_uploads(tmp_path, 1)
+    return metadata(tmp_path)["segments"]
+
+
+def spec_session(
+    tmp_path: Path, project: Path, lines: list[dict[str, Any]]
+) -> list[tuple[str, str]]:
+    """Run a spec session on PLAN with `lines` from minute 2, return (step, ticket)."""
+    first = reply(1, "m1", OPUS, 1, skill("craft:spec", PLAN))
+    segments = session_with(tmp_path, project, [first, *lines])
+    return [(s["step"], s["ticket"]) for s in segments]
+
+
+def test_one_shot_spec_session_charges_each_ticket(
+    tmp_path: Path, project: Path
+) -> None:
+    """Each ticket's span is its own segment; the work in between goes to the plan."""
+    scout = {
+        "type": "tool_use",
+        "id": "call-scout",
+        "name": "Agent",
+        "input": {"description": "spec scout"},
+    }
+    lines = [
+        prompt(0, f"Run craft:spec on the one-shot plan {PLAN}."),
+        reply(1, "m1", OPUS, 1, skill("craft:spec")),
+        *move(2, A, "Specifying"),
+        reply(4, "m4", OPUS, 30, scout),
+        {
+            "type": "user",
+            "timestamp": stamp(6),
+            "toolUseResult": {"agentId": "s1"},
+            "message": {
+                "content": [{"type": "tool_result", "tool_use_id": "call-scout"}]
+            },
+        },
+        *move(7, A, "Ready to build"),
+        reply(9, "m9", OPUS, 5, skill("craft:next")),
+        *move(10, B, "Specifying"),
+        reply(12, "m12", OPUS, 7, {"type": "text", "text": "Grill B."}),
+    ]
+    session = tmp_path / "one-shot.jsonl"
+    write_jsonl(session, [in_dir(project, lines[0]), *lines[1:]])
+    subagents = tmp_path / "one-shot" / "subagents"
+    subagents.mkdir(parents=True)
+    write_jsonl(subagents / "agent-s1.jsonl", [reply(5, "x1", OPUS, 50)])
+    run_hook(configured_env(tmp_path), session, project)
+    wait_for_uploads(tmp_path, 1)
+
+    data = metadata(tmp_path)
+    segments = data["segments"]
+    assert [(s["step"], s["ticket"]) for s in segments] == [
+        ("spec", PLAN),
+        ("spec", A),
+        ("spec", PLAN),
+        ("next", PLAN),
+        ("spec", B),
+    ]
+    assert data["tickets"] == sorted([A, B, PLAN])
+    assert [s["started_at"] for s in segments] == [
+        stamp(1),
+        stamp(3),
+        stamp(8),
+        stamp(9),
+        stamp(11),
+    ]
+    spec_a = segments[1]
+    # The reply that moves A out still counts toward A: its result starts the next.
+    assert spec_a["tokens"] == tokens(OPUS, 31, 2)
+    assert [s["agent_id"] for s in spec_a["subagents"]] == ["s1"]
+    assert spec_a["subagents"][0]["role"] == "spec scout"
+    assert segments[4]["tokens"] == tokens(OPUS, 7, 1)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (A, f"Run craft:spec on the one-shot plan {PLAN}.", "", A),
+        ("", f"Run craft:spec on the one-shot plan {PLAN}.", "", PLAN),
+        ("", "<session-context>…</session-context> one-shot plan CRAFT-40", "", PLAN),
+        ("", "Spec the next ticket.", f"one-shot plan {B}", BRANCH_TICKET),
+        ("", "", "", BRANCH_TICKET),
+    ],
+    ids=[
+        "arguments",
+        "one-shot prompt",
+        "cloud thread prompt",
+        "prompt after the call",
+        "branch",
+    ],
+)
+def test_session_ticket(
+    tmp_path: Path, project: Path, case: tuple[str, str, str, str]
+) -> None:
+    """The first spec call's key, else the one-shot prompt's, else the branch's."""
+    args, before, after, expected = case
+    first = prompt(0, before)
+    if before.startswith("<session-context>"):
+        # A cloud project thread writes its first prompt as an `isMeta` line.
+        first["isMeta"] = True
+    lines = [first] if before else []
+    lines += [reply(1, "m1", OPUS, 1, skill("craft:spec", args))]
+    lines += [prompt(2, after)] if after else []
+    lines += [reply(3, "m3", OPUS, 1, skill("craft:design"))]
+    segments = session_with(tmp_path, project, lines)
+
+    assert [(s["step"], s["ticket"]) for s in segments] == [
+        ("spec", expected),
+        ("design", expected),
+    ]
+
+
+SESSION_SPEC = ("spec", PLAN)
+
+PATHS = {
+    "session ticket, move of another ticket in": (
+        move(2, A, "Specifying"),
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "session ticket, move of itself in": (
+        move(2, PLAN, "Specifying"),
+        [SESSION_SPEC],
+    ),
+    "session ticket, move of itself out": (
+        move(2, PLAN, "Ready to build"),
+        [SESSION_SPEC],
+    ),
+    "session ticket, move of another ticket out": (
+        move(2, A, "Todo"),
+        [SESSION_SPEC],
+    ),
+    "current ticket to Ready to build": (
+        [*move(2, A, "Specifying"), *move(4, A, "Ready to build")],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC],
+    ),
+    "current ticket to Needs human": (
+        [*move(2, A, "Specifying"), *move(4, A, "Needs human")],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC],
+    ),
+    "current ticket back to Todo": (
+        [*move(2, A, "Specifying"), *move(4, A, "Todo")],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC],
+    ),
+    "current ticket, move of another ticket in": (
+        [*move(2, A, "Specifying"), *move(4, B, "Specifying")],
+        [SESSION_SPEC, ("spec", A), ("spec", B)],
+    ),
+    "move in after a design call": (
+        [
+            *move(2, A, "Specifying"),
+            reply(4, "m4", OPUS, 1, skill("craft:design")),
+            *move(5, B, "Specifying"),
+        ],
+        [SESSION_SPEC, ("spec", A), ("design", A), ("spec", B)],
+    ),
+    "current ticket, move of itself in again": (
+        [*move(2, A, "Specifying"), *move(4, A, "specifying")],
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "current ticket, move of another ticket out": (
+        [*move(2, A, "Specifying"), *move(4, B, "Todo")],
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "same ticket twice": (
+        [
+            *move(2, A, "Specifying"),
+            *move(4, A, "Ready to build"),
+            *move(6, A, "Specifying"),
+        ],
+        [SESSION_SPEC, ("spec", A), SESSION_SPEC, ("spec", A)],
+    ),
+    "failed move": (
+        move(2, A, "Specifying", error=True),
+        [SESSION_SPEC],
+    ),
+    "failed move out": (
+        [*move(2, A, "Specifying"), *move(4, A, "Todo", error=True)],
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "move with a state id": (
+        move(2, A, STATE_ID),
+        [SESSION_SPEC],
+    ),
+    "move of an id that is no key": (
+        move(2, "04923b2d-0105", "Specifying", result_id="04923b2d-0105"),
+        [SESSION_SPEC],
+    ),
+    "move of an id with the key in the result": (
+        move(2, "04923b2d-0105", "Specifying", result_id=A),
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "move with update_issue": (
+        move(2, A, "Specifying", name="mcp__linear__update_issue"),
+        [SESSION_SPEC, ("spec", A)],
+    ),
+    "a call of another tool": (
+        move(2, A, "Specifying", name="mcp__Linear__get_issue"),
+        [SESSION_SPEC],
+    ),
+    "step call without a key": (
+        [
+            *move(2, A, "Specifying"),
+            reply(4, "m4", OPUS, 1, skill("craft:spec")),
+            reply(5, "m5", OPUS, 1, skill("craft:next")),
+        ],
+        [SESSION_SPEC, ("spec", A), ("spec", A), ("next", A)],
+    ),
+    "step call with a key": (
+        [
+            *move(2, A, "Specifying"),
+            reply(4, "m4", OPUS, 1, skill("craft:design", B)),
+            reply(5, "m5", OPUS, 1, skill("craft:next")),
+        ],
+        [SESSION_SPEC, ("spec", A), ("design", B), ("next", A)],
+    ),
+}
+
+
+@pytest.mark.parametrize(("lines", "expected"), PATHS.values(), ids=PATHS.keys())
+def test_spec_session_paths(
+    tmp_path: Path,
+    project: Path,
+    lines: list[dict[str, Any]],
+    expected: list[tuple[str, str]],
+) -> None:
+    """Each path of the current ticket in a spec session gives its segments."""
+    assert spec_session(tmp_path, project, lines) == expected
+
+
+@pytest.mark.parametrize(("step", "args"), [("plan", ""), ("plan", PLAN), ("build", A)])
+def test_other_sessions_do_not_split(
+    tmp_path: Path, project: Path, step: str, args: str
+) -> None:
+    """A session that does not start with a spec ignores moves to Specifying."""
+    lines = [
+        reply(1, "m1", OPUS, 1, skill(f"craft:{step}", args)),
+        *move(2, PLAN, "Specifying"),
+        *move(4, A, "Specifying"),
+        reply(6, "m6", OPUS, 1, skill("craft:next")),
+    ]
+    segments = session_with(tmp_path, project, lines)
+
+    assert [(s["step"], s["ticket"]) for s in segments] == [
+        (step, args or BRANCH_TICKET),
+        ("next", BRANCH_TICKET),
+    ]
+
+
+# A brainstorm or setup segment records its brief (CRAFT-73).
+
+BRIEF_URL = (
+    "https://linear.app/clearblocks/document/brief-craft-console-v1-959b353787a7"
+)
+DEV_URL = "https://linear.app/clearblocks/document/brief-dev-environment-0a1b2c3d"
+
+
+def save(
+    minute: int,
+    result: dict[str, Any] | str,
+    *,
+    doc_id: str | None = None,
+    error: bool = False,
+    name: str = "mcp__Linear__save_document",
+) -> list[dict[str, Any]]:
+    """Return a document save, with an `id` when it changes a document."""
+    call_id = f"save-{minute}"
+    tool_input: dict[str, Any] = {"title": "Brief", "content": "..."}
+    if doc_id is not None:
+        tool_input["id"] = doc_id
+    return [
+        tool_call(minute, call_id, name, tool_input),
+        call_result(minute + 1, call_id, result, error=error),
+    ]
+
+
+def brief(title: str, url: str) -> dict[str, Any]:
+    """Return the result of a document save."""
+    return {"id": "doc", "title": title, "url": url}
+
+
+BRIEFS = {
+    "created brief": (
+        "brainstorm",
+        save(2, brief("Brief: Craft Console v1", BRIEF_URL)),
+        BRIEF_URL,
+    ),
+    "setup brief with create_document": (
+        "setup",
+        save(2, brief("Brief: Dev environment", DEV_URL), name="create_document"),
+        DEV_URL,
+    ),
+    "a created brief wins over a changed one": (
+        "setup",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL)),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL), doc_id="d1"),
+        ],
+        DEV_URL,
+    ),
+    "the last of two changed briefs": (
+        "brainstorm",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL), doc_id="d1"),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL), doc_id="d2"),
+        ],
+        BRIEF_URL,
+    ),
+    "the last of two created briefs": (
+        "brainstorm",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL)),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL)),
+        ],
+        BRIEF_URL,
+    ),
+    "a failed save, then a good one": (
+        "brainstorm",
+        [
+            *save(2, brief("Brief: Dev environment", DEV_URL), doc_id="d", error=True),
+            *save(4, brief("Brief: Craft Console v1", BRIEF_URL), doc_id="d"),
+        ],
+        BRIEF_URL,
+    ),
+    "only a failed save": (
+        "setup",
+        save(2, brief("Brief: Dev environment", DEV_URL), error=True),
+        None,
+    ),
+    "a document that is no brief": (
+        "brainstorm",
+        save(2, brief("Plan: Craft Console v1", BRIEF_URL)),
+        None,
+    ),
+    "a result that is not JSON": (
+        "brainstorm",
+        save(2, "Saved the document."),
+        None,
+    ),
+    "a result without a url": (
+        "brainstorm",
+        save(2, {"title": "Brief: Craft Console v1", "url": 3}),
+        None,
+    ),
+    "a read of a brief": (
+        "brainstorm",
+        save(2, brief("Brief: Craft Console v1", BRIEF_URL), name="get_document"),
+        None,
+    ),
+    "a brief saved in another step": (
+        "plan",
+        save(2, brief("Brief: Craft Console v1", BRIEF_URL)),
+        None,
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    ("step", "lines", "expected"), BRIEFS.values(), ids=BRIEFS.keys()
+)
+def test_brief_of_a_segment(
+    tmp_path: Path,
+    project: Path,
+    step: str,
+    lines: list[dict[str, Any]],
+    expected: str | None,
+) -> None:
+    """A brainstorm or setup segment holds the URL of the brief that it saved."""
+    first = reply(1, "m1", OPUS, 1, skill(f"craft:{step}"))
+    segments = session_with(tmp_path, project, [first, *lines])
+
+    assert [s["brief"] for s in segments] == [expected]
+
+
+def test_brief_belongs_to_the_segment_that_saved_it(
+    tmp_path: Path, project: Path
+) -> None:
+    """A brief saved in setup does not go to the brainstorm before it."""
+    lines = [
+        reply(1, "m1", OPUS, 1, skill("craft:brainstorm")),
+        *save(2, brief("Brief: Craft Console v1", BRIEF_URL)),
+        reply(4, "m4", OPUS, 1, skill("craft:setup")),
+        *save(5, brief("Brief: Dev environment", DEV_URL)),
+        reply(7, "m7", OPUS, 1, skill("craft:plan")),
+    ]
+    segments = session_with(tmp_path, project, lines)
+
+    assert [(s["step"], s["brief"]) for s in segments] == [
+        ("brainstorm", BRIEF_URL),
+        ("setup", DEV_URL),
+        ("plan", None),
+    ]
