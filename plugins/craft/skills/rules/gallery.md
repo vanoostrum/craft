@@ -42,7 +42,7 @@ A project without a gallery has no `design/README.md` yet. `craft:design` create
 - Styles come only from `design/gallery.css`, linked with a relative path. No other CSS, no external fonts or scripts, so a page renders from a file without a server.
 - One file per state that the app can reach. The file name is the state: `default`, `empty`, `error`, `loading`, and so on.
 - A page covers every platform in `Platforms`. Web platforms share one page: it adapts to the window with media queries in `design/gallery.css`. Native platforms share one page while the iOS and Android screens are the same. Where they differ, the page splits into `<state>.ios.html` and `<state>.android.html`.
-- Each page has exactly one primary action.
+- Each page has at most one primary action, and it stands out when there is one. A page where the user has a task has one. A page where the user has nothing to do, such as an empty or read-only state, may have none.
 - Acceptance criteria cite pages by path, for example "GET /search with no results matches `design/pages/search/empty.html`".
 - Take screenshots with `<rules>/scripts/gallery-shot <page> <platform> <evidence dir>`, once for each platform.
 
@@ -60,7 +60,7 @@ The gallery grows in stages. At the start of each run, `craft:design` checks the
 | Stage | Trigger | Work |
 |---|---|---|
 | 1. Pages | The first ticket with the `ui` label, or a plan with screens. `craft:design` does this work inside that ticket, without a stage ticket. | Set `Platforms`. Add `design/gallery.css` with the visual identity, and the first pages in `design/pages/`. Set `Current stage: 1`. |
-| 2. Components, patterns, and checks | Stage 1 is done and `design/pages/` holds 5 or more screens, or one element appears on 3 or more screens. | Extract `design/components/` and `design/patterns/` from the pages. Add `tests/design/`: Playwright tests over the gallery pages and the app's HTML routes that check WCAG AA contrast, that elements are visible, and that each page has one primary action that stands out. Add Playwright with the project's own package manager, and a CI step that installs Chromium. Add `tests/design/` to the engineering rules in `CLAUDE.md`, and to the verify skill. Set `Current stage: 2`. |
+| 2. Components, patterns, and checks | Stage 1 is done and `design/pages/` holds 5 or more screens, or one element appears on 3 or more screens. | Extract `design/components/` and `design/patterns/` from the pages. Add `tests/design/`: Playwright tests over the gallery pages and the app's HTML routes that check WCAG AA contrast, that elements are visible, and that each page has at most one primary action, which stands out when there is one. Add Playwright with the project's own package manager, and a CI step that installs Chromium. Add `tests/design/` to the engineering rules in `CLAUDE.md`, and to the verify skill. Set `Current stage: 2`. |
 | 3. Coverage and sync | Stage 2 is done. | Add a test that every HTML route of the app has a gallery page. Add a recurring task that compares the gallery with the live app and opens a ticket for each difference. Set `Current stage: 3`. |
 
 Stage 3 is the last stage. Usability in production, such as task completion rates, is out of scope until the project's app has users.
