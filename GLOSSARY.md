@@ -30,7 +30,7 @@
 | Blind audit | The phase of an audit that judges each PR against the core rubric. It runs in a blind auditor. |
 | Blind auditor | The subagent of the blind audit. It sees only the merged code, the project's own conventions (`CLAUDE.md`, linters), and the core rubric. It does not see the spec, craft's review, or the transcripts (`docs/adr/0008`). |
 | Audit finding | One problem that the blind audit reports, on one rubric item, marked major or minor. Not a review finding, which is blocking or non-blocking. |
-| Audit score | The number of major audit findings per PR, per project. The scores of craft's own PRs are kept apart from those of the app projects. |
+| Audit score | The count of audit findings per PR, per rubric item, each marked major or minor. Its headline is the number of major audit findings per PR, per project and per craft version. The scores of craft's own PRs are kept apart from those of the app projects. |
 | Blind spot | An audit finding that craft's own review of that PR did not report. |
 | Miss rate | The share of audit findings that are blind spots, per project. |
 | Trace back | The phase of an audit that reads the build and review transcripts of a ticket with a blind spot, and names its cause. |
@@ -38,5 +38,5 @@
 | Conformance | Whether each step of an audited ticket did what its skill says, as the trace back reads it from the transcripts. |
 | Deep dive | The part of an audit that looks harder at one theme, after a web search for current practice. The theme is the lens. |
 | Lens | The theme of a deep dive, such as `error-handling`. `lens=<theme>` picks it; otherwise the audit picks it. |
-| Proposal | A change to a craft skill or step that an audit proposes, with the metric it should move and that metric's current value. It is a ticket in **Backlog** with the label `audit`. |
+| Proposal | A change to a craft skill or step that an audit proposes, with the metric it should move and that metric's current value. It is a ticket in **Backlog** with the label `audit`. It links the audit report, and quotes only craft's own skill text and summary numbers, never findings (`docs/adr/0009`). |
 | Audit report | The Linear document `Audit: <yyyy-mm-dd>` in the Craft project that an audit writes. Its `## Scores` table is what the next audit reads for the trend. |
