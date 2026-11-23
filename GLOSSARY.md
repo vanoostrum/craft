@@ -38,5 +38,5 @@
 | Conformance | Whether each step of an audited ticket did what its skill says, as the trace back reads it from the transcripts. |
 | Deep dive | The part of an audit that looks harder at one theme, after a web search for current practice. The theme is the lens. |
 | Lens | The theme of a deep dive, such as `error-handling`. `lens=<theme>` picks it; otherwise the audit picks it. |
-| Proposal | A change to a craft skill or step that an audit proposes, with the metric it should move and that metric's current value. It is a ticket in **Backlog** with the label `audit`. It links the audit report, and quotes only craft's own skill text and summary numbers, never findings (`docs/adr/0009`). |
+| Proposal | A change to a craft skill or step that an audit proposes, with the metric it should move and that metric's current value. It is a ticket in **Backlog** with the label `audit`. It links the audit report, and its ticket and spec may describe the findings behind it, with short examples. Its PR, commits, and repo files quote only craft's own skill text and summary numbers (`docs/adr/0009`). |
 | Audit report | The Linear document `Audit: <yyyy-mm-dd>` in the Craft project that an audit writes. Its `## Scores` table is what the next audit reads for the trend. |
