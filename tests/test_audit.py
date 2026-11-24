@@ -94,14 +94,21 @@ def test_the_skill_loads_rules_and_bstack_first() -> None:
 # Criterion 3: which PRs the audit selects.
 
 
-def test_the_projects_come_from_three_sources() -> None:
-    """Linear projects, repos in the session, and bucket folders."""
+def test_the_projects_come_only_from_the_linear_team() -> None:
+    """The owner's choice: the Linear projects of the team, not repos or the bucket."""
     text = step("Projects")
-    assert "Linear project of the `CRAFT` team" in text
+    assert "The projects are the Linear projects of the `CRAFT` team" in text
     assert "`Linear project` in its `.claude/craft.md`" in text
-    assert "every repository in the session" in text
-    assert "gs://craft-transcripts" in text
     assert "The Craft Linear project matches `vanoostrum/craft`" in text
+    assert "not a source of projects" in text
+    assert "every repository in the session" not in text
+    assert "gcloud storage ls" not in text
+
+
+def test_the_project_name_is_the_linear_project_name() -> None:
+    """The trend key holds the project, so every run writes the same name."""
+    assert "The project name is the Linear project's name" in step("Projects")
+    assert "the Linear project's name as the project" in step("Scores")
 
 
 def test_an_unreadable_project_gets_a_skipped_row_with_a_reason() -> None:
@@ -109,8 +116,8 @@ def test_an_unreadable_project_gets_a_skipped_row_with_a_reason() -> None:
     text = step("Projects")
     assert '"skipped"' in text
     assert "repo not in the environment" in text
-    assert "no repository names this Linear project" in text
-    assert "even when it has no bucket folder" in text
+    assert "no repository in the session names this Linear project" in text
+    assert '"repo cannot be read"' in text
 
 
 def test_a_readable_project_without_a_bucket_folder_is_audited() -> None:
@@ -149,6 +156,13 @@ def test_the_fill_up_takes_earlier_prs_up_to_5() -> None:
     assert "fewer than 5" in text
     assert "merged before the window" in text
     assert "that no audit report from before today lists" in text
+
+
+def test_the_pr_list_says_when_to_stop_paging() -> None:
+    """The window stops at an older update; the fill-up pages on until it has 5."""
+    text = step("Craft PRs")
+    assert "stop at the first PR whose `updated_at` is before the window start" in text
+    assert "keep paging until there are 5 PRs to judge or no page is left" in text
 
 
 def test_the_cap_of_40_is_spread_over_projects() -> None:
@@ -232,8 +246,10 @@ def test_a_pr_with_nothing_to_judge_gets_no_auditor() -> None:
 
 def test_a_large_diff_leaves_out_only_the_excluded_files() -> None:
     """Review focus 4: the auditor still judges the rest."""
-    text = step("Files to judge")
-    assert "only the files to judge" in text
+    assert "only the files to judge" in step("Files to judge")
+    assert "git diff <merge sha>^1 <merge sha> -- <files to judge>" in step(
+        "Blind audit"
+    )
 
 
 # Criterion 6: the craft version of a PR.
