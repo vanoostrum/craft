@@ -24,19 +24,19 @@
 | Brief URL | The URL of the `Brief: <name>` document that a brainstorm or setup segment saved. `metadata.json` holds it as `brief`. |
 | Re-process | A run of `plugins/craft/hooks/reprocess_transcripts.py`. It rebuilds `metadata.json` of each stored session that lacks the ADR 0005 fields, from the session's transcripts, with the upload hook's code. |
 | Release time | The committer time of the commit that a release tag `v<version>` points to. The re-process uses it to find the craft version of a session from before craft recorded it. |
-| Audit | A run of `craft:audit`. It judges merged craft PRs against the core rubric, finds what craft's own review missed, traces the cause in the transcripts, and proposes changes to craft. It runs weekly, outside the ticket flow: it has no ticket and no gate. |
-| Core rubric | The fixed list of code quality items that every audit uses in the same way: design, complexity, duplication, naming, and tests. It lives in `plugins/craft/skills/audit/rubric.md`. |
-| Rubric version | The version line of the core rubric. Each change to the rubric gets a new rubric version. Scores are compared only within one rubric version (`docs/adr/0008`). |
-| Blind audit | The phase of an audit that judges each PR against the core rubric. It runs in a blind auditor. |
-| Blind auditor | The subagent of the blind audit. It sees only the merged code, the project's own conventions (`CLAUDE.md`, linters), and the core rubric. It does not see the spec, craft's review, or the transcripts (`docs/adr/0008`). |
-| Audit finding | One problem that the blind audit reports, on one rubric item, marked major or minor. Not a review finding, which is blocking or non-blocking. |
-| Audit score | The count of audit findings per PR, per rubric item, each marked major or minor. Its headline is the number of major audit findings per PR, per project and per craft version. The scores of craft's own PRs are kept apart from those of the app projects. |
-| Blind spot | An audit finding that craft's own review of that PR did not report. |
-| Miss rate | The share of audit findings that are blind spots, per project. |
-| Trace back | The phase of an audit that reads the build and review transcripts of a ticket with a blind spot, and names its cause. |
-| Cause | Why craft missed a blind spot: the skill says nothing about it, the agent skipped a rule, the reviewer called it non-blocking, or the build step pushed it there. |
-| Conformance | Whether each step of an audited ticket did what its skill says, as the trace back reads it from the transcripts. |
-| Deep dive | The part of an audit that looks harder at one theme, after a web search for current practice. The theme is the lens. |
-| Lens | The theme of a deep dive, such as `error-handling`. `lens=<theme>` picks it; otherwise the audit picks it. |
-| Proposal | A change to a craft skill or step that an audit proposes, with the metric it should move and that metric's current value. It is a ticket in **Backlog** with the label `audit`. It links the audit report, and its ticket and spec may describe the findings behind it, with short examples. Its title names only the craft change. Its PR, branch, and repo files quote only craft's own skill text and summary numbers, and a `note=` on the ticket tells every step so (`docs/adr/0009`). |
+| Audit | A run of `craft:audit`. It judges how well each craft phase did its job on the audited tickets, against one rubric per phase and the custom rubrics, and proposes changes to craft. It judges the craft process, not the code (`docs/adr/0010`). It runs weekly, outside the ticket flow: it has no ticket and no gate. |
+| Audited ticket | A craft ticket whose PR merged in the audit window. Each rubric judges each audited ticket once. |
+| Audit window | The span of merge times an audit covers. It starts at the end of the window of the latest audit report from an earlier day, or 7 days before the first audit, and ends when the audit starts. |
+| Rubric | A list of rubric items that the audit judges in the same way each time. A phase rubric judges one craft phase, such as Review or Build. A custom rubric is one the owner adds next to the phase rubrics. Every rubric is a file in the craft plugin. |
+| Rubric item | One thing a rubric looks at in its phase. It has a kind (measure, check, or escape), the data it reads, and how it is scored. |
+| Rubric version | The version line of a rubric. Each change to a rubric gets a new rubric version. Scores are compared only within one rubric version (`docs/adr/0010`). |
+| Measure | A rubric item that a script scores from metadata, Linear, or GitHub, with no AI judge, such as review rounds per ticket. Reported as a median per craft version. |
+| Check | A rubric item that an audit judge answers as pass, partial, or fail per ticket, with the evidence it cites. Its score is the share that passes. |
+| Escape | A rubric item that counts problems found after a ticket passed a phase, each traced to the phase that should have caught it. |
+| Audit judge | The fresh subagent that answers the checks and traces the escapes of an audit. |
+| Phase score | The share of checks passed, per rubric and craft version. The report shows it next to the measures and escapes. |
+| Process logic | The craft code that carries a step's rules: the hooks and the skill scripts. The audit judges whether it does what the skill text and the rules say. Craft's own tests and the repo CI are not process logic. |
+| Pattern | A problem that recurs across audited tickets or audits, such as a check that fails on several tickets. A minor problem counts only as part of a pattern. Only a pattern leads to a proposal. |
+| Blind spot | An escape of the review phase: a problem found after craft's review passed, such as a later fix PR or the owner's feedback at a gate, that the review should have caught. |
+| Proposal | A change to a craft skill or step that an audit proposes from a pattern, with the measure it should move and that measure's current value. It is a ticket in **Backlog** with the label `audit`. It links the audit report, and its ticket and spec may describe the evidence behind it, with short examples. Its title names only the craft change. Its PR, branch, and repo files quote only craft's own skill text and summary numbers, and a `note=` on the ticket tells every step so (`docs/adr/0009`). |
 | Audit report | The Linear document `Audit: <yyyy-mm-dd>` in the Craft project that an audit writes. Its `## Scores` table is what the next audit reads for the trend. |
