@@ -34,6 +34,14 @@ row per measure value (the median), and each check judged once per craft
 version. Judged counts what the value is based on: the check answers other
 than no data, or the tickets with data for a measure value.
 
+After its rows per craft version, each rubric and rubric version gets its
+audit-wide rows, with the craft version `all`: the Phase score, each per-ticket
+check, each measure value, and its escape row, over all tickets of the audit.
+A measure's median is taken over the tickets, never over the medians per
+version. An audit-wide escape row's Judged is the sum of the Judged of its rows
+per craft version. A check judged once per craft version has no audit-wide row.
+Each `No rubric` row gets its audit-wide row after its rows per craft version.
+
 `escapes` holds the searched tickets, one entry per ticket, each with `spec`
 (whether its description has a `## Spec`) and its craft version per phase
 (`plan`, `spec`, `build`, `review`), and the escape traces, each with `answer`
@@ -66,6 +74,7 @@ NO_DATA = "no data"
 NOT_IN_PHASE = "not in this phase"
 PHASE_SCORE = "Phase score"
 DASH = "—"
+ALL = "all"
 PHASES = ("plan", "spec", "build", "review")
 ESCAPE = "escape"
 ANSWERS = (ESCAPE, "not an escape", "not judged")
@@ -93,6 +102,7 @@ class AuditError(Exception):
 
 type Cells = tuple[str, str, str]  # Judged, Value, and Pass/partial/fail.
 type Row = tuple[str, str, Cells]  # Craft version, item, and cells.
+type Counts = tuple[int, int]  # Judged and escapes of an escape row.
 
 
 def number(value: float) -> str:
@@ -116,8 +126,9 @@ def measure_cells(values: list[float | None]) -> Cells:
     return str(len(known)), median, DASH
 
 
-def escape_cells(judged: int, escapes: int) -> Cells:
+def escape_cells(counts: Counts) -> Cells:
     """Return the cells of an escape row: the escapes per judged ticket."""
+    judged, escapes = counts
     if not judged:
         return "0", NO_DATA, DASH
     return str(judged), f"{escapes / judged:.2f}", DASH
@@ -147,8 +158,8 @@ def check_escapes(escapes: Json) -> None:
             raise AuditError(message)
 
 
-def escape_rates(escapes: Json, phase: str, *, spec_only: bool) -> dict[str, Cells]:
-    """Return the escape cells of one phase, per craft version."""
+def escape_rates(escapes: Json, phase: str, *, spec_only: bool) -> dict[str, Counts]:
+    """Return the judged tickets and escapes of one phase, per craft version."""
     counts: dict[str, list[int]] = {}
     for entry in escapes["searched"]:
         count = counts.setdefault(str(entry["versions"][phase]), [0, 0])
@@ -161,7 +172,12 @@ def escape_rates(escapes: Json, phase: str, *, spec_only: bool) -> dict[str, Cel
             if (t["ticket"], t["answer"], t.get("phase"))
             == (entry["ticket"], ESCAPE, phase)
         )
-    return {version: escape_cells(*count) for version, count in counts.items()}
+    return {version: (judged, found) for version, (judged, found) in counts.items()}
+
+
+def summed(counts: list[Counts]) -> Counts:
+    """Return the judged tickets and escapes of several escape rows together."""
+    return sum(c[0] for c in counts), sum(c[1] for c in counts)
 
 
 def check_result(name: str, result: str) -> str:
@@ -179,7 +195,18 @@ class Version:
     checks: dict[str, list[str]] = field(default_factory=dict)
     measures: dict[str, dict[str, list[float | None]]] = field(default_factory=dict)
     per_version: dict[str, str] = field(default_factory=dict)
-    escape: Cells | None = None
+    escape: Counts | None = None
+
+    def add(self, other: "Version") -> None:
+        """Add the per-ticket results and the escapes of another craft version."""
+        for name, results in other.checks.items():
+            self.checks.setdefault(name, []).extend(results)
+        for name, values in other.measures.items():
+            measure = self.measures.setdefault(name, {})
+            for value_name, known in values.items():
+                measure.setdefault(value_name, []).extend(known)
+        if other.escape is not None:
+            self.escape = summed([self.escape or (0, 0), other.escape])
 
 
 @dataclass
@@ -226,25 +253,34 @@ class Results:
         self.version(entry["craft_version"]).per_version[name] = result
 
     def rows(self) -> list[Row]:
-        """Return the rows of this rubric, in table order."""
+        """Return the rows of this rubric, in table order: `all` last."""
         rows: list[Row] = []
+        audit_wide = Version()
         for craft_version in sorted(self.versions, key=version_order):
-            version = self.versions[craft_version]
-            per_ticket = [r for results in version.checks.values() for r in results]
-            if per_ticket:
-                rows.append((craft_version, PHASE_SCORE, check_cells(per_ticket)))
-            for item in self.rubric.items:
-                if item.name in version.checks:
-                    cells = check_cells(version.checks[item.name])
-                    rows.append((craft_version, item.name, cells))
-                for value_name, values in version.measures.get(item.name, {}).items():
-                    label = f"{item.name}: {value_name}"
-                    rows.append((craft_version, label, measure_cells(values)))
-                if item.name in version.per_version:
-                    cells = (DASH, version.per_version[item.name], DASH)
-                    rows.append((craft_version, item.name, cells))
-                if item.kind == "Escape" and version.escape is not None:
-                    rows.append((craft_version, item.name, version.escape))
+            rows += self.version_rows(craft_version, self.versions[craft_version])
+            audit_wide.add(self.versions[craft_version])
+        if self.versions:
+            rows += self.version_rows(ALL, audit_wide)
+        return rows
+
+    def version_rows(self, craft_version: str, version: Version) -> list[Row]:
+        """Return the rows of one craft version, or of `all`."""
+        rows: list[Row] = []
+        per_ticket = [r for results in version.checks.values() for r in results]
+        if per_ticket:
+            rows.append((craft_version, PHASE_SCORE, check_cells(per_ticket)))
+        for item in self.rubric.items:
+            if item.name in version.checks:
+                cells = check_cells(version.checks[item.name])
+                rows.append((craft_version, item.name, cells))
+            for value_name, values in version.measures.get(item.name, {}).items():
+                label = f"{item.name}: {value_name}"
+                rows.append((craft_version, label, measure_cells(values)))
+            if item.name in version.per_version:
+                cells = (DASH, version.per_version[item.name], DASH)
+                rows.append((craft_version, item.name, cells))
+            if item.kind == "Escape" and version.escape is not None:
+                rows.append((craft_version, item.name, escape_cells(version.escape)))
         return rows
 
 
@@ -279,10 +315,13 @@ def add_escapes(found: dict[str, Results], escapes: Json, rubrics: Path) -> list
         spec_only = owner is not None and owner.applies_to == APPLIES_TO
         rates = escape_rates(escapes, phase, spec_only=spec_only)
         if owner is None:
+            item = f"Escapes: {phase}"
             rows += [
-                (version, f"Escapes: {phase}", rates[version])
+                (version, item, escape_cells(rates[version]))
                 for version in sorted(rates, key=version_order)
             ]
+            if rates:
+                rows.append((ALL, item, escape_cells(summed(list(rates.values())))))
         elif owner.name in found:
             for version, cells in rates.items():
                 found[owner.name].version(version).escape = cells
