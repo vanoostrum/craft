@@ -55,6 +55,7 @@ Not covered by a smoke case:
 - `one_step_per_session.py` (hook `PreToolUse` on `Skill`): pytest covers it in `tests/test_one_step_per_session.py`.
 - `upload_transcripts.py` (hooks `Stop`, `SubagentStop`, `SessionEnd`): pytest covers it in `tests/test_upload_transcripts.py`. The suite runs with it off.
 - `reprocess_transcripts.py` (the re-process command, run by hand): pytest covers it in `tests/test_reprocess_transcripts.py`, with a fake `gcloud` and a local bucket.
+- `craft:audit` and its scripts `rubric.py`, `digest.py`, `rounds.py`, and `scores.py`: the audit needs Linear and the bucket. pytest covers the skill text, the rubric files, and the scripts in `tests/test_audit*.py`, and a real audit run proves a change to it.
 - Every step that reads or writes Linear or GitHub. The suite cannot reach them (`docs/adr/0001`).
 
 When you add a smoke case, add its row here.
