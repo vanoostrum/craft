@@ -2,7 +2,7 @@
 
 This replaces `docs/adr/0008`.
 
-`craft:audit` is one generic step that takes a rubric as input. There is one phase rubric per craft phase, starting with Review and Build, and the owner can add custom rubrics next to them. Each rubric asks whether its phase did its job, not whether the code is good. A low score names a phase and a skill to change, never a line of code to fix. The weekly run judges every rubric on every audited ticket, and writes one report.
+`craft:audit` is one generic step that takes a rubric as input. There is one phase rubric per craft phase, starting with Review and Build, and the owner can add custom rubrics next to them. Each rubric asks whether its phase did its job, not whether the code is good. A low score names a phase and a skill to change, never a line of code to fix. A check may ask whether a phase looked at code quality, such as the Review rubric's check that the review looked at design and maintainability, but the audit judge never scores the code itself. The weekly run judges every rubric on every audited ticket, and writes one report.
 
 A rubric item is a measure (a script scores it, with no AI judge), a check (a fresh audit judge answers a yes/no question and cites its evidence), or an escape (a later event, traced to the phase that should have caught it). An escape comes only from what happened after the ticket passed the phase: a fix PR within 14 days that changes the same files, or the owner's feedback at a gate.
 
