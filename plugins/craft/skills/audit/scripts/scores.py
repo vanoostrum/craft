@@ -24,7 +24,9 @@ judge a ticket holds `"not in this phase"` instead of results.
 The table has one row per rubric, rubric version, craft version, and item: the
 Phase score (the share of per-ticket checks passed), each per-ticket check, one
 row per measure value (the median), and each check judged once per craft
-version. An Escape item gets no row. "At last audit" is the Value of the same
+version. An Escape item gets no row. Judged counts what the value is
+based on: the check answers other than no data, or the tickets with data for
+a measure value. "At last audit" is the Value of the same
 row in the previous report, with the same rubric version, else a dash. The
 previous file is the previous report's Markdown, or only its `## Scores` table,
 as printed here or as Linear returns it.
@@ -50,7 +52,7 @@ HEADER = (
     "Rubric version",
     "Craft version",
     "Item",
-    "Tickets",
+    "Judged",
     "Value",
     "Pass/partial/fail",
     "At last audit",
@@ -66,7 +68,7 @@ class AuditError(Exception):
     """The audit file does not match the rubrics or itself."""
 
 
-type Cells = tuple[str, str, str]  # Tickets, Value, and Pass/partial/fail.
+type Cells = tuple[str, str, str]  # Judged, Value, and Pass/partial/fail.
 type Row = tuple[str, str, Cells]  # Craft version, item, and cells.
 
 

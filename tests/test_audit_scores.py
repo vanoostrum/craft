@@ -22,7 +22,7 @@ HEADER = (
     "Rubric version",
     "Craft version",
     "Item",
-    "Tickets",
+    "Judged",
     "Value",
     "Pass/partial/fail",
     "At last audit",
@@ -216,7 +216,7 @@ def test_a_check_row_shows_its_share_and_counts(tmp_path: Path) -> None:
         ],
     )
     read = row(out, "2.9.0", "Read in context")
-    assert (read["Tickets"], read["Value"], read["Pass/partial/fail"]) == (
+    assert (read["Judged"], read["Value"], read["Pass/partial/fail"]) == (
         "3",
         "0.33",
         "1/1/1",
@@ -234,9 +234,13 @@ def test_the_phase_score_counts_only_per_ticket_checks(tmp_path: Path) -> None:
         ],
     )
     phase = row(out, "2.9.0", "Phase score")
-    assert (phase["Value"], phase["Pass/partial/fail"]) == ("0.67", "2/0/1")
+    assert (phase["Judged"], phase["Value"], phase["Pass/partial/fail"]) == (
+        "3",
+        "0.67",
+        "2/0/1",
+    )
     logic = row(out, "2.9.0", "Process logic")
-    assert (logic["Value"], logic["Tickets"], logic["Pass/partial/fail"]) == (
+    assert (logic["Value"], logic["Judged"], logic["Pass/partial/fail"]) == (
         "fail",
         "—",
         "—",
@@ -255,7 +259,7 @@ def test_measures_are_medians_per_craft_version(tmp_path: Path) -> None:
         ],
     )
     assert row(out, "2.9.0", ROUNDS)["Value"] == "2"
-    assert row(out, "2.9.0", ROUNDS)["Tickets"] == "3"
+    assert row(out, "2.9.0", ROUNDS)["Judged"] == "3"
     assert row(out, "2.9.0", BLOCKING)["Value"] == "0.50"
 
 
@@ -266,7 +270,7 @@ def test_a_version_with_no_data_says_so(tmp_path: Path) -> None:
     assert row(out, "2.9.0", "Read in context")["Value"] == "no data"
     assert row(out, "2.9.0", "Criteria evidence")["Value"] == "1.00"
     assert row(out, "2.9.0", ROUNDS)["Value"] == "no data"
-    assert row(out, "2.9.0", ROUNDS)["Tickets"] == "0"
+    assert row(out, "2.9.0", ROUNDS)["Judged"] == "0"
 
 
 def test_a_ticket_not_in_this_phase_counts_nowhere(tmp_path: Path) -> None:

@@ -251,6 +251,8 @@ def test_no_review_segment_gives_no_data_not_fail() -> None:
     assert 'Its checks that read a transcript are "no data", not fail' in text
     assert "Criteria evidence" in text
     assert "measures are still scored" in text
+    assert "whose `Reads:` line names the transcript digest" in text
+    assert "whatever the judge answered" in step("Judge")
 
 
 def test_the_digest_comes_from_the_full_review() -> None:
