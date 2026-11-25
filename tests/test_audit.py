@@ -690,3 +690,12 @@ def test_the_glossary_has_the_escape_terms() -> None:
         assert line in lines, line
     escape = lines.index(GLOSSARY_ROWS[0])
     assert lines[escape + 1 : escape + 4] == list(GLOSSARY_ROWS[1:4])
+
+
+def test_a_ticket_is_searched_once() -> None:
+    """Review 1 finding 1: one entry per ticket, with all of its PRs."""
+    text = step("Escapes")
+    assert "Each searched ticket is searched once" in text
+    assert "every PR of the ticket" in text
+    assert "is not also a look-back ticket" in text
+    assert "one entry per searched ticket" in step("Scores")

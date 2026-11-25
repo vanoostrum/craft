@@ -711,6 +711,7 @@ def test_an_escape_row_has_its_trend(tmp_path: Path) -> None:
             escapes([{"ticket": "CRAFT-1", "pr": 1, "spec": True, "versions": {}}], []),
             "versions",
         ),
+        (escapes([searched(1), searched(1)], []), "searched twice"),
     ],
 )
 def test_a_wrong_escapes_key_fails(tmp_path: Path, bad: Json, error: str) -> None:

@@ -34,10 +34,11 @@ row per measure value (the median), and each check judged once per craft
 version. Judged counts what the value is based on: the check answers other
 than no data, or the tickets with data for a measure value.
 
-`escapes` holds the searched tickets, each with `spec` (whether its description
-has a `## Spec`) and its craft version per phase (`plan`, `spec`, `build`,
-`review`), and the escape traces, each with `answer` `escape` (with the
-`phase` it traces to), `not an escape`, or `not judged` (with a `reason`).
+`escapes` holds the searched tickets, one entry per ticket, each with `spec`
+(whether its description has a `## Spec`) and its craft version per phase
+(`plan`, `spec`, `build`, `review`), and the escape traces, each with `answer`
+`escape` (with the `phase` it traces to), `not an escape`, or `not judged` (with
+a `reason`).
 Each phase gets one escape row per craft version: the row of the Escape item
 of the rubric whose `Phase:` is that phase, when that rubric ran, or a
 `No rubric` row, Item `Escapes: <phase>`, when no rubric file has an Escape
@@ -129,6 +130,9 @@ def check_escapes(escapes: Json) -> None:
         versions = entry["versions"]
         if set(versions) != set(PHASES):
             message = f"{entry['ticket']}: versions must name {', '.join(PHASES)}"
+            raise AuditError(message)
+        if entry["ticket"] in tickets:
+            message = f"{entry['ticket']} is searched twice: one entry per ticket"
             raise AuditError(message)
         tickets.add(entry["ticket"])
     for found in escapes["traces"]:
