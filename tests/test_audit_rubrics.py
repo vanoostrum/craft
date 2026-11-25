@@ -245,3 +245,17 @@ def test_process_logic_names_the_review_hooks_and_rules() -> None:
         "skills/rules/SKILL.md",
     ):
         assert path in text, path
+
+
+def test_process_logic_scores_extra_behavior_the_same_way() -> None:
+    """Review 1: two judges gave partial and pass on the same hook and rules."""
+    text = item(review(), "Process logic")
+    assert re.search(
+        r"^Pass: .*Extra behavior that serves the same rule.*still passes",
+        text,
+        re.MULTILINE,
+    )
+    assert re.search(
+        r"^Partial: .*at least one of them is not enforced", text, re.MULTILINE
+    )
+    assert "something the rules do not say" not in text

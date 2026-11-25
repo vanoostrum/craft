@@ -47,6 +47,6 @@ Kind: Check
 Per: craft version
 Reads: At the release tag `v<version>` of `vanoostrum/craft`: the hooks `plugins/craft/hooks/one_step_per_session.py` and `plugins/craft/hooks/require_bstack.py`, and the rules `plugins/craft/skills/review/SKILL.md`, `plugins/craft/skills/rules/findings.md`, and `plugins/craft/skills/rules/SKILL.md`.
 Score: Judged once per craft version, and shown next to the phase score, not in it. The question is: do the hooks that gate a review session do what the review rules say? `hooks/upload_transcripts.py` also runs in a review session, but it records metrics and carries no review rule, so it is not in this check. The review skill has no scripts.
-Pass: Each hook does what the rules say.
-Partial: A hook does part of what the rules say, or something the rules do not say.
-Fail: A hook works against what the rules say.
+Pass: The hooks enforce every rule of the review rules that names a hook or says that craft blocks something. Extra behavior that serves the same rule, such as another way to load the same skill, still passes.
+Partial: The hooks enforce some of these rules, but at least one of them is not enforced.
+Fail: A hook works against a rule: it allows what a rule forbids, or blocks what a rule asks for.
