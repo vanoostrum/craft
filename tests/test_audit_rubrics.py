@@ -271,3 +271,180 @@ def test_process_logic_results_do_not_overlap() -> None:
         re.MULTILINE,
     )
     assert "something the rules do not say" not in text
+
+
+# CRAFT-91 criteria 1, 2, and 9: the Build rubric.
+
+BUILD_ITEMS = (
+    "Tests first",
+    "Tests check behavior",
+    "Tests not bent",
+    "App evidence",
+    "Environment failures",
+    "Attempts",
+    "Feedback speed",
+    "Process logic",
+)
+
+
+def build() -> str:
+    """Return the text of the Build rubric."""
+    return (RUBRICS / "build.md").read_text(encoding="utf-8")
+
+
+def line(text: str, key: str) -> str:
+    """Return the value of the `<key>: ` line of an item."""
+    found = re.search(f"^{key}: (.+)$", text, re.MULTILINE)
+    assert found, key
+    return str(found.group(1))
+
+
+def test_the_build_rubric_header() -> None:
+    """Version 1, the build phase, tickets with a spec only."""
+    text = build()
+    assert text.startswith("# Build rubric\n")
+    for header in (
+        "Rubric version: 1",
+        "Phase: build",
+        "Applies to: tickets with a spec",
+    ):
+        assert re.search(f"^{header}$", text, re.MULTILINE), header
+
+
+def test_the_build_rubric_has_the_eight_items() -> None:
+    """In this order, with their kinds."""
+    text = build()
+    assert tuple(re.findall(r"^### (.+)$", text, re.MULTILINE)) == BUILD_ITEMS
+    kinds = {name: line(item(text, name), "Kind") for name in BUILD_ITEMS}
+    assert kinds == {
+        **dict.fromkeys(BUILD_ITEMS[:5], "Check"),
+        "Attempts": "Measure",
+        "Feedback speed": "Measure",
+        "Process logic": "Check",
+    }
+    assert "Per: craft version" in item(text, "Process logic")
+    for name in BUILD_ITEMS[:5]:
+        assert "Per:" not in item(text, name), name
+
+
+def test_tests_first_reads_the_digest_and_the_commits() -> None:
+    """A test that ran red before the code passes; code before tests fails."""
+    text = item(build(), "Tests first")
+    reads = line(text, "Reads")
+    assert "build digest" in reads
+    assert "commit list" in reads
+    assert "saw it fail, before it wrote the code" in line(text, "Pass")
+    assert "did not run them and see them fail first" in line(text, "Partial")
+    assert "the code came before its tests" in line(text, "Fail")
+
+
+def test_tests_check_behavior_reads_the_test_diff_and_the_seam_rule() -> None:
+    """Criterion 2: Q2, Theo 2A; the judge does not judge the code."""
+    text = item(build(), "Tests check behavior")
+    reads = line(text, "Reads")
+    for part in (
+        "test-file diff",
+        "test seam rule in the project's `CLAUDE.md`",
+        "**Testing decisions**",
+    ):
+        assert part in reads, part
+    assert "The judge does not judge whether the code is good" in text
+    assert "the seam that the spec names" in line(text, "Pass")
+    assert "below the seam" in line(text, "Partial")
+    assert "Most new tests check internals" in line(text, "Fail")
+
+
+def test_tests_not_bent_reads_the_digest_and_the_test_diff() -> None:
+    """A test changed to match broken code, with no reason, fails."""
+    text = item(build(), "Tests not bent")
+    reads = line(text, "Reads")
+    assert "build digest" in reads
+    assert "test-file diff" in reads
+    assert "follows from the spec or a review finding" in line(text, "Pass")
+    assert "changed, skipped, or deleted to match code" in line(text, "Fail")
+
+
+def test_app_evidence_compares_the_pr_with_the_app_driver() -> None:
+    """Evidence that the app driver's tool calls did not return fails."""
+    text = item(build(), "App evidence")
+    reads = line(text, "Reads")
+    for part in ("**App evidence**", "Linear attachments", "app driver"):
+        assert part in reads, part
+    assert "matches what the app driver's tool calls returned" in line(text, "Pass")
+    assert "evidence comes from tests" in line(text, "Partial")
+    assert "the app driver's tool calls did not return" in line(text, "Fail")
+
+
+def test_environment_failures_is_a_check_of_recovery() -> None:
+    """Criterion 2: Q1, Theo 1A."""
+    text = item(build(), "Environment failures")
+    assert "build digest" in line(text, "Reads")
+    assert "No verify, app driver, or CI failure came from the environment" in line(
+        text, "Pass"
+    )
+    assert "recovered on its own, with no failed attempt" in line(text, "Partial")
+    fail = line(text, "Fail")
+    assert "cost a failed attempt" in fail
+    assert "stopped the build" in fail
+    assert "cites each failure" in text
+
+
+def test_the_build_measures_name_build_py() -> None:
+    """Attempts and Feedback speed, with their values."""
+    attempts = line(item(build(), "Attempts"), "Score")
+    assert "`scripts/build.py` attempts" in attempts
+    for value in ("Failed attempts", "CI reds", "Work minutes"):
+        assert value in attempts, value
+    speed = line(item(build(), "Feedback speed"), "Score")
+    assert "`scripts/build.py` speed" in speed
+    for value in ("Verify minutes", "CI minutes"):
+        assert value in speed, value
+
+
+def test_build_process_logic_names_the_hooks_and_the_script() -> None:
+    """At the release tag, against the build rules; no upload hook."""
+    text = item(build(), "Process logic")
+    reads = line(text, "Reads")
+    for path in (
+        "hooks/one_step_per_session.py",
+        "hooks/require_bstack.py",
+        "skills/rules/scripts/gallery-shot",
+        "skills/build/SKILL.md",
+        "skills/rules/SKILL.md",
+        "skills/rules/gallery.md",
+    ):
+        assert path in reads, path
+    assert "release tag `v<version>`" in reads
+    assert "`hooks/upload_transcripts.py`" in text
+    assert "not in this check" in text
+    assert "a build session" in text
+
+
+def test_build_process_logic_results_match_the_review_rubric() -> None:
+    """The same lines, with "hook or script" for "hook"."""
+    text = item(build(), "Process logic")
+    assert line(text, "Pass") == (
+        "Each hook or script rule has a hook or script that enforces it in every"
+        " case the rule names, and no hook or script blocks what a rule asks for."
+    )
+    assert line(text, "Partial").startswith(
+        "Each hook or script rule has a hook or script, and no hook or script"
+        " blocks what a rule asks for"
+    )
+    assert line(text, "Fail").startswith(
+        "A hook or script rule has no hook or script that enforces it"
+    )
+
+
+def test_no_build_item_limits_which_code_the_judge_reads() -> None:
+    """Criterion 4: `Reads:` sets what to judge; the judge may read other code."""
+    text = build()
+    for phrase in ("only the diff", "not the diff", "may not read", "must not read"):
+        assert phrase not in text.lower(), phrase
+    assert "may read any other code as evidence" in text
+
+
+def test_the_plugin_runs_the_review_and_the_build_rubric() -> None:
+    """Criterion 9: with no argument, an audit judges both."""
+    names = run("names").stdout.split()
+    assert names[:2] == ["build", "review"]

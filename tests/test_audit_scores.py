@@ -402,3 +402,85 @@ def test_a_wrong_audit_file_fails(
     assert result.returncode == 2  # noqa: PLR2004 - the error code.
     assert error in result.stderr
     assert result.stdout == ""
+
+
+# CRAFT-91 criterion 9: the Review and the Build rubric in one audit file.
+
+
+def build_results(  # noqa: PLR0913 - one argument per result in the fixture.
+    version: str,
+    *,
+    first: str = "pass",
+    behavior: str = "pass",
+    bent: str = "pass",
+    evidence: str = "fail",
+    environment: str = "partial",
+    work: float | None = 30,
+) -> Json:
+    """Return one ticket's results for the Build rubric."""
+    return {
+        "craft_version": version,
+        "checks": {
+            "Tests first": first,
+            "Tests check behavior": behavior,
+            "Tests not bent": bent,
+            "App evidence": evidence,
+            "Environment failures": environment,
+        },
+        "measures": {
+            "Attempts": {"Failed attempts": 1, "CI reds": 2, "Work minutes": work},
+            "Feedback speed": {"Verify minutes": 3, "CI minutes": None},
+        },
+    }
+
+
+def test_both_rubrics_print_their_rows_from_one_audit_file(tmp_path: Path) -> None:
+    """A Build Phase score from its per-ticket checks only, and its Process logic."""
+    both: Json = {
+        "project": "Demo",
+        "ticket": "CRAFT-1",
+        "pr": 1,
+        "rubrics": {"review": judged("2.9.2"), "build": build_results("2.9.2")},
+    }
+    no_build: Json = {
+        "project": "Other",
+        "ticket": "CRAFT-2",
+        "pr": 2,
+        "rubrics": {
+            "review": judged("2.9.2"),
+            "build": build_results(
+                "2.9.2",
+                first="no data",
+                behavior="fail",
+                bent="no data",
+                evidence="no data",
+                environment="no data",
+                work=None,
+            ),
+        },
+    }
+    out = scores(
+        tmp_path,
+        [both, no_build],
+        rubrics=["review", "build"],
+        per_version=[
+            {"rubric": rubric, "craft_version": "2.9.2", "item": "Process logic"}
+            | {"result": result}
+            for rubric, result in (("review", "pass"), ("build", "fail"))
+        ],
+    )
+    assert {r["Rubric"] for r in table(out)} == {"Review", "Build"}
+    phase = row(out, "2.9.2", "Phase score", "Build")
+    assert (phase["Judged"], phase["Value"], phase["Pass/partial/fail"]) == (
+        "6",
+        "0.50",
+        "3/1/2",
+    )
+    assert row(out, "2.9.2", "Process logic", "Build")["Value"] == "fail"
+    assert row(out, "2.9.2", "Process logic", "Review")["Value"] == "pass"
+    work = row(out, "2.9.2", "Attempts: Work minutes", "Build")
+    assert (work["Judged"], work["Value"]) == ("1", "30")
+    assert row(out, "2.9.2", "Attempts: CI reds", "Build")["Judged"] == "2"
+    assert row(out, "2.9.2", "Feedback speed: CI minutes", "Build")["Value"] == (
+        "no data"
+    )
