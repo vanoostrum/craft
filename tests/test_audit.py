@@ -235,7 +235,7 @@ def test_the_judge_gets_the_process_inputs_and_the_diff() -> None:
         "as evidence of what the phase saw or missed",
         "the project's repository at the PR's `merge_commit_sha`",
         "the PR's review comments",
-        "the digests of step 7",
+        "the digest of the rubric's phase from step 7",
     ):
         assert part in text, part
     assert "one at a time" in text
@@ -254,7 +254,7 @@ def test_the_judge_answers_with_evidence() -> None:
 def test_no_review_segment_gives_no_data_not_fail() -> None:
     """Review focus 1: GitHub checks and measures are still scored."""
     text = step("Digests")
-    assert 'Its checks that read a transcript are "no data", not fail' in text
+    assert 'Its checks that read a digest are "no data", not fail' in text
     assert "Criteria evidence" in text
     assert "measures are still scored" in text
     assert "whose `Reads:` line names the transcript digest" in text
@@ -379,3 +379,100 @@ def test_the_audit_message() -> None:
 def test_today_is_the_date_in_europe_madrid() -> None:
     """A run just after midnight gets the owner's date, not UTC's."""
     assert "Europe/Madrid" in audit()
+
+
+# CRAFT-91: the audit is generic over the rubric's phase (criteria 3, 4, 5, 8).
+
+
+def test_the_craft_version_of_the_build_rubric_comes_from_build_segments() -> None:
+    """The latest build segment for the Build rubric."""
+    assert "`build` for the Build rubric" in step("Craft version")
+
+
+def test_each_phase_has_its_digest() -> None:
+    """Criterion 3: the full review for review and custom; build gets its own."""
+    text = step("Digests")
+    assert "the full review for `Phase: review` and for custom rubrics" in text
+    assert "the build digest for `Phase: build`" in text
+
+
+def test_the_build_digest_holds_every_build_segment_and_subagent() -> None:
+    """Criterion 3 and Review focus 2: in `started_at` order, each after its line."""
+    text = step("Digests")
+    assert "every build segment" in text
+    assert "digest.py sessions/<id>/session.jsonl.gz <started_at> <ended_at>" in text
+    assert "sessions/<id>/subagents/agent-<agent_id>.jsonl.gz" in text
+    assert "in `started_at` order" in text
+    assert "`== <role> <started_at> ==`" in text
+    assert "retries and fixes after a review FAIL" in text
+
+
+def test_the_build_digest_keeps_subagent_results_readable() -> None:
+    """Criterion 5: a cap of 2,000 for subagent transcripts, 300 for the session."""
+    text = step("Digests")
+    assert "`--result-cap 2000`" in text
+    assert "head and the tail" in text
+
+
+def test_a_ticket_with_no_segment_of_the_phase_has_no_digest() -> None:
+    """Criterion 3 and Review focus 1: a LibRag ticket's build checks."""
+    text = step("Digests")
+    assert "A ticket with no segment of the rubric's phase" in text
+    assert "has no digest" in text
+    assert "names the transcript digest or the build digest" in text
+    assert "Tests check behavior" in text
+
+
+def test_the_judge_gets_the_extra_inputs_that_reads_names() -> None:
+    """Criterion 4: each extra input, as its own file."""
+    text = step("Judge")
+    for part in (
+        "each extra input that an item of the rubric names in its `Reads:` line",
+        "`python3 <audit>/scripts/test_diff.py files.json`",
+        "the project's `CLAUDE.md` at the PR's `merge_commit_sha`",
+        'gh api "repos/<repo>/pulls/<n>/commits?per_page=100"',
+        "each commit's SHA, message, and time",
+        "`gh api repos/<repo>/commits/<sha>`",
+        "the titles of the ticket's Linear attachments",
+    ):
+        assert part in text, part
+
+
+def test_reads_sets_what_to_judge_not_what_to_read() -> None:
+    """Criterion 4: no limit on which code the judge may read."""
+    text = step("Judge")
+    assert "`Reads:` sets what an item must judge" in text
+    assert "may still read other code as evidence" in text
+    skill = audit().lower()
+    for limit in ("only the diff", "not the diff", "may not read", "must not read"):
+        assert limit not in skill, limit
+
+
+def test_the_judge_prompt_says_a_cut_result_is_no_evidence_against() -> None:
+    """Criterion 5: the judge compares only what the digest keeps."""
+    text = step("Judge")
+    assert "A cut result is never evidence against a match or a red run" in text
+    assert "compare only the part that the digest keeps" in text
+
+
+def test_measures_run_per_rubric() -> None:
+    """Criterion 8: `rounds.py` for Review, `build.py` for Build."""
+    text = step("Measures")
+    assert "each Measure of each rubric that judges the ticket" in text
+    assert "`rounds.py` for Review" in text
+    assert "`build.py` for Build" in text
+    for part in (
+        "python3 <audit>/scripts/build.py attempts build.json",
+        "python3 <audit>/scripts/build.py speed build.json",
+        "`Required CI checks`",
+        "check-runs",
+    ):
+        assert part in text, part
+
+
+def test_build_process_logic_is_judged_on_its_reads_at_the_tag() -> None:
+    """Criterion 8: the hooks and the script of the Build rubric."""
+    text = step("Process logic")
+    assert "For the Build rubric" in text
+    assert "`skills/rules/scripts/gallery-shot`" in text
+    assert "the files that the item's `Reads:` line names" in text
