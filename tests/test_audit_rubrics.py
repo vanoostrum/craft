@@ -247,15 +247,25 @@ def test_process_logic_names_the_review_hooks_and_rules() -> None:
         assert path in text, path
 
 
-def test_process_logic_scores_extra_behavior_the_same_way() -> None:
-    """Review 1: two judges gave partial and pass on the same hook and rules."""
+def test_process_logic_results_do_not_overlap() -> None:
+    """Reviews 1 and 2: one reading per case, so judges give the same result."""
     text = item(review(), "Process logic")
+    assert "A hook rule is a rule in these files that names a hook" in text
+    for case in (
+        "another way to load the same skill",
+        "a command that the owner typed",
+        "an allow when the hook cannot read its input",
+    ):
+        assert case in text, case
+    assert re.search(r"^Pass: .*every case the rule names", text, re.MULTILINE)
     assert re.search(
-        r"^Pass: .*Extra behavior that serves the same rule.*still passes",
+        r"^Partial: Each hook rule has a hook, and no hook blocks what a rule asks for",
         text,
         re.MULTILINE,
     )
     assert re.search(
-        r"^Partial: .*at least one of them is not enforced", text, re.MULTILINE
+        r"^Fail: A hook rule has no hook that enforces it, or a hook blocks",
+        text,
+        re.MULTILINE,
     )
     assert "something the rules do not say" not in text

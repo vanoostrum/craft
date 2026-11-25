@@ -46,7 +46,7 @@ Score: `scripts/rounds.py` prints two values: Rounds until PASS, the review roun
 Kind: Check
 Per: craft version
 Reads: At the release tag `v<version>` of `vanoostrum/craft`: the hooks `plugins/craft/hooks/one_step_per_session.py` and `plugins/craft/hooks/require_bstack.py`, and the rules `plugins/craft/skills/review/SKILL.md`, `plugins/craft/skills/rules/findings.md`, and `plugins/craft/skills/rules/SKILL.md`.
-Score: Judged once per craft version, and shown next to the phase score, not in it. The question is: do the hooks that gate a review session do what the review rules say? `hooks/upload_transcripts.py` also runs in a review session, but it records metrics and carries no review rule, so it is not in this check. The review skill has no scripts.
-Pass: The hooks enforce every rule of the review rules that names a hook or says that craft blocks something. Extra behavior that serves the same rule, such as another way to load the same skill, still passes.
-Partial: The hooks enforce some of these rules, but at least one of them is not enforced.
-Fail: A hook works against a rule: it allows what a rule forbids, or blocks what a rule asks for.
+Score: Judged once per craft version, and shown next to the phase score, not in it. The question is: do the hooks that gate a review session do what the review rules say? A hook rule is a rule in these files that names a hook, or says that craft blocks or denies something. Behavior in a case that the rule does not name does not change the result: another way to load the same skill, a stricter reset, a command that the owner typed, or an allow when the hook cannot read its input, such as a missing transcript. `hooks/upload_transcripts.py` also runs in a review session, but it records metrics and carries no review rule, so it is not in this check. The review skill has no scripts.
+Pass: Each hook rule has a hook that enforces it in every case the rule names, and no hook blocks what a rule asks for.
+Partial: Each hook rule has a hook, and no hook blocks what a rule asks for, but at least one hook lets through a case that its rule names.
+Fail: A hook rule has no hook that enforces it, or a hook blocks what a rule asks for.
