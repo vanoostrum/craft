@@ -22,12 +22,13 @@ REVIEW_ITEMS = (
     "Design and maintainability",
     "Findings rounds",
     "Process logic",
+    "Blind spots",
 )
 
 GOOD = """# Speed rubric
 
 Rubric version: 2
-Phase: custom
+Phase: review
 
 A made-up rubric.
 
@@ -122,14 +123,22 @@ def test_a_rubric_with_all_kinds_passes(tmp_path: Path) -> None:
     [
         (("# Speed rubric", "# Speed"), "title"),
         (("Rubric version: 2", "Rubric version: two"), "Rubric version"),
-        (("Phase: custom\n", ""), "Phase"),
-        (("Phase: custom", "Phase: custom\nApplies to: some"), "Applies to"),
+        (("Phase: review\n", ""), "Phase"),
+        (("Phase: review", "Phase: review\nApplies to: some"), "Applies to"),
         (("Kind: Measure", "Kind: Guess"), "Kind"),
         (("Reads: The PR's comments.\n", ""), "Reads"),
         (("Partial: It took one to two hours.\n", ""), "Partial"),
         (("`scripts/rounds.py` prints", "a script prints"), "script"),
         (("Kind: Escape", "Kind: Escape\nPer: craft version"), "Per"),
         (("## Items", "## Things"), "Items"),
+        (("Phase: review", "Phase: custom"), "custom rubric has no Escape item"),
+        (
+            (
+                "### Late bugs",
+                "### Early bugs\n\nKind: Escape\nReads: A.\nScore: B.\n\n### Late bugs",
+            ),
+            "at most one Escape item",
+        ),
     ],
 )
 def test_a_broken_rubric_fails_with_its_error(
@@ -190,25 +199,25 @@ def test_a_template_is_not_found_by_name(tmp_path: Path) -> None:
 
 
 def test_the_review_rubric_header() -> None:
-    """Version 1, the review phase, tickets with a spec only."""
+    """Version 2 since CRAFT-92, the review phase, tickets with a spec only."""
     text = review()
     assert text.startswith("# Review rubric\n")
     for line in (
-        "Rubric version: 1",
+        "Rubric version: 2",
         "Phase: review",
         "Applies to: tickets with a spec",
     ):
         assert re.search(f"^{line}$", text, re.MULTILINE), line
 
 
-def test_the_review_rubric_has_the_five_items() -> None:
+def test_the_review_rubric_has_the_six_items() -> None:
     """In this order."""
     items = re.findall(r"^### (.+)$", review(), re.MULTILINE)
     assert tuple(items) == REVIEW_ITEMS
 
 
 def test_the_review_rubric_item_kinds() -> None:
-    """Four checks, one of them per craft version, and one measure."""
+    """Four checks, one of them per craft version, one measure, and one escape."""
     kinds = {name: item(review(), name) for name in REVIEW_ITEMS}
     assert "Kind: Measure" in kinds["Findings rounds"]
     assert "`scripts/rounds.py`" in kinds["Findings rounds"]
@@ -217,6 +226,19 @@ def test_the_review_rubric_item_kinds() -> None:
         assert "Per:" not in kinds[name]
     assert "Kind: Check" in kinds["Process logic"]
     assert "Per: craft version" in kinds["Process logic"]
+    assert "Kind: Escape" in kinds["Blind spots"]
+
+
+def test_blind_spots_reads_the_escape_traces() -> None:
+    """CRAFT-92 criterion 1: escapes traced to review, per searched ticket."""
+    text = item(review(), "Blind spots")
+    assert re.search(r"^Reads: The audit's escape traces", text, re.MULTILINE)
+    assert re.search(
+        r"^Score: The escapes traced to the review phase per searched ticket, "
+        r"per craft version",
+        text,
+        re.MULTILINE,
+    )
 
 
 def test_the_design_and_maintainability_check() -> None:
