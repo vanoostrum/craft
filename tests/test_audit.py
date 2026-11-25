@@ -278,6 +278,14 @@ def test_process_logic_is_judged_once_per_craft_version() -> None:
     assert "With another rubric version, judge again" in text
 
 
+def test_process_logic_may_read_other_craft_files_as_evidence() -> None:
+    """It judges the `Reads:` files, and may read any file at the tag."""
+    text = step("Process logic")
+    assert "may read any other file at that tag" in text
+    assert "`hooks/hooks.json`" in text
+    assert "the hook tests" in text
+
+
 def test_process_logic_leaves_out_missing_files() -> None:
     """A hook or rule file missing at an old tag; with no hooks, no data."""
     text = step("Process logic")

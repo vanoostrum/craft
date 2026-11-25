@@ -232,6 +232,7 @@ def test_the_design_and_maintainability_check() -> None:
     )
     assert re.search(r"^Fail: .*checked only the criteria", text, re.MULTILINE)
     assert "may read the diff to see what the review saw or missed" in text
+    assert re.search(r"^Reads: .*and, as evidence, the PR diff", text, re.MULTILINE)
     assert "proposes no fix to the code" in text
 
 

@@ -29,7 +29,7 @@ Fail: Some acceptance criteria have no answer.
 ### Design and maintainability
 
 Kind: Check
-Reads: The full review's transcript digest and PR comment.
+Reads: The full review's transcript digest and PR comment, and, as evidence, the PR diff.
 Score: The share of tickets that pass. The question is: "Did the review look at design and maintainability, as the project's rules ask?" The judge answers from what the reviewer did and wrote. It may read the diff to see what the review saw or missed, such as duplication that the review did not name. It judges the review, not the code, and proposes no fix to the code.
 Pass: The reviewer looked at structure, duplication, and fit with the existing code.
 Partial: The reviewer looked at one or two of structure, duplication, and fit with the existing code.
