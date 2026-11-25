@@ -45,8 +45,8 @@ ticket. Inside a `craft:*` step:
 * Never create a cluster. Do not ask for one either: use the parent agent or
   one focused helper, and go on.
 * The single-purpose subagents that the craft steps name (verify, app driver,
-  CI polling, fresh reviewer, replan check) are not a cluster. Each one has its
-  own goal.
+  CI polling, fresh reviewer, replan check, audit judge) are not a cluster.
+  Each one has its own goal.
 * In a grill, look up facts with one sub-agent at a time, not one per fact
   in parallel.
 * If a cluster would clearly change the result, say so in the step's Linear

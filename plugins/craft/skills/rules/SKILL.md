@@ -82,6 +82,9 @@ Load `craft:bstack` with the Skill tool before any `pstack:` skill. A hook block
 | Review | `craft:review` | build | In Review |
 | 🚦 The gate: merge | — | build | In Review |
 | Merge, with the replan check | `craft:merge` | build | Done |
+| Audit how well craft's phases did their job, weekly | `craft:audit` | — | — |
+
+`craft:audit` runs outside the ticket flow, weekly or when the owner says "Run craft:audit". It judges the craft process against rubrics, and may read code as evidence, but proposes fixes only to craft, never to the code (`docs/adr/0010`). It has no ticket, no gate, and no step comment, makes no branch and no commit, and keeps its scores and findings in Linear only (`docs/adr/0009`). The rules below about tickets, gates, step comments, Steering, and git do not apply to it.
 
 Craft works in two lanes, in parallel. The spec lane needs the owner and runs up to four tickets ahead. The build lane runs on its own, up to the merge gate. `craft:next` picks the ticket for each lane and holds the lane rules, the replan check, and the milestone checkpoint.
 

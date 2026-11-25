@@ -17,6 +17,7 @@ Each `craft:*` step skill has the same model in its `model:` header, and Claude 
 | Review | `craft:review` | opus |
 | Merge | `craft:merge` | haiku |
 | Next | `craft:next` | haiku |
+| Audit | `craft:audit` | opus |
 
 ## Subagents
 
@@ -34,6 +35,7 @@ A craft step starts each of these subagents with the model in this table.
 | spec scout | `craft:spec` | opus |
 | spec writer | `craft:spec` | opus |
 | replan check | `craft:merge` | opus |
+| audit judge | `craft:audit` | opus |
 
 ## pstack roles
 
