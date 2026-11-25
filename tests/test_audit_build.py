@@ -204,6 +204,14 @@ def test_ci_minutes_is_the_median_of_completed_required_runs(tmp_path: Path) -> 
     assert values["CI minutes"] == 6  # noqa: PLR2004
 
 
+def test_minutes_are_rounded_to_two_decimals(tmp_path: Path) -> None:
+    """A run of 70 seconds is 1.17 minutes, not 1.1666…."""
+    run = check_run("checks", "success")
+    run["completed_at"] = "2026-11-20T10:01:10Z"
+    values = build(tmp_path, "speed", check_runs=[run])
+    assert values["CI minutes"] == 1.17  # noqa: PLR2004
+
+
 def test_speed_with_no_runs_is_no_data(tmp_path: Path) -> None:
     """Each value with no run is no data."""
     values = build(tmp_path, "speed", segments=[segment(60)])

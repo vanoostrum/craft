@@ -55,9 +55,9 @@ def minutes(start: str | None, end: str | None) -> float | None:
 
 
 def median(values: list[float | None]) -> float | None:
-    """Return the median of the known values, or None with none."""
+    """Return the median of the known values to 2 decimals, or None with none."""
     known = [value for value in values if value is not None]
-    return statistics.median(known) if known else None
+    return round(statistics.median(known), 2) if known else None
 
 
 def build_segments(data: Json) -> list[Json]:
