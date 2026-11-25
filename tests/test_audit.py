@@ -206,11 +206,14 @@ def test_the_skill_describes_the_rubric_file_format() -> None:
         assert line in text, line
 
 
-def test_an_escape_item_is_not_scored_yet() -> None:
-    """Until CRAFT-92."""
+def test_an_escape_item_counts_the_escapes_of_its_phase() -> None:
+    """CRAFT-92 criterion 1: at most one, and none in a custom rubric."""
     text = section(audit(), "Rubric file")
-    assert 'An **Escape** item is "not scored yet"' in text
-    assert "`scores.py` prints no row for it" in text
+    assert "not scored yet" not in text
+    assert "An **Escape** item counts the escapes" in text
+    assert "per searched ticket" in text
+    assert "at most one Escape item" in text
+    assert "A custom rubric has no Escape item" in text
 
 
 def test_a_rubric_that_applies_to_tickets_with_a_spec() -> None:
@@ -346,7 +349,7 @@ def test_a_rubric_section_lists_what_it_did_not_judge() -> None:
     text = step("Report")
     assert '"Not in this phase:"' in text
     assert "the Process logic result per craft version" in text
-    assert '"not scored yet"' in text
+    assert "not scored yet" not in text
 
 
 def test_the_ticket_list_names_the_window_and_every_ticket() -> None:
@@ -492,3 +495,198 @@ def test_the_report_names_each_ticket_by_its_title() -> None:
     assert "the columns Repository, PR, Ticket, Title, Craft version" in text
     not_judged = '"Not in this phase:" with the tickets it does not judge'
     assert f"{not_judged}, each with its title" in text
+
+
+# CRAFT-92: escapes (criteria 2, 5, 6, 8, and 9).
+
+
+def test_the_audit_searches_audited_and_look_back_tickets() -> None:
+    """Criterion 2: two sets of searched tickets."""
+    text = step("Escapes")
+    assert 'lists as "audited" or "not in this phase"' in text
+    assert "for fix PRs and for gate feedback" in text
+    assert "**look-back tickets**" in text
+    assert "in the 14 days before the window start, for fix PRs only" in text
+    assert 'with the status "look-back"' in text
+    assert "count toward no limit and get no check" in text
+    assert "A ticket skipped over the cap is not searched" in text
+
+
+def test_step_5_lists_the_prs_back_to_14_days_before_the_window() -> None:
+    """Criterion 2: every merged PR with its changed paths in `prs.json`."""
+    text = step("Audited tickets")
+    assert "14 days before the window start" in text
+    assert "`updated_at`" in text
+    assert "every merged PR in that span, with any title" in text
+    assert "`prs.json`" in text
+    assert "`number`, `title`, `merged_at`, and `files`" in text
+
+
+def test_each_escape_counts_once() -> None:
+    """Criterion 2 and Review focus 2: no stored state."""
+    text = step("Escapes")
+    assert "the audit whose window holds the fix PR's `merged_at`" in text
+    assert (
+        "A gate feedback escape counts in the audit whose `## Tickets` lists the "
+        'ticket as "audited" or "not in this phase"'
+    ) in text
+
+
+def test_the_skill_runs_the_escape_scripts() -> None:
+    """Criteria 3 and 4: the scripts find the sources."""
+    text = step("Escapes")
+    assert (
+        "scripts/escapes.py candidates prs.json searched.txt <window start> "
+        "<window end>"
+    ) in text
+    assert "scripts/escapes.py gates" in text
+    assert "`<merged_at>`" in text
+
+
+def test_the_escape_judge_gets_its_inputs() -> None:
+    """Criterion 5: the ticket, its PR, the candidates, the spans, the skills."""
+    text = step("Escapes")
+    for part in (
+        "the ticket's description, with its `## Spec` when it has one",
+        "the ticket's PR title, body, changed file list, and diff",
+        "the project's repository at the PR's `merge_commit_sha`",
+        (
+            "each candidate's title, body, changed file list, and the patch of each "
+            "shared path"
+        ),
+        "each gate span with feedback, as `escapes.py gates` prints it",
+        "at the release tag `v<version>` of the ticket's craft version in that phase",
+        "plan: `plan/SKILL.md`",
+        (
+            "spec: `spec/SKILL.md`, `rules/spec-review.md`, `design/SKILL.md`, and "
+            "`rules/gallery.md`"
+        ),
+        "build: `build/SKILL.md`",
+        "review: `review/SKILL.md` and `rules/findings.md`",
+        "`rules/SKILL.md`, with the gates, at the latest of these tags",
+        "40,000 characters",
+    ):
+        assert part in text, part
+
+
+def test_the_escape_judge_runs_only_with_a_source() -> None:
+    """Criterion 5 and Review focus 4: no source, no judge, 0 escapes."""
+    text = step("Escapes")
+    assert (
+        "One fresh audit judge per searched ticket that has a fix PR candidate" in text
+    )
+    assert "one at a time" in text
+    assert "A ticket with neither needs no judge and has 0 escapes" in text
+
+
+def test_the_escape_judge_prompt_and_answers() -> None:
+    """Criterion 5: one phase, the earlier on a tie, and code only as evidence."""
+    text = step("Escapes")
+    for part in (
+        (
+            "Name the one phase whose skill text most directly asks for the check "
+            "that would have caught it; on a tie, the earlier phase."
+        ),
+        (
+            "Read the code as evidence, but judge the phase, not the code, and never "
+            "propose a fix to the project's code."
+        ),
+        (
+            "`<source> | escape | <phase> | also missed by: <phases or none> | "
+            "<why, with evidence>`"
+        ),
+        (
+            "`<source> | not an escape | <owner choice, planned change, or unrelated> "
+            "| <why>`"
+        ),
+        '"not judged"',
+        '"Planned change"',
+        '"Unrelated"',
+        '"Owner choice"',
+    ):
+        assert part in text, part
+
+
+def test_an_escape_counts_at_the_version_of_its_phase() -> None:
+    """Criterion 6: that phase's segments, else the release before the merge."""
+    text = step("Escapes")
+    assert "the ticket's craft version in the escape's phase" in text
+    assert "latest segment with that `step`" in text
+    assert "the release before the ticket PR's `merged_at`" in text
+
+
+def test_audit_json_holds_the_escapes() -> None:
+    """Criterion 7: the shape that `scores.py` reads."""
+    text = step("Scores")
+    assert "`escapes`" in text
+    assert "`searched`" in text
+    assert "`traces`" in text
+
+
+def test_a_rubric_argument_still_traces_every_escape() -> None:
+    """Criterion 8: the window moves, so every escape is traced."""
+    text = step("Escapes")
+    assert (
+        "With `rubric=<name>`, the audit still searches and traces every escape" in text
+    )
+    assert "`## Escapes` lists them all" in text
+    assert (
+        "`## Scores` prints the escape row of the rubric that ran and the "
+        "`No rubric` rows"
+    ) in text
+
+
+def test_the_report_has_an_escapes_section() -> None:
+    """Criterion 9: before `## Tickets`, with its table and Not escapes."""
+    text = step("Report")
+    assert text.index("`## <Rubric name>`") < text.index("`## Escapes`")
+    assert text.index("`## Escapes`") < text.index("`## Tickets`")
+    for column in ("Ticket", "Craft version", "Source", "Phase", "Also missed by"):
+        assert column in text
+    assert '"Not escapes:"' in text
+    assert "Blind spots" in text
+    assert '"look-back"' in text
+
+
+def test_the_summary_and_the_message_give_escapes_per_phase() -> None:
+    """Criterion 9."""
+    assert "the escape count per phase" in step("Report")
+    assert "the escape count per phase" in step("Message")
+
+
+GLOSSARY_ROWS = (
+    (
+        "| Escape | A problem found after a ticket passed a phase: a fix PR that "
+        "merged within 14 days after the ticket's PR and changes a file it changed, "
+        "or the owner's feedback at a gate. An audit judge traces each escape to the "
+        "one phase that should have caught it. As a rubric item, it shows these "
+        "escapes per searched ticket, per craft version. |"
+    ),
+    (
+        "| Escape trace | The audit judge's answer for one escape: the phase that "
+        "should have caught it, the other phases that missed it, and why, with "
+        "evidence. |"
+    ),
+    (
+        "| Fix PR candidate | A PR that merged in the audit window, at most 14 days "
+        "after a ticket's PR, and changes a file that the ticket's PR changed. The "
+        "audit judge decides whether it fixes a problem of the ticket. |"
+    ),
+    (
+        "| Owner choice | Gate feedback in which the owner changes their mind or adds"
+        " a new wish. No phase should have caught it, so it is not an escape. |"
+    ),
+    (
+        "| Blind spot | An escape that an audit judge traces to the review phase. The"
+        " Review rubric counts blind spots in its Blind spots item. |"
+    ),
+)
+
+
+def test_the_glossary_has_the_escape_terms() -> None:
+    """Criterion 10: Escape, Blind spot, and the three new terms."""
+    lines = (ROOT / "GLOSSARY.md").read_text(encoding="utf-8").splitlines()
+    for line in GLOSSARY_ROWS:
+        assert line in lines, line
+    escape = lines.index(GLOSSARY_ROWS[0])
+    assert lines[escape + 1 : escape + 4] == list(GLOSSARY_ROWS[1:4])
