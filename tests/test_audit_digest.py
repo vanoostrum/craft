@@ -40,13 +40,13 @@ def result(content: str | list[dict[str, Any]]) -> dict[str, Any]:
     return {"type": "tool_result", "tool_use_id": "call-1", "content": content}
 
 
-def digest(tmp_path: Path, lines: list[dict[str, Any]]) -> str:
+def digest(tmp_path: Path, lines: list[dict[str, Any]], *span: str) -> str:
     """Write a gzipped transcript, run `digest.py` on it, and return its output."""
     path = tmp_path / "agent.jsonl.gz"
     body = "".join(json.dumps(line) + "\n" for line in lines)
     path.write_bytes(gzip.compress(body.encode("utf-8")))
     done = subprocess.run(  # noqa: S603
-        [sys.executable, str(SCRIPT), str(path)],
+        [sys.executable, str(SCRIPT), str(path), *span],
         capture_output=True,
         text=True,
         check=True,
@@ -108,3 +108,18 @@ def test_newlines_stay_inside_one_digest_line(tmp_path: Path) -> None:
     """Each event is one line, so the order stays readable."""
     out = digest(tmp_path, [user([result("line 1\nline 2")])])
     assert out == "result: line 1\\nline 2\n"
+
+
+def test_a_span_keeps_only_the_lines_of_one_segment(tmp_path: Path) -> None:
+    """A review segment's part of a whole session transcript."""
+
+    def at(minute: int, line: dict[str, Any]) -> dict[str, Any]:
+        return {**line, "timestamp": f"2026-11-20T10:{minute:02d}:00.000Z"}
+
+    lines = [
+        at(1, assistant(text("Build."))),
+        at(5, assistant(text("Review."))),
+        at(9, assistant(text("Merge."))),
+    ]
+    span = ("2026-11-20T10:04:00.000Z", "2026-11-20T10:06:00.000Z")
+    assert digest(tmp_path, lines, *span) == "assistant: Review.\n"

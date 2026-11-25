@@ -2,7 +2,10 @@
 # Copyright (C) 2026 Theo van Oostrum
 r"""Print a digest of a transcript, for the audit judge.
 
-Usage: digest.py <transcript.jsonl.gz>
+Usage: digest.py <transcript.jsonl.gz> [<start> <end>]
+
+With a start and an end, such as a segment's `started_at` and `ended_at`, only the
+transcript lines with a `timestamp` from start to end count.
 
 One line per event, in order:
 
@@ -18,6 +21,7 @@ import gzip
 import json
 import sys
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -60,15 +64,25 @@ def events(line: dict[str, Any]) -> Iterator[str]:
             yield f"result: {one_line(text)}"
 
 
+def in_span(line: dict[str, Any], span: list[str]) -> bool:
+    """Return whether a line falls in the span, or there is no span."""
+    if not span:
+        return True
+    start, end = (datetime.fromisoformat(stamp) for stamp in span)
+    stamp = line.get("timestamp")
+    return stamp is not None and start <= datetime.fromisoformat(stamp) <= end
+
+
 def main(argv: list[str]) -> int:
     """Print the digest, or the usage and exit 2."""
-    if len(argv) != 2:  # noqa: PLR2004 - the script and the transcript.
+    if len(argv) not in (2, 4):
         sys.stderr.write(f"{__doc__}\n")
         return 2
     with gzip.open(Path(argv[1]), "rt", encoding="utf-8") as transcript:
         for raw in transcript:
-            if raw.strip():
-                for event in events(json.loads(raw)):
+            line = json.loads(raw) if raw.strip() else {}
+            if line and in_span(line, argv[2:]):
+                for event in events(line):
                     sys.stdout.write(f"{event}\n")
     return 0
 
