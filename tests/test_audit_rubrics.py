@@ -231,7 +231,8 @@ def test_the_design_and_maintainability_check() -> None:
         re.MULTILINE,
     )
     assert re.search(r"^Fail: .*checked only the criteria", text, re.MULTILINE)
-    assert "does not judge the code itself" in text
+    assert "may read the diff to see what the review saw or missed" in text
+    assert "proposes no fix to the code" in text
 
 
 def test_process_logic_names_the_review_hooks_and_rules() -> None:

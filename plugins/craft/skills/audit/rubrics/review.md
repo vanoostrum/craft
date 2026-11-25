@@ -4,7 +4,7 @@ Rubric version: 1
 Phase: review
 Applies to: tickets with a spec
 
-Did craft's review phase do its job? The review phase is `craft:review`: a fresh reviewer checks a PR against its spec, and posts its review as a PR comment that ends with a verdict line. The audit judges how the review worked, never the code (`docs/adr/0010`). The per-ticket checks judge the full review, the first review of the PR. Follow-up reviews count only in Findings rounds.
+Did craft's review phase do its job? The review phase is `craft:review`: a fresh reviewer checks a PR against its spec, and posts its review as a PR comment that ends with a verdict line. The audit judges how the review worked (`docs/adr/0010`). It may read the code as evidence of what the review saw or missed, but it never proposes a fix to the code. The per-ticket checks judge the full review, the first review of the PR. Follow-up reviews count only in Findings rounds.
 
 ## Items
 
@@ -30,7 +30,7 @@ Fail: Some acceptance criteria have no answer.
 
 Kind: Check
 Reads: The full review's transcript digest and PR comment.
-Score: The share of tickets that pass. The question is: "Did the review look at design and maintainability, as the project's rules ask?" The judge answers from what the reviewer did and wrote. It does not judge the code itself.
+Score: The share of tickets that pass. The question is: "Did the review look at design and maintainability, as the project's rules ask?" The judge answers from what the reviewer did and wrote. It may read the diff to see what the review saw or missed, such as duplication that the review did not name. It judges the review, not the code, and proposes no fix to the code.
 Pass: The reviewer looked at structure, duplication, and fit with the existing code.
 Partial: The reviewer looked at one or two of structure, duplication, and fit with the existing code.
 Fail: The review checked only the criteria.

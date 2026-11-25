@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Theo van Oostrum
-"""`craft:audit` judges craft's phases against rubrics, not the code.
+"""`craft:audit` judges craft's phases against rubrics; fixes go to craft, not the code.
 
 These tests check the text that the audit step reads: its skill, and the lines
 in `craft:rules`, `craft:bstack`, and `models.md`. The rubric files and the
@@ -47,10 +47,12 @@ def test_the_skill_has_its_name_and_model() -> None:
 
 
 def test_the_audit_judges_the_process_not_the_code() -> None:
-    """`docs/adr/0010`: the audit is not a code review."""
+    """`docs/adr/0010`: code is evidence; fixes go to craft, never the code."""
     text = audit()
-    assert "judges the craft process, not the code (`docs/adr/0010`)" in text
-    assert "never scores the code itself" in text
+    assert "The audit judges the craft process (`docs/adr/0010`)" in text
+    assert "may read code" in text
+    assert "never proposes a fix to a project's code" in text
+    assert "never scores the code on its own" in text
 
 
 def test_the_audit_keeps_its_data_in_linear() -> None:
@@ -222,14 +224,16 @@ def test_a_rubric_that_applies_to_tickets_with_a_spec() -> None:
 # Criterion 6: the audit judge.
 
 
-def test_the_judge_gets_the_process_inputs_but_not_the_diff() -> None:
-    """The rubric, the spec, the PR, the review comments, and the digests."""
+def test_the_judge_gets_the_process_inputs_and_the_diff() -> None:
+    """The rubric, the spec, the PR and its diff, the comments, and the digests."""
     text = step("Judge")
     for part in (
         "the rubric file",
         "the ticket's `## Spec`",
         "the PR title, the PR body, and the list of changed files",
-        "but not the diff",
+        "the PR diff",
+        "as evidence of what the phase saw or missed",
+        "the project's repository at the PR's `merge_commit_sha`",
         "the PR's review comments",
         "the digests of step 7",
     ):
@@ -242,7 +246,9 @@ def test_the_judge_answers_with_evidence() -> None:
     """Pass, partial, fail, or no data, with what it cites."""
     text = step("Judge")
     assert "`<item> | <pass, partial, fail, or no data> | <evidence>`" in text
-    assert "never the code" in text
+    assert "Judge the phase, not the code" in text
+    assert "never propose a fix to the project's code" in text
+    assert "name the craft phase, skill, or rule" in text
 
 
 def test_no_review_segment_gives_no_data_not_fail() -> None:
