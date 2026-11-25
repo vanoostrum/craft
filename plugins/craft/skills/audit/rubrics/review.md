@@ -1,10 +1,10 @@
 # Review rubric
 
-Rubric version: 1
+Rubric version: 2
 Phase: review
 Applies to: tickets with a spec
 
-Did craft's review phase do its job? The review phase is `craft:review`: a fresh reviewer checks a PR against its spec, and posts its review as a PR comment that ends with a verdict line. The audit judges how the review worked (`docs/adr/0010`). It may read the code as evidence of what the review saw or missed, but it never proposes a fix to the code. The per-ticket checks judge the full review, the first review of the PR. Follow-up reviews count only in Findings rounds.
+Did craft's review phase do its job? The review phase is `craft:review`: a fresh reviewer checks a PR against its spec, and posts its review as a PR comment that ends with a verdict line. The audit judges how the review worked (`docs/adr/0010`). It may read the code as evidence of what the review saw or missed, but it never proposes a fix to the code. The per-ticket checks judge the full review, the first review of the PR. Follow-up reviews count only in Findings rounds. Blind spots counts the escapes that an audit judge traces to the review phase.
 
 ## Items
 
@@ -50,3 +50,9 @@ Score: Judged once per craft version, and shown next to the phase score, not in 
 Pass: Each hook rule has a hook that enforces it in every case the rule names, and no hook blocks what a rule asks for.
 Partial: Each hook rule has a hook, and no hook blocks what a rule asks for, but at least one hook lets through a case that its rule names.
 Fail: A hook rule has no hook that enforces it, or a hook blocks what a rule asks for.
+
+### Blind spots
+
+Kind: Escape
+Reads: The audit's escape traces: the fix PR candidates and the gate feedback of the searched tickets, each traced by an audit judge to the one phase that should have caught it.
+Score: The escapes traced to the review phase per searched ticket, per craft version: the escapes divided by the searched tickets with a `## Spec` at the ticket's craft version in the review phase. `scripts/scores.py` prints it.

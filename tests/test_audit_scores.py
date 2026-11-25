@@ -46,12 +46,6 @@ Pass: Quick.
 Partial: Slow.
 Fail: Very slow.
 
-### Late bugs
-
-Kind: Escape
-Reads: Later fix PRs.
-Score: The count per ticket.
-
 ### Hooks
 
 Kind: Check
@@ -111,19 +105,18 @@ def run(  # noqa: PLR0913 - each argument is one part of the fixture.
     previous: str | None = None,
     rubrics: list[str] | None = None,
     rubrics_dir: Path | None = None,
+    escapes: Json | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run `scores.py` on an audit file and an optional previous report."""
     audit = tmp_path / "audit.json"
-    audit.write_text(
-        json.dumps(
-            {
-                "rubrics": rubrics or ["review"],
-                "tickets": tickets,
-                "per_version": per_version or [],
-            }
-        ),
-        encoding="utf-8",
-    )
+    content: Json = {
+        "rubrics": rubrics or ["review"],
+        "tickets": tickets,
+        "per_version": per_version or [],
+    }
+    if escapes is not None:
+        content["escapes"] = escapes
+    audit.write_text(json.dumps(content), encoding="utf-8")
     args = [sys.executable, str(SCRIPT)]
     if rubrics_dir is not None:
         args += ["--rubrics", str(rubrics_dir)]
@@ -201,7 +194,7 @@ def test_one_row_per_rubric_version_craft_version_and_item(tmp_path: Path) -> No
         *(("2.10.0", item) for item in items),
         ("2.10.0", "Process logic"),
     ]
-    assert {r["Rubric version"] for r in table(out)} == {"1"}
+    assert {r["Rubric version"] for r in table(out)} == {"2"}
 
 
 def test_a_check_row_shows_its_share_and_counts(tmp_path: Path) -> None:
@@ -280,8 +273,8 @@ def test_a_ticket_not_in_this_phase_counts_nowhere(tmp_path: Path) -> None:
     assert "No tickets judged." in out
 
 
-def test_an_escape_item_gets_no_row(tmp_path: Path) -> None:
-    """Escapes are not scored yet; a custom rubric's other items are."""
+def test_a_custom_rubric_gets_its_rows(tmp_path: Path) -> None:
+    """A custom rubric's checks, per ticket and per craft version."""
     write = tmp_path / "rubrics" / "custom" / "speed.md"
     write.parent.mkdir(parents=True)
     write.write_text(SPEED, encoding="utf-8")
@@ -331,7 +324,7 @@ def test_the_last_audit_value_comes_from_the_same_row(tmp_path: Path) -> None:
 def test_another_rubric_version_gives_dashes(tmp_path: Path) -> None:
     """Scores are compared only within one rubric version."""
     first = scores(tmp_path, [ticket(1, judged("2.9.0"))])
-    older = first.replace("| Review | 1 |", "| Review | 0 |")
+    older = first.replace("| Review | 2 |", "| Review | 1 |")
     second = scores(tmp_path, [ticket(2, judged("2.9.0"))], previous=older)
     assert {r["At last audit"] for r in table(second)} == {"—"}
 
@@ -484,3 +477,246 @@ def test_both_rubrics_print_their_rows_from_one_audit_file(tmp_path: Path) -> No
     assert row(out, "2.9.2", "Feedback speed: CI minutes", "Build")["Value"] == (
         "no data"
     )
+
+
+# CRAFT-92 criterion 7: the escape rows.
+
+BLIND_SPOTS = "Blind spots"
+NO_RUBRIC = "No rubric"
+PHASES = ("plan", "spec", "build", "review")
+
+
+def searched(
+    number: int,
+    version: str = "2.9.2",
+    *,
+    spec: bool = True,
+    **versions: str,
+) -> Json:
+    """Return one searched ticket, at one craft version in every phase."""
+    return {
+        "ticket": f"CRAFT-{number}",
+        "pr": number,
+        "spec": spec,
+        "versions": {phase: versions.get(phase, version) for phase in PHASES},
+    }
+
+
+def trace(number: int, phase: str = "review", answer: str = "escape") -> Json:
+    """Return one trace of a fix PR candidate."""
+    found: Json = {
+        "ticket": f"CRAFT-{number}",
+        "source": f"vanoostrum/demo#{number + 100}",
+        "answer": answer,
+    }
+    if answer == "escape":
+        found["phase"] = phase
+    else:
+        found["reason"] = "planned change"
+    return found
+
+
+def escapes(tickets: list[Json], traces: list[Json]) -> Json:
+    """Return the `escapes` key of `audit.json`."""
+    return {"searched": tickets, "traces": traces}
+
+
+def escape_rows(out: str) -> list[tuple[str, str, str, str, str, str, str]]:
+    """Return the escape rows: rubric, rubric version, craft version, item, cells."""
+    return [
+        (
+            r["Rubric"],
+            r["Rubric version"],
+            r["Craft version"],
+            r["Item"],
+            r["Judged"],
+            r["Value"],
+            r["Pass/partial/fail"],
+        )
+        for r in table(out)
+        if r["Item"] == BLIND_SPOTS or r["Rubric"] == NO_RUBRIC
+    ]
+
+
+def test_an_escape_row_is_a_rate_per_searched_ticket(tmp_path: Path) -> None:
+    """One escape in 4 searched tickets is 0.25, with no pass/partial/fail."""
+    out = scores(
+        tmp_path,
+        [],
+        escapes=escapes([searched(n) for n in (1, 2, 3, 4)], [trace(2)]),
+    )
+    blind = row(out, "2.9.2", BLIND_SPOTS)
+    assert (blind["Rubric version"], blind["Judged"], blind["Value"]) == (
+        "2",
+        "4",
+        "0.25",
+    )
+    assert blind["Pass/partial/fail"] == "—"
+
+
+def test_each_phase_with_no_escape_item_gets_a_no_rubric_row(
+    tmp_path: Path,
+) -> None:
+    """Q3: plan, spec, and build; the review phase has Blind spots."""
+    out = scores(tmp_path, [], escapes=escapes([searched(1), searched(2)], []))
+    assert escape_rows(out) == [
+        ("Review", "2", "2.9.2", BLIND_SPOTS, "2", "0.00", "—"),
+        (NO_RUBRIC, "—", "2.9.2", "Escapes: plan", "2", "0.00", "—"),
+        (NO_RUBRIC, "—", "2.9.2", "Escapes: spec", "2", "0.00", "—"),
+        (NO_RUBRIC, "—", "2.9.2", "Escapes: build", "2", "0.00", "—"),
+    ]
+
+
+def test_a_plan_escape_counts_in_the_plan_row(tmp_path: Path) -> None:
+    """Review focus 5: a plan ticket's gate feedback, not in Blind spots."""
+    plan = searched(1, spec=False)
+    out = scores(
+        tmp_path,
+        [],
+        escapes=escapes(
+            [plan, searched(2)],
+            [
+                {
+                    "ticket": "CRAFT-1",
+                    "source": "plan gate: split it",
+                    "answer": "escape",
+                }
+                | {"phase": "plan"}
+            ],
+        ),
+    )
+    plan_row = row(out, "2.9.2", "Escapes: plan", NO_RUBRIC)
+    assert (plan_row["Judged"], plan_row["Value"]) == ("2", "0.50")
+    blind = row(out, "2.9.2", BLIND_SPOTS)
+    assert (blind["Judged"], blind["Value"]) == ("1", "0.00")
+
+
+@pytest.mark.parametrize("answer", ["not an escape", "not judged"])
+def test_only_escape_answers_count(tmp_path: Path, answer: str) -> None:
+    """Review focus 1: planned change, owner choice, and not judged add nothing."""
+    out = scores(
+        tmp_path,
+        [],
+        escapes=escapes([searched(1)], [trace(1, answer=answer)]),
+    )
+    assert {r[5] for r in escape_rows(out)} == {"0.00"}
+
+
+def test_a_ticket_with_no_source_lowers_the_rate(tmp_path: Path) -> None:
+    """Review focus 4: no judge, 0 escapes, and still in Judged."""
+    out = scores(
+        tmp_path,
+        [],
+        escapes=escapes([searched(1), searched(2)], [trace(1, "build")]),
+    )
+    build = row(out, "2.9.2", "Escapes: build", NO_RUBRIC)
+    assert (build["Judged"], build["Value"]) == ("2", "0.50")
+
+
+def test_a_review_escape_of_a_ticket_with_no_spec_is_in_no_rate(
+    tmp_path: Path,
+) -> None:
+    """Blind spots judges only tickets with a `## Spec`, as its rubric applies."""
+    out = scores(
+        tmp_path,
+        [],
+        escapes=escapes(
+            [searched(1, spec=False), searched(2), searched(3)], [trace(1)]
+        ),
+    )
+    blind = row(out, "2.9.2", BLIND_SPOTS)
+    assert (blind["Judged"], blind["Value"]) == ("2", "0.00")
+
+
+def test_a_review_row_with_no_ticket_with_a_spec_has_no_data(
+    tmp_path: Path,
+) -> None:
+    """Judged 0 is no data, as for a check."""
+    out = scores(tmp_path, [], escapes=escapes([searched(1, spec=False)], [trace(1)]))
+    blind = row(out, "2.9.2", BLIND_SPOTS)
+    assert (blind["Judged"], blind["Value"]) == ("0", "no data")
+
+
+def test_an_escape_counts_at_the_version_of_its_phase(tmp_path: Path) -> None:
+    """Criterion 6: one row per phase and craft version."""
+    out = scores(
+        tmp_path,
+        [],
+        escapes=escapes(
+            [searched(1, "2.9.1", review="2.9.2"), searched(2, "2.9.2")],
+            [trace(1, "review"), trace(2, "build")],
+        ),
+    )
+    assert row(out, "2.9.2", BLIND_SPOTS)["Value"] == "0.50"
+    assert row(out, "2.9.1", "Escapes: build", NO_RUBRIC)["Value"] == "0.00"
+    assert row(out, "2.9.2", "Escapes: build", NO_RUBRIC)["Value"] == "1.00"
+    assert [
+        r for r in escape_rows(out) if r[3] == BLIND_SPOTS and r[2] == "2.9.1"
+    ] == []
+
+
+def test_blind_spots_follows_the_review_rows_of_its_version(tmp_path: Path) -> None:
+    """In rubric order, after Process logic; not in the Phase score."""
+    out = scores(
+        tmp_path,
+        [ticket(1, judged("2.9.2", checks("pass", "pass", "pass")))],
+        per_version=[
+            {"rubric": "review", "craft_version": "2.9.2", "item": "Process logic"}
+            | {"result": "pass"}
+        ],
+        escapes=escapes([searched(1)], [trace(1)]),
+    )
+    items = [r["Item"] for r in table(out) if r["Rubric"] == "Review"]
+    assert items[-2:] == ["Process logic", BLIND_SPOTS]
+    assert row(out, "2.9.2", "Phase score")["Value"] == "1.00"
+
+
+def test_a_rubric_argument_prints_only_its_escape_row(tmp_path: Path) -> None:
+    """Criterion 8: with rubric=build, no Blind spots row; No rubric rows stay."""
+    out = scores(
+        tmp_path,
+        [],
+        rubrics=["build"],
+        escapes=escapes([searched(1)], [trace(1)]),
+    )
+    assert [r[3] for r in escape_rows(out)] == [
+        "Escapes: plan",
+        "Escapes: spec",
+        "Escapes: build",
+    ]
+
+
+def test_an_escape_row_has_its_trend(tmp_path: Path) -> None:
+    """At last audit from the previous report's same row."""
+    audit = escapes([searched(1), searched(2)], [trace(1, "spec")])
+    first = scores(tmp_path, [], escapes=audit)
+    second = scores(
+        tmp_path,
+        [],
+        escapes=escapes([searched(3)], []),
+        previous=first.replace("0.50", "0\\.50"),
+    )
+    spec = row(second, "2.9.2", "Escapes: spec", NO_RUBRIC)
+    assert (spec["Value"], spec["At last audit"]) == ("0.00", "0.50")
+    assert row(second, "2.9.2", BLIND_SPOTS)["At last audit"] == "0.00"
+
+
+@pytest.mark.parametrize(
+    ("bad", "error"),
+    [
+        (escapes([searched(1)], [trace(1, "deploy")]), "phase"),
+        (escapes([searched(1)], [trace(2)]), "not a searched ticket"),
+        (escapes([searched(1)], [trace(1, answer="maybe")]), "answer"),
+        (
+            escapes([{"ticket": "CRAFT-1", "pr": 1, "spec": True, "versions": {}}], []),
+            "versions",
+        ),
+        (escapes([searched(1), searched(1)], []), "searched twice"),
+    ],
+)
+def test_a_wrong_escapes_key_fails(tmp_path: Path, bad: Json, error: str) -> None:
+    """The script names the problem and prints no table."""
+    result = run(tmp_path, [], escapes=bad)
+    assert result.returncode == 2  # noqa: PLR2004 - the error code.
+    assert error in result.stderr
+    assert result.stdout == ""

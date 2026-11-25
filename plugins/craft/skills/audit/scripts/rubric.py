@@ -114,13 +114,21 @@ def parse(path: Path) -> Rubric:
     if not blocks:
         message = "no items under `## Items`"
         raise RubricError(message)
+    parsed = tuple(parse_item(block) for block in blocks)
+    escapes = [item.name for item in parsed if item.kind == "Escape"]
+    if len(escapes) > 1:
+        message = f"a rubric has at most one Escape item, not {', '.join(escapes)}"
+        raise RubricError(message)
+    if escapes and phase == "custom":
+        message = "a custom rubric has no Escape item: an escape traces to a phase"
+        raise RubricError(message)
     return Rubric(
         name=path.stem,
         title=title.group(1),
         version=version,
         phase=phase,
         applies_to=applies_to,
-        items=tuple(parse_item(block) for block in blocks),
+        items=parsed,
     )
 
 
