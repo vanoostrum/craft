@@ -465,7 +465,7 @@ def test_measures_run_per_rubric() -> None:
         "python3 <audit>/scripts/build.py attempts build.json",
         "python3 <audit>/scripts/build.py speed build.json",
         "`Required CI checks`",
-        "check-runs",
+        "check-runs?filter=all&per_page=100",
     ):
         assert part in text, part
 
@@ -476,3 +476,9 @@ def test_build_process_logic_is_judged_on_its_reads_at_the_tag() -> None:
     assert "For the Build rubric" in text
     assert "`skills/rules/scripts/gallery-shot`" in text
     assert "the files that the item's `Reads:` line names" in text
+    assert "It judges only the files that `Reads:` names" in text
+
+
+def test_ci_reds_see_runs_that_were_run_again() -> None:
+    """Review 1: the default `filter=latest` hides a red run that was re-run."""
+    assert "re-run" in step("Measures")
