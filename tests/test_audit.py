@@ -482,3 +482,13 @@ def test_build_process_logic_is_judged_on_its_reads_at_the_tag() -> None:
 def test_ci_reds_see_runs_that_were_run_again() -> None:
     """Review 1: the default `filter=latest` hides a red run that was re-run."""
     assert "re-run" in step("Measures")
+
+
+def test_the_report_names_each_ticket_by_its_title() -> None:
+    """Owner feedback at the CRAFT-91 merge gate: show what each ticket was about."""
+    text = step("Report")
+    assert "`### <repo>#<n> (<ticket>): <title>`" in text
+    assert "the Linear title of the ticket" in text
+    assert "the columns Repository, PR, Ticket, Title, Craft version" in text
+    not_judged = '"Not in this phase:" with the tickets it does not judge'
+    assert f"{not_judged}, each with its title" in text
