@@ -45,8 +45,10 @@ def digest(tmp_path: Path, lines: list[dict[str, Any]], *span: str) -> str:
     path = tmp_path / "agent.jsonl.gz"
     body = "".join(json.dumps(line) + "\n" for line in lines)
     path.write_bytes(gzip.compress(body.encode("utf-8")))
+    options = list(span[:2]) if span[:1] == ("--result-cap",) else []
+    rest = span[len(options) :]
     done = subprocess.run(  # noqa: S603
-        [sys.executable, str(SCRIPT), str(path), *span],
+        [sys.executable, str(SCRIPT), *options, str(path), *rest],
         capture_output=True,
         text=True,
         check=True,
@@ -80,11 +82,38 @@ def test_a_tool_input_is_capped_at_500_characters(tmp_path: Path) -> None:
 
 
 def test_a_tool_result_is_capped_at_300_characters(tmp_path: Path) -> None:
-    """A file read is cut, as a string or as text blocks."""
-    body = "y" * 1000
+    """A file read is cut, as a string or as text blocks: head and tail."""
+    body = "h" * 150 + "y" * 700 + "t" * 150
     out = digest(tmp_path, [user([result(body)]), user([result([text(body)])])])
     shown = [line for line in out.splitlines() if line.startswith("result: ")]
-    assert shown == [f"result: {body[:300]} […]"] * 2
+    assert shown == [f"result: {'h' * 150} […] {'t' * 150}"] * 2
+
+
+def test_a_cut_result_keeps_the_summary_line_of_a_test_run(tmp_path: Path) -> None:
+    """CRAFT-91 criterion 5: `1 failed` at the end of the output stays in."""
+    body = "collected 40 items\n" + "." * 2000 + "\n1 failed, 39 passed in 2.1s"
+    out = digest(tmp_path, [user([result(body)])])
+    assert out.startswith("result: collected 40 items")
+    assert out.rstrip().endswith("1 failed, 39 passed in 2.1s")
+    assert " […] " in out
+
+
+def test_the_result_cap_is_an_option(tmp_path: Path) -> None:
+    """CRAFT-91 criterion 5: `--result-cap 2000` for subagent transcripts."""
+    body = "a" * 1500 + "b" * 1500
+    out = digest(tmp_path, [user([result(body)])], "--result-cap", "2000")
+    assert out == f"result: {'a' * 1000} […] {'b' * 1000}\n"
+    assert digest(tmp_path, [user([result("c" * 2000)])], "--result-cap", "2000") == (
+        f"result: {'c' * 2000}\n"
+    )
+
+
+def test_the_result_cap_works_with_a_span(tmp_path: Path) -> None:
+    """The option goes before the transcript, the span after it."""
+    line = {**user([result("d" * 50)]), "timestamp": "2026-11-20T10:05:00.000Z"}
+    span = ("2026-11-20T10:04:00.000Z", "2026-11-20T10:06:00.000Z")
+    out = digest(tmp_path, [line], "--result-cap", "20", *span)
+    assert out == f"result: {'d' * 10} […] {'d' * 10}\n"
 
 
 def test_short_values_are_not_marked_as_cut(tmp_path: Path) -> None:
