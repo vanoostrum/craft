@@ -60,7 +60,11 @@ def test_the_audit_keeps_its_data_in_linear() -> None:
     text = section(audit(), "Outside the ticket flow")
     assert "no ticket, no gate, and no step comment" in text
     assert "makes no branch, commits nothing" in text
-    assert "only into the audit report in Linear (`docs/adr/0009`)" in text
+    assert (
+        "It writes only to Linear: the audit report, the proposal tickets, and the "
+        "label `audit` when the team does not have it yet (`docs/adr/0009`)."
+    ) in text
+    assert "never into a repository, a PR, a GitHub comment, or a project file" in text
 
 
 def test_models_lists_the_audit_step_and_the_audit_judge() -> None:
@@ -699,3 +703,214 @@ def test_a_ticket_is_searched_once() -> None:
     assert "every PR of the ticket" in text
     assert "is not also a look-back ticket" in text
     assert "one entry per searched ticket" in step("Scores")
+
+
+# CRAFT-93: patterns and proposals.
+
+
+def test_patterns_come_from_the_script() -> None:
+    """Criteria 2 to 4: the model does not find patterns by hand."""
+    text = step("Patterns")
+    assert "`python3 <audit>/scripts/patterns.py find scores.md previous.md`" in text
+    assert "or without `previous.md` when there is no previous report" in text
+    assert (
+        "`<kind> | <rubric> | <rubric version> | <craft version> | <item> | <value> "
+        "| <why>`"
+    ) in text
+    assert "in the kind order `process logic`, `check`, `trend`" in text
+
+
+def test_the_pattern_rule() -> None:
+    """Q1 to Q3: audit-wide rows, partials count, Process logic by itself."""
+    text = step("Patterns")
+    assert "at least 3 tickets with fail or partial" in text
+    assert "a minor problem counts only as part of a pattern" in text
+    assert "is a pattern by itself" in text
+    assert "each need Judged of at least 3" in text
+    assert "The Phase score and Check rows give no trend" in text
+    assert "with one that has no audit-wide rows, there is no trend pattern" in text
+
+
+def test_an_old_process_logic_row_before_a_release_is_no_pattern() -> None:
+    """Criterion 6: a craft version before a Done proposal's release."""
+    assert (
+        "Leave out the row of a craft version before the Released in of a **Done** "
+        "proposal for the same rubric and item"
+    ) in step("Patterns")
+
+
+def test_four_kinds_of_proposal_block_a_pattern() -> None:
+    """Criterion 6, Review focus 2 and 6: open, unreleased, tracked, canceled."""
+    text = step("Proposals")
+    assert (
+        "A pattern gets no new ticket while a proposal for the same rubric and item, "
+        "at any rubric version, blocks it."
+    ) in text
+    for case in (
+        "open: any state but **Done** and **Canceled**",
+        "**Done** and not released yet",
+        "**Done**, released, and still tracked",
+        ("**Canceled**, and the rubric has the same rubric version as at the proposal"),
+    ):
+        assert case in text, case
+    assert '"Already proposed:"' in text
+    assert "with the proposal that blocks it" in text
+
+
+def test_a_pattern_after_untracked_done_proposals_gets_a_new_one() -> None:
+    """Criterion 6: the change did not fix it, so a new proposal links the old."""
+    text = step("Proposals")
+    assert (
+        "When the only earlier proposals for the item are **Done** and no longer "
+        "tracked, the pattern gets a new proposal, which links the earlier one"
+    ) in text
+
+
+def test_at_most_10_new_proposals_in_find_order() -> None:
+    """Criterion 6 and Review focus 5: 12 patterns give 10 tickets and 2 over."""
+    text = step("Proposals")
+    assert "At most 10 new proposals per audit, one per pattern" in text
+    assert "in the order that `find` prints them" in text
+    assert "after the patterns that a blocking proposal covers are left out" in text
+    assert '"Over the cap of 10:"' in text
+
+
+def test_the_proposal_ticket() -> None:
+    """Criterion 7: team, project, Backlog, label, title, and sections in order."""
+    text = step("Proposals").split("**Proposal ticket.**", 1)[1]
+    assert (
+        "in the `CRAFT` team and the Craft Linear project, in **Backlog**, with the "
+        "label `audit`"
+    ) in text.replace("Create it in", "in")
+    assert "Create the label in the team when it does not exist" in text
+    assert "Its title names only the craft change" in text
+    parts = [
+        "`Proposed by [Audit: <today>](<report link>).`",
+        "`## Goal`",
+        "`## Measure`",
+        "`## Evidence`",
+        "`## Steering`",
+    ]
+    positions = [text.index(part) for part in parts]
+    assert positions == sorted(positions)
+    assert "`Measure: <rubric> | <rubric version> | <item>`" in text
+    assert "`Value at proposal: <value> (<Judged> judged)`" in text
+    assert (
+        '"note: The acceptance criteria name no findings. The examples stay in the '
+        "`## Evidence` section of this ticket, which links the audit report. The PR "
+        "(its title, its body, every comment, and every commit), the branch name, and "
+        "every repo file, tests and fixtures too, quote only craft's skill text and "
+        'summary numbers."'
+    ) in text
+
+
+def test_proposals_stay_in_linear_and_change_only_craft() -> None:
+    """Criterion 7 and the constraints."""
+    text = step("Proposals")
+    assert "It changes only craft, never a project's code (`docs/adr/0010`)" in text
+    assert (
+        "The audit writes proposals only to Linear: never to a repository, a PR, or a "
+        "file."
+    ) in text
+    assert "no new subagent" in text
+
+
+def test_the_skill_names_proposals_outside_the_flow_and_when_done() -> None:
+    """Criterion 7: the description, Outside the ticket flow, and Done when."""
+    assert "proposal tickets in Backlog" in audit().split("---", 2)[1]
+    assert "the proposal tickets, and the label `audit`" in section(
+        audit(), "Outside the ticket flow"
+    )
+    done = section(audit(), "Done when")
+    assert (
+        "the new proposals of step 14 exist in **Backlog** with the label `audit`"
+        in done
+    )
+
+
+def test_the_earlier_proposals_that_are_listed() -> None:
+    """Criterion 8: which ones, Released in, tracking, and `moved`."""
+    text = step("Proposals")
+    assert (
+        "lists the earlier proposals that are open, **Done** and not released, or "
+        "released and still tracked. It lists no **Canceled** proposal"
+    ) in text
+    assert "`git tag --contains <merge_commit_sha>`" in text
+    assert "the first release tag `v<version>` of `vanoostrum/craft`" in text
+    assert "until the 4th audit report dated after the day of its release time" in text
+    assert "patterns.py moved --ran" in text
+    assert "`No rubric` always counts as run" in text
+
+
+def test_the_report_has_a_proposals_section() -> None:
+    """Criterion 9: after `## Escapes`, before `## Tickets`, with its parts."""
+    text = step("Report")
+    assert text.index("`## Escapes`") < text.index("`## Proposals`")
+    assert text.index("`## Proposals`") < text.index("`## Tickets`")
+    section_text = text.split("`## Proposals`", 1)[1].split("`## Tickets`", 1)[0]
+    positions = [
+        section_text.index(part)
+        for part in (
+            "`### New`",
+            '"Already proposed:"',
+            '"Over the cap of 10:"',
+            "`### Earlier proposals`",
+        )
+    ]
+    assert positions == sorted(positions)
+    assert "the count of patterns and of new proposals" in text
+
+
+def test_the_message_lists_the_new_proposals_and_what_moved() -> None:
+    """Criterion 9."""
+    text = step("Message")
+    assert "the new proposals, each with its title and link" in text
+    assert "how many earlier proposals moved better and how many worse" in text
+
+
+def test_a_rubric_argument_limits_the_patterns() -> None:
+    """Criterion 9: the rubric that ran and the `No rubric` rows."""
+    assert (
+        "patterns come only from the rubric that ran and from the `No rubric` escape "
+        "rows"
+    ) in step("Patterns")
+    assert "`no data (rubric not run)`" in step("Proposals")
+
+
+PROPOSAL_GLOSSARY_ROWS = (
+    (
+        "| Pattern | A problem that an audit finds across tickets or audits: a check "
+        "that fails or is partial on at least 3 audited tickets in one audit; a "
+        "measure or escape rate whose audit-wide row is worse than at the last audit, "
+        "two audits in a row; or a Process logic check that fails or is partial. A "
+        "minor problem counts only as part of a pattern. Only a pattern leads to a "
+        "proposal. |"
+    ),
+    (
+        "| Proposal | A change to a craft skill or step that an audit proposes from a "
+        "pattern, with the measure it should move and that measure's value at the "
+        "proposal. It is a ticket in **Backlog** with the label `audit`. It links the "
+        "audit report, and its ticket and spec may describe the evidence behind it, "
+        "with short examples. Its title names only the craft change. Its PR, branch, "
+        "and repo files quote only craft's own skill text and summary numbers, and a "
+        "`note=` on the ticket tells every step so (`docs/adr/0009`). Later audits "
+        "report how its measure moved after its release. |"
+    ),
+    (
+        "| Audit-wide row | A row of `## Scores` with the craft version `all`: the "
+        "Phase score, a per-ticket check, a measure value, or an escape row, over all "
+        "tickets of one audit that its rows per craft version count. The Pattern rule "
+        "compares these rows between audits. |"
+    ),
+)
+
+
+def test_the_glossary_has_the_proposal_terms() -> None:
+    """Criterion 10: Pattern, Proposal, and Audit-wide row after Phase score."""
+    lines = (ROOT / "GLOSSARY.md").read_text(encoding="utf-8").splitlines()
+    for line in PROPOSAL_GLOSSARY_ROWS:
+        assert line in lines, line
+    phase = next(
+        i for i, line in enumerate(lines) if line.startswith("| Phase score |")
+    )
+    assert lines[phase + 1] == PROPOSAL_GLOSSARY_ROWS[2]

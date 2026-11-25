@@ -193,6 +193,7 @@ def test_one_row_per_rubric_version_craft_version_and_item(tmp_path: Path) -> No
         ("2.9.0", "Process logic"),
         *(("2.10.0", item) for item in items),
         ("2.10.0", "Process logic"),
+        *(("all", item) for item in items),
     ]
     assert {r["Rubric version"] for r in table(out)} == {"2"}
 
@@ -296,11 +297,16 @@ def test_a_custom_rubric_gets_its_rows(tmp_path: Path) -> None:
         rubrics=["speed"],
         rubrics_dir=tmp_path / "rubrics",
     )
-    items = [(r["Rubric"], r["Rubric version"], r["Item"]) for r in table(out)]
+    items = [
+        (r["Rubric"], r["Rubric version"], r["Craft version"], r["Item"])
+        for r in table(out)
+    ]
     assert items == [
-        ("Speed", "3", "Phase score"),
-        ("Speed", "3", "Quick"),
-        ("Speed", "3", "Hooks"),
+        ("Speed", "3", "2.9.0", "Phase score"),
+        ("Speed", "3", "2.9.0", "Quick"),
+        ("Speed", "3", "2.9.0", "Hooks"),
+        ("Speed", "3", "all", "Phase score"),
+        ("Speed", "3", "all", "Quick"),
     ]
 
 
@@ -333,7 +339,8 @@ def test_a_new_craft_version_gives_dashes(tmp_path: Path) -> None:
     """No row for 2.9.1 in the previous report."""
     first = scores(tmp_path, [ticket(1, judged("2.9.0"))])
     second = scores(tmp_path, [ticket(2, judged("2.9.1"))], previous=first)
-    assert {r["At last audit"] for r in table(second)} == {"—"}
+    per_version = [r for r in table(second) if r["Craft version"] != "all"]
+    assert {r["At last audit"] for r in per_version} == {"—"}
 
 
 CRAFT_85 = """# Audit: 2026-11-23
@@ -561,9 +568,13 @@ def test_each_phase_with_no_escape_item_gets_a_no_rubric_row(
     out = scores(tmp_path, [], escapes=escapes([searched(1), searched(2)], []))
     assert escape_rows(out) == [
         ("Review", "2", "2.9.2", BLIND_SPOTS, "2", "0.00", "—"),
+        ("Review", "2", "all", BLIND_SPOTS, "2", "0.00", "—"),
         (NO_RUBRIC, "—", "2.9.2", "Escapes: plan", "2", "0.00", "—"),
+        (NO_RUBRIC, "—", "all", "Escapes: plan", "2", "0.00", "—"),
         (NO_RUBRIC, "—", "2.9.2", "Escapes: spec", "2", "0.00", "—"),
+        (NO_RUBRIC, "—", "all", "Escapes: spec", "2", "0.00", "—"),
         (NO_RUBRIC, "—", "2.9.2", "Escapes: build", "2", "0.00", "—"),
+        (NO_RUBRIC, "—", "all", "Escapes: build", "2", "0.00", "—"),
     ]
 
 
@@ -666,7 +677,11 @@ def test_blind_spots_follows_the_review_rows_of_its_version(tmp_path: Path) -> N
         ],
         escapes=escapes([searched(1)], [trace(1)]),
     )
-    items = [r["Item"] for r in table(out) if r["Rubric"] == "Review"]
+    items = [
+        r["Item"]
+        for r in table(out)
+        if (r["Rubric"], r["Craft version"]) == ("Review", "2.9.2")
+    ]
     assert items[-2:] == ["Process logic", BLIND_SPOTS]
     assert row(out, "2.9.2", "Phase score")["Value"] == "1.00"
 
@@ -679,7 +694,7 @@ def test_a_rubric_argument_prints_only_its_escape_row(tmp_path: Path) -> None:
         rubrics=["build"],
         escapes=escapes([searched(1)], [trace(1)]),
     )
-    assert [r[3] for r in escape_rows(out)] == [
+    assert [r[3] for r in escape_rows(out) if r[2] != "all"] == [
         "Escapes: plan",
         "Escapes: spec",
         "Escapes: build",
@@ -720,3 +735,135 @@ def test_a_wrong_escapes_key_fails(tmp_path: Path, bad: Json, error: str) -> Non
     assert result.returncode == 2  # noqa: PLR2004 - the error code.
     assert error in result.stderr
     assert result.stdout == ""
+
+
+# CRAFT-93 criterion 1: the audit-wide rows.
+
+
+def test_audit_wide_rows_follow_the_rows_per_craft_version(tmp_path: Path) -> None:
+    """One `all` row per item, after every craft version, with no Process logic."""
+    out = scores(
+        tmp_path,
+        [ticket(1, judged("2.9.1")), ticket(2, judged("2.9.2"))],
+        per_version=[
+            {"rubric": "review", "craft_version": v, "item": "Process logic"}
+            | {"result": "fail"}
+            for v in ("2.9.1", "2.9.2")
+        ],
+        escapes=escapes([searched(1, "2.9.1"), searched(2)], []),
+    )
+    review = [
+        (r["Craft version"], r["Item"]) for r in table(out) if r["Rubric"] == "Review"
+    ]
+    assert review[-7:] == [
+        ("all", "Phase score"),
+        ("all", "Read in context"),
+        ("all", "Criteria evidence"),
+        ("all", "Design and maintainability"),
+        ("all", ROUNDS),
+        ("all", BLOCKING),
+        ("all", BLIND_SPOTS),
+    ]
+    assert ("all", "Process logic") not in review
+    assert {r["Craft version"] for r in table(out)[: len(review) - 7]} == {
+        "2.9.1",
+        "2.9.2",
+    }
+
+
+def test_an_audit_wide_check_counts_every_ticket(tmp_path: Path) -> None:
+    """The share and the counts over all craft versions."""
+    out = scores(
+        tmp_path,
+        [
+            ticket(1, judged("2.9.1", checks(design="pass"))),
+            ticket(2, judged("2.9.1", checks(design="partial"))),
+            ticket(3, judged("2.9.2", checks(design="fail"))),
+            ticket(4, judged("2.9.2", checks(design="no data"))),
+        ],
+    )
+    design = row(out, "all", "Design and maintainability")
+    assert (design["Judged"], design["Value"], design["Pass/partial/fail"]) == (
+        "3",
+        "0.33",
+        "1/1/1",
+    )
+    phase = row(out, "all", "Phase score")
+    assert (phase["Judged"], phase["Pass/partial/fail"]) == ("11", "9/1/1")
+
+
+def test_an_audit_wide_median_is_over_the_tickets(tmp_path: Path) -> None:
+    """Medians 1 (2.9.1) and 6 (2.9.2), but 5 over the five tickets."""
+    out = scores(
+        tmp_path,
+        [
+            ticket(1, judged("2.9.1", rounds=1)),
+            ticket(2, judged("2.9.1", rounds=1)),
+            ticket(3, judged("2.9.1", rounds=None)),
+            ticket(4, judged("2.9.2", rounds=5)),
+            ticket(5, judged("2.9.2", rounds=10)),
+            ticket(6, judged("2.9.2", rounds=6)),
+        ],
+    )
+    assert row(out, "2.9.1", ROUNDS)["Value"] == "1"
+    assert row(out, "2.9.2", ROUNDS)["Value"] == "6"
+    audit_wide = row(out, "all", ROUNDS)
+    assert (audit_wide["Judged"], audit_wide["Value"]) == ("5", "5")
+
+
+def test_an_audit_wide_escape_row_sums_its_rows(tmp_path: Path) -> None:
+    """Judged is the sum of the Judged per craft version: spec tickets for review."""
+    out = scores(
+        tmp_path,
+        [],
+        escapes=escapes(
+            [
+                searched(1, "2.9.1"),
+                searched(2, "2.9.1", spec=False),
+                searched(3, "2.9.2"),
+                searched(4, "2.9.2"),
+            ],
+            [trace(1), trace(2), trace(3, "build"), trace(4, "build")],
+        ),
+    )
+    blind = row(out, "all", BLIND_SPOTS)
+    assert (blind["Judged"], blind["Value"]) == ("3", "0.33")
+    build = row(out, "all", "Escapes: build", NO_RUBRIC)
+    assert (build["Judged"], build["Value"]) == ("4", "0.50")
+
+
+def test_an_audit_wide_escape_row_with_no_judged_ticket_has_no_data(
+    tmp_path: Path,
+) -> None:
+    """Summed Judged 0 is no data, as in its rows per craft version."""
+    out = scores(tmp_path, [], escapes=escapes([searched(1, spec=False)], []))
+    blind = row(out, "all", BLIND_SPOTS)
+    assert (blind["Judged"], blind["Value"]) == ("0", "no data")
+
+
+def test_a_check_per_craft_version_has_no_audit_wide_row(tmp_path: Path) -> None:
+    """Process logic is judged once per craft version, so it stays per version."""
+    out = scores(
+        tmp_path,
+        [ticket(1, judged("2.9.2"))],
+        per_version=[
+            {"rubric": "review", "craft_version": "2.9.2", "item": "Process logic"}
+            | {"result": "fail"}
+        ],
+    )
+    assert [r for r in table(out) if r["Item"] == "Process logic"] == [
+        row(out, "2.9.2", "Process logic")
+    ]
+
+
+def test_an_audit_wide_row_has_its_trend(tmp_path: Path) -> None:
+    """At last audit reads the previous report's row with `all`."""
+    first = scores(tmp_path, [ticket(1, judged("2.9.1", rounds=3))])
+    second = scores(
+        tmp_path,
+        [ticket(2, judged("2.9.2", rounds=4))],
+        previous=first,
+    )
+    audit_wide = row(second, "all", ROUNDS)
+    assert (audit_wide["Value"], audit_wide["At last audit"]) == ("4", "3")
+    assert row(second, "2.9.2", ROUNDS)["At last audit"] == "—"
