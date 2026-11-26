@@ -55,6 +55,6 @@
 | Functional part | The part of a build review that checks the PR against its spec. |
 | Technical part | The part of a build review that checks the code against the engineering rules and the metric report. |
 | Finding label | The kind of a finding, next to its severity: `spec`, `rule`, `lens`, or `lesson` (`docs/adr/0012`). |
-| Lesson | A rule candidate from a blocking technical finding or from technical owner feedback at the merge gate, marked `project` or `stack`. The owner approves its wording at the merge gate. A stack lesson also becomes a Backlog ticket with the label `profile` in the Craft project. |
+| Lesson | A rule candidate from a blocking technical finding or from technical owner feedback at the merge gate, marked `project` or `stack`. A `lens` finding turned into feedback counts only the second time for the same kind of problem. The owner approves its wording at the merge gate. A stack lesson also becomes a Backlog ticket with the label `profile` in the Craft project. |
 | Metric report | The report that a project's verify skill and CI print for a PR: complexity, CRAP, duplication, and file length of what the PR touches, at the base and at the head. It adds no required check. |
 | Codebase review | A run of `craft:review scope=codebase`. It runs the technical part over the whole repo, module by module, writes the Linear document `Codebase review: <date>`, and files its findings as Backlog tickets with the label `cleanup`. |

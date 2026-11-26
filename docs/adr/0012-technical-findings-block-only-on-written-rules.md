@@ -7,7 +7,7 @@ Each finding keeps one of the two severities, blocking or non-blocking, and also
 - `spec`: a functional finding. Blocking.
 - `rule`: a written rule is broken, a metric is over its threshold, or the PR adds a new duplicate of existing code. The finding names the rule. Blocking.
 - `lens`: a judgement call, named by a smell or a principle. Non-blocking.
-- `lesson`: a rule candidate, marked `project` or `stack`. It comes only from a blocking technical finding or from technical owner feedback at the merge gate. The owner approves its wording at the merge gate before it is written.
+- `lesson`: a rule candidate, marked `project` or `stack`. It comes only from a blocking technical finding or from technical owner feedback at the merge gate. A `lens` finding that the owner turns into feedback becomes a lesson only the second time for the same kind of problem. The owner approves its wording at the merge gate before it is written.
 
 Tools measure complexity, CRAP, duplication, and file length in each project's verify skill and CI, as a metric report that compares the base and the head of the PR. The report adds no required check. The reviewer judges the change: a PR must not push a function or a file that it touches over a threshold. Excess that the PR did not cause is for the codebase review.
 
