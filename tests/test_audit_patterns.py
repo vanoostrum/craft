@@ -157,6 +157,69 @@ def test_a_copied_process_logic_fail_is_a_pattern_again(tmp_path: Path) -> None:
     assert len(again) == 1
 
 
+def test_one_process_logic_line_per_rubric_and_item(tmp_path: Path) -> None:
+    """CRAFT-99 criteria 1 and 2, Review focus 1: the newest failing version."""
+    rows = (
+        logic("fail", "2.8.0"),
+        logic("pass", "2.9.0"),
+        logic("partial", "2.9.1"),
+    )
+    assert find(tmp_path, scores(*rows)) == [
+        [
+            "process logic",
+            "Review",
+            "2",
+            "2.9.1",
+            LOGIC,
+            "partial",
+            "partial at craft version 2.9.1; fail at craft version 2.8.0",
+        ]
+    ]
+
+
+def test_the_newest_failing_version_is_by_number(tmp_path: Path) -> None:
+    """CRAFT-99 criterion 2: 2.10.0 is newer than 2.9.2, in any table order."""
+    rows = (logic("fail", "2.10.0"), logic("partial", "2.9.2"))
+    lines = find(tmp_path, scores(*rows))
+    assert [line[3] for line in lines] == ["2.10.0"]
+    assert lines[0][6] == (
+        "fail at craft version 2.10.0; partial at craft version 2.9.2"
+    )
+
+
+def test_one_failing_version_prints_the_line_of_today(tmp_path: Path) -> None:
+    """CRAFT-99 criterion 3: the same line as with one row."""
+    one = find(tmp_path, scores(logic("fail", "2.8.0")))
+    with_passes = find(
+        tmp_path,
+        scores(logic("pass", "2.7.0"), logic("fail", "2.8.0"), logic("pass", "2.9.0")),
+    )
+    assert one == with_passes
+    assert one[0][6] == "fail at craft version 2.8.0"
+
+
+def test_the_same_item_in_two_rubrics_gives_two_lines(tmp_path: Path) -> None:
+    """CRAFT-99 criterion 4, Review focus 2: one line per rubric."""
+    rows = (
+        logic("fail", "2.8.0"),
+        logic("fail", "2.8.0", "Build"),
+        logic("partial", "2.9.0"),
+        logic("fail", "2.9.0", "Build"),
+    )
+    lines = find(tmp_path, scores(*rows))
+    assert [(line[1], line[3], line[5]) for line in lines] == [
+        ("Review", "2.9.0", "partial"),
+        ("Build", "2.9.0", "fail"),
+    ]
+
+
+def test_another_rubric_version_gives_its_own_line(tmp_path: Path) -> None:
+    """CRAFT-99 criterion 1: lines merge per rubric version too."""
+    old = ("Review", "1", "2.8.0", LOGIC, "—", "fail", "—", "—")
+    lines = find(tmp_path, scores(old, logic("fail", "2.9.0")))
+    assert [(line[2], line[3]) for line in lines] == [("1", "2.8.0"), ("2", "2.9.0")]
+
+
 # Criterion 3: trend patterns.
 
 
@@ -427,6 +490,74 @@ def test_process_logic_moves_by_result(
     assert (rows[0]["Value now"], rows[0]["Moved"]) == (now, result)
 
 
+def test_process_logic_value_now_is_from_at_or_after_the_release(
+    tmp_path: Path,
+) -> None:
+    """CRAFT-99 criterion 5, Review focus 3 and 5: by number, the release counts."""
+    rows = moved(
+        tmp_path,
+        [
+            proposal(7, "fail", item=LOGIC, released="2.10.0"),
+            proposal(8, "fail", item=LOGIC, released="2.9.2"),
+        ],
+        scores(logic("fail", "2.9.2"), logic("pass", "2.10.0")),
+    )
+    assert [(r["Value now"], r["Moved"]) for r in rows] == [
+        ("pass", "better"),
+        ("pass", "better"),
+    ]
+    rows = moved(
+        tmp_path,
+        [proposal(7, "fail", item=LOGIC, released="2.9.2")],
+        scores(logic("partial", "2.9.2"), logic("pass", "2.9.1")),
+    )
+    assert (rows[0]["Value now"], rows[0]["Moved"]) == ("partial", "better")
+
+
+def test_process_logic_with_no_row_since_the_release_has_no_data(
+    tmp_path: Path,
+) -> None:
+    """CRAFT-99 criterion 6, Review focus 3 and 4: never `same`."""
+    rows = moved(
+        tmp_path,
+        [proposal(7, "fail", item=LOGIC, released="2.10.0")],
+        scores(logic("fail", "2.9.2"), logic("fail", "2.9.10")),
+    )
+    assert (rows[0]["Value now"], rows[0]["Moved"]) == (
+        "no data (no result since release)",
+        "no data",
+    )
+
+
+def test_unreleased_process_logic_has_the_newest_version(tmp_path: Path) -> None:
+    """CRAFT-99 criterion 7: Value now from the newest version, not released."""
+    rows = moved(
+        tmp_path,
+        [proposal(7, "fail", item=LOGIC, released=None, state="Backlog")],
+        scores(logic("partial", "2.10.0"), logic("fail", "2.9.2")),
+    )
+    assert (rows[0]["Value now"], rows[0]["Moved"]) == ("partial", "not released")
+
+
+@pytest.mark.parametrize("released", ["2.10.0", "v2.10.0"])
+def test_a_leading_v_in_released_compares_the_same(
+    tmp_path: Path, released: str
+) -> None:
+    """CRAFT-99 criterion 9, Review focus 6: the cell shows `released` as written."""
+    rows = moved(
+        tmp_path,
+        [
+            proposal(7, "fail", item=LOGIC, released=released),
+            proposal(8, "fail", item=LOGIC, released=f"{released[:-1]}1"),
+        ],
+        scores(logic("fail", "2.9.2"), logic("pass", "2.10.0")),
+    )
+    assert [(r["Released in"], r["Value now"], r["Moved"]) for r in rows] == [
+        (released, "pass", "better"),
+        (f"{released[:-1]}1", "no data (no result since release)", "no data"),
+    ]
+
+
 def test_a_rubric_that_did_not_run_has_no_data(tmp_path: Path) -> None:
     """Value now says why; Moved is no data."""
     build = proposal(7, 2, item="Attempts: CI reds", rubric=("Build", "1"))
@@ -495,3 +626,82 @@ def test_a_wrong_command_fails() -> None:
     )
     assert result.returncode == 2  # noqa: PLR2004 - the error code.
     assert "Usage" in result.stderr
+
+
+# CRAFT-99 criterion 8: `scores.py`, then `patterns.py find`.
+
+
+def test_find_reads_what_scores_prints(tmp_path: Path) -> None:
+    """A check pattern, and one merged Process logic pattern for two versions."""
+    checks = {
+        "Read in context": "pass",
+        "Criteria evidence": "pass",
+        DESIGN: "fail",
+    }
+    tickets = [
+        {
+            "project": "Demo",
+            "ticket": f"CRAFT-{number}",
+            "pr": number,
+            "rubrics": {
+                "review": {
+                    "craft_version": version,
+                    "checks": checks,
+                    "measures": {
+                        "Findings rounds": {
+                            "Rounds until PASS": 1,
+                            "Blocking per round": 0,
+                        }
+                    },
+                }
+            },
+        }
+        for number, version in ((1, "2.9.2"), (2, "2.10.0"), (3, "2.10.0"))
+    ]
+    audit = tmp_path / "audit.json"
+    audit.write_text(
+        json.dumps(
+            {
+                "rubrics": ["review"],
+                "tickets": tickets,
+                "per_version": [
+                    {
+                        "rubric": "review",
+                        "craft_version": version,
+                        "item": LOGIC,
+                        "result": "fail",
+                    }
+                    for version in ("2.9.2", "2.10.0")
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    printed = subprocess.run(  # noqa: S603
+        [sys.executable, str(SCRIPT.with_name("scores.py")), str(audit)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert printed.returncode == 0, printed.stderr
+    lines = find(tmp_path, printed.stdout)
+    assert lines == [
+        [
+            "process logic",
+            "Review",
+            "2",
+            "2.10.0",
+            LOGIC,
+            "fail",
+            "fail at craft version 2.10.0; fail at craft version 2.9.2",
+        ],
+        [
+            "check",
+            "Review",
+            "2",
+            "all",
+            DESIGN,
+            "0.00",
+            "3 of 3 tickets fail or partial",
+        ],
+    ]

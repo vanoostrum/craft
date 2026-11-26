@@ -153,11 +153,37 @@ def judged(row: Row) -> bool:
     return count is not None and count >= MIN_JUDGED
 
 
-def process_logic(row: Row) -> str | None:
-    """Return the why of a Process logic pattern, or None."""
-    if row.per_version and row.value in ("fail", "partial"):
-        return f"{row.value} at craft version {row.craft_version}"
-    return None
+def failing(row: Row) -> bool:
+    """Whether a check judged once per craft version fails or is partial."""
+    return row.per_version and row.value in ("fail", "partial")
+
+
+def process_logic(now: list[Row]) -> list[str]:
+    """Return one Process logic line per rubric, rubric version, and item.
+
+    The line names the newest craft version with fail or partial and keeps its
+    place in table order; Why lists each failing version, newest first.
+    """
+    groups: dict[tuple[str, str, str], list[Row]] = {}
+    for row in filter(failing, now):
+        groups.setdefault((row.rubric, row.rubric_version, row.item), []).append(row)
+    newest: dict[Row, list[Row]] = {}
+    for group in groups.values():
+        ordered = sorted(
+            group, key=lambda row: version_order(row.craft_version), reverse=True
+        )
+        newest[ordered[0]] = ordered
+    return [
+        row.line(
+            "process logic",
+            "; ".join(
+                f"{each.value} at craft version {each.craft_version}"
+                for each in newest[row]
+            ),
+        )
+        for row in now
+        if row in newest
+    ]
 
 
 def check(row: Row) -> str | None:
@@ -188,16 +214,25 @@ def find(now: list[Row], previous: list[Row]) -> list[str]:
     """Return the pattern lines, in kind order, then table order."""
     earlier = {row.key: row for row in previous}
     finders = (
-        ("process logic", process_logic),
         ("check", check),
         ("trend", lambda row: trend(row, earlier)),
     )
-    return [
+    return process_logic(now) + [
         row.line(kind, why)
         for kind, finder in finders
         for row in now
         if (why := finder(row)) is not None
     ]
+
+
+def release_version(released: object) -> str:
+    """Return a release's craft version with one leading `v` dropped."""
+    return str(released).removeprefix("v")
+
+
+def at_or_after(version: str, release: str) -> bool:
+    """Whether a craft version is the release or newer, by number."""
+    return sorted((release, version), key=version_order)[-1] == version
 
 
 def value_now(proposal: dict[str, object], now: list[Row], ran: set[str]) -> str:
@@ -216,6 +251,14 @@ def value_now(proposal: dict[str, object], now: list[Row], ran: set[str]) -> str
     matching = [row for row in same if row.item == item]
     per_version = [row for row in matching if row.per_version]
     if per_version:
+        released = proposal["released"]
+        if released is not None:
+            release = release_version(released)
+            per_version = [
+                row for row in per_version if at_or_after(row.craft_version, release)
+            ]
+            if not per_version:
+                return f"{NO_DATA} (no result since release)"
         newest = max(per_version, key=lambda row: version_order(row.craft_version))
         return newest.value
     audit_wide = [row for row in matching if row.craft_version == ALL]
