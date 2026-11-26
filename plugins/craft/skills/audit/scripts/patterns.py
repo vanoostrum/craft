@@ -16,7 +16,11 @@ it.
     <kind> | <rubric> | <rubric version> | <craft version> | <item> | <value> | <why>
 
 - `process logic`: a check judged once per craft version, with the result
-  fail or partial, at any craft version.
+  fail or partial, at any craft version. It gives one line per rubric, rubric
+  version, and item: the line names the newest craft version with fail or
+  partial and its result, and keeps that row's place in table order. Its why
+  lists each failing craft version, newest first, separated by `; `, such as
+  `partial at craft version 2.9.1; fail at craft version 2.8.0`.
 - `check`: a per-ticket check whose audit-wide row (craft version `all`) has 3
   or more tickets with fail or partial.
 - `trend`: an audit-wide measure value or escape row that is higher than at the
@@ -35,11 +39,16 @@ It prints nothing when there is no pattern.
       "value_at_proposal": "0.40"}]
 
 `released` is the craft version of the first release that holds the proposal's
-change, or null. `--ran` names the rubric titles of `## Scores` that ran, such
-as `Review,Build`; `No rubric` always counts as run. It prints a table with one
+change, or null. It may have a leading `v`, such as `v2.10.0`: `moved` drops one
+leading `v` before it compares versions, and shows `released` as written.
+`--ran` names the rubric titles of `## Scores` that ran, such as
+`Review,Build`; `No rubric` always counts as run. It prints a table with one
 row per proposal: Ticket, Title, State, Released in, Measure, Value at
 proposal, Value now, and Moved. Value now is this audit's audit-wide row, or for
-a check judged once per craft version the row of the newest craft version; else
+a check judged once per craft version the row of the newest craft version. For
+a released proposal of such a check, only craft versions at or after
+`released` count, by version order, so 2.10.0 is after 2.9.2; with none, Value
+now is `no data (no result since release)` and Moved is `no data`. Else
 `no data (rubric not run)`, `no data (rubric version changed)`, or `no data`.
 Moved is `not released` before a release, else `better`, `worse`, or `same`
 (higher is worse for a measure or an escape rate, lower is worse for a check,
@@ -232,7 +241,7 @@ def release_version(released: object) -> str:
 
 def at_or_after(version: str, release: str) -> bool:
     """Whether a craft version is the release or newer, by number."""
-    return sorted((release, version), key=version_order)[-1] == version
+    return max((version, release), key=version_order) == version
 
 
 def value_now(proposal: dict[str, object], now: list[Row], ran: set[str]) -> str:

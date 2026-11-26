@@ -732,11 +732,35 @@ def test_the_pattern_rule() -> None:
 
 
 def test_an_old_process_logic_row_before_a_release_is_no_pattern() -> None:
-    """Criterion 6: a craft version before a Done proposal's release."""
+    """Criterion 6, CRAFT-99 criterion 10: the pattern's craft version, by number."""
+    text = step("Patterns")
     assert (
-        "Leave out the row of a craft version before the Released in of a **Done** "
-        "proposal for the same rubric and item"
-    ) in step("Patterns")
+        "Leave out the pattern when its craft version is before the Released in of a "
+        "**Done** proposal for the same rubric and item"
+    ) in text
+    assert (
+        "Compare the two by number, as `version_order` in `scores.py` does, after one "
+        "leading `v` is dropped from Released in, so `v2.10.0` is after 2.9.2."
+    ) in text
+
+
+def test_a_process_logic_item_is_one_pattern() -> None:
+    """CRAFT-99 criterion 10: one pattern per rubric and item."""
+    text = step("Patterns")
+    assert "It gives one pattern per rubric and item" in text
+    assert "the line names the newest of those craft versions and its result" in text
+
+
+def test_at_most_one_proposal_per_rubric_and_item() -> None:
+    """CRAFT-99 criterion 10: the Cap rule, and Moved since the release."""
+    text = step("Proposals")
+    assert "one per pattern, and at most one per rubric and item" in text
+    assert (
+        "For a released Process logic proposal, Moved uses only Process logic "
+        "results at or after its Released in"
+    ) in text
+    assert "`no data (no result since release)`" in text
+    assert "`released` may have a leading `v`." in text
 
 
 def test_four_kinds_of_proposal_block_a_pattern() -> None:
@@ -882,7 +906,8 @@ PROPOSAL_GLOSSARY_ROWS = (
         "| Pattern | A problem that an audit finds across tickets or audits: a check "
         "that fails or is partial on at least 3 audited tickets in one audit; a "
         "measure or escape rate whose audit-wide row is worse than at the last audit, "
-        "two audits in a row; or a Process logic check that fails or is partial. A "
+        "two audits in a row; or a Process logic check that fails or is partial at "
+        "one or more craft versions, which is one pattern per rubric and item. A "
         "minor problem counts only as part of a pattern. Only a pattern leads to a "
         "proposal. |"
     ),

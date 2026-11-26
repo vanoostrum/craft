@@ -628,6 +628,21 @@ def test_a_wrong_command_fails() -> None:
     assert "Usage" in result.stderr
 
 
+def test_the_usage_text_says_the_rules_of_craft_99() -> None:
+    """CRAFT-99 criterion 10: one line per item, results since the release, `v`."""
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, str(SCRIPT)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    usage = " ".join(result.stderr.split())
+    assert "It gives one line per rubric, rubric version, and item" in usage
+    assert "only craft versions at or after `released` count, by version order" in usage
+    assert "`no data (no result since release)`" in usage
+    assert "It may have a leading `v`, such as `v2.10.0`" in usage
+
+
 # CRAFT-99 criterion 8: `scores.py`, then `patterns.py find`.
 
 
