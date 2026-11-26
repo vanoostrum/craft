@@ -47,3 +47,14 @@
 | Blind spot | An escape that an audit judge traces to the review phase. The Review rubric counts blind spots in its Blind spots item. |
 | Proposal | A change to a craft skill or step that an audit proposes from a pattern, with the measure it should move and that measure's value at the proposal. It is a ticket in **Backlog** with the label `audit`. It links the audit report, and its ticket and spec may describe the evidence behind it, with short examples. Its title names only the craft change. Its PR, branch, and repo files quote only craft's own skill text and summary numbers, and a `note=` on the ticket tells every step so (`docs/adr/0009`). Later audits report how its measure moved after its release. |
 | Audit report | The Linear document `Audit: <yyyy-mm-dd>` in the Craft project that an audit writes. Its `## Scores` table is what the next audit reads for the trend. |
+| Engineering rules | The written rules that a project's code must follow, in three layers: the shared rules, the stack profiles, and the project rules. The project rules win over the profile, and the profile wins over the shared rules (`docs/adr/0011`). `craft:spec`, `craft:build`, and `craft:review` read all three. |
+| Shared rules | The engineering rules for every project: `plugins/craft/skills/rules/engineering.md`. |
+| Stack profile | The engineering rules for one stack, such as `python-fastapi`: `plugins/craft/skills/rules/profiles/<stack>.md`. It names the structure, the naming, the libraries, the error handling, and the metric tools with their thresholds. |
+| Project rules | A project's own engineering rules: `docs/engineering.md` in its repo. Each rule links the ADR, the `CLAUDE.md` line, or the code behind it. |
+| Stacks | The key in `.claude/craft.md` that names the stack profile of each path of the repo, such as `` `/` → `python-fastapi` ``, or `none`. |
+| Functional part | The part of a build review that checks the PR against its spec. |
+| Technical part | The part of a build review that checks the code against the engineering rules and the metric report. |
+| Finding label | The kind of a finding, next to its severity: `spec`, `rule`, `lens`, or `lesson` (`docs/adr/0012`). |
+| Lesson | A rule candidate from a blocking technical finding or from technical owner feedback at the merge gate, marked `project` or `stack`. The owner approves its wording at the merge gate. A stack lesson also becomes a Backlog ticket with the label `profile` in the Craft project. |
+| Metric report | The report that a project's verify skill and CI print for a PR: complexity, CRAP, duplication, and file length of what the PR touches, at the base and at the head. It adds no required check. |
+| Codebase review | A run of `craft:review scope=codebase`. It runs the technical part over the whole repo, module by module, writes the Linear document `Codebase review: <date>`, and files its findings as Backlog tickets with the label `cleanup`. |
