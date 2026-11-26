@@ -16,7 +16,11 @@ it.
     <kind> | <rubric> | <rubric version> | <craft version> | <item> | <value> | <why>
 
 - `process logic`: a check judged once per craft version, with the result
-  fail or partial, at any craft version.
+  fail or partial, at any craft version. It gives one line per rubric, rubric
+  version, and item: the line names the newest craft version with fail or
+  partial and its result, and keeps that row's place in table order. Its why
+  lists each failing craft version, newest first, separated by `; `, such as
+  `partial at craft version 2.9.1; fail at craft version 2.8.0`.
 - `check`: a per-ticket check whose audit-wide row (craft version `all`) has 3
   or more tickets with fail or partial.
 - `trend`: an audit-wide measure value or escape row that is higher than at the
@@ -35,11 +39,16 @@ It prints nothing when there is no pattern.
       "value_at_proposal": "0.40"}]
 
 `released` is the craft version of the first release that holds the proposal's
-change, or null. `--ran` names the rubric titles of `## Scores` that ran, such
-as `Review,Build`; `No rubric` always counts as run. It prints a table with one
+change, or null. It may have a leading `v`, such as `v2.10.0`: `moved` drops one
+leading `v` before it compares versions, and shows `released` as written.
+`--ran` names the rubric titles of `## Scores` that ran, such as
+`Review,Build`; `No rubric` always counts as run. It prints a table with one
 row per proposal: Ticket, Title, State, Released in, Measure, Value at
 proposal, Value now, and Moved. Value now is this audit's audit-wide row, or for
-a check judged once per craft version the row of the newest craft version; else
+a check judged once per craft version the row of the newest craft version. For
+a released proposal of such a check, only craft versions at or after
+`released` count, by version order, so 2.10.0 is after 2.9.2; with none, Value
+now is `no data (no result since release)` and Moved is `no data`. Else
 `no data (rubric not run)`, `no data (rubric version changed)`, or `no data`.
 Moved is `not released` before a release, else `better`, `worse`, or `same`
 (higher is worse for a measure or an escape rate, lower is worse for a check,
@@ -153,11 +162,37 @@ def judged(row: Row) -> bool:
     return count is not None and count >= MIN_JUDGED
 
 
-def process_logic(row: Row) -> str | None:
-    """Return the why of a Process logic pattern, or None."""
-    if row.per_version and row.value in ("fail", "partial"):
-        return f"{row.value} at craft version {row.craft_version}"
-    return None
+def failing(row: Row) -> bool:
+    """Whether a check judged once per craft version fails or is partial."""
+    return row.per_version and row.value in ("fail", "partial")
+
+
+def process_logic(now: list[Row]) -> list[str]:
+    """Return one Process logic line per rubric, rubric version, and item.
+
+    The line names the newest craft version with fail or partial and keeps its
+    place in table order; Why lists each failing version, newest first.
+    """
+    groups: dict[tuple[str, str, str], list[Row]] = {}
+    for row in filter(failing, now):
+        groups.setdefault((row.rubric, row.rubric_version, row.item), []).append(row)
+    newest: dict[Row, list[Row]] = {}
+    for group in groups.values():
+        ordered = sorted(
+            group, key=lambda row: version_order(row.craft_version), reverse=True
+        )
+        newest[ordered[0]] = ordered
+    return [
+        row.line(
+            "process logic",
+            "; ".join(
+                f"{each.value} at craft version {each.craft_version}"
+                for each in newest[row]
+            ),
+        )
+        for row in now
+        if row in newest
+    ]
 
 
 def check(row: Row) -> str | None:
@@ -188,16 +223,25 @@ def find(now: list[Row], previous: list[Row]) -> list[str]:
     """Return the pattern lines, in kind order, then table order."""
     earlier = {row.key: row for row in previous}
     finders = (
-        ("process logic", process_logic),
         ("check", check),
         ("trend", lambda row: trend(row, earlier)),
     )
-    return [
+    return process_logic(now) + [
         row.line(kind, why)
         for kind, finder in finders
         for row in now
         if (why := finder(row)) is not None
     ]
+
+
+def release_version(released: object) -> str:
+    """Return a release's craft version with one leading `v` dropped."""
+    return str(released).removeprefix("v")
+
+
+def at_or_after(version: str, release: str) -> bool:
+    """Whether a craft version is the release or newer, by number."""
+    return max((version, release), key=version_order) == version
 
 
 def value_now(proposal: dict[str, object], now: list[Row], ran: set[str]) -> str:
@@ -216,6 +260,14 @@ def value_now(proposal: dict[str, object], now: list[Row], ran: set[str]) -> str
     matching = [row for row in same if row.item == item]
     per_version = [row for row in matching if row.per_version]
     if per_version:
+        released = proposal["released"]
+        if released is not None:
+            release = release_version(released)
+            per_version = [
+                row for row in per_version if at_or_after(row.craft_version, release)
+            ]
+            if not per_version:
+                return f"{NO_DATA} (no result since release)"
         newest = max(per_version, key=lambda row: version_order(row.craft_version))
         return newest.value
     audit_wide = [row for row in matching if row.craft_version == ALL]
