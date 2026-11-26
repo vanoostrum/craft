@@ -54,7 +54,7 @@
 | Stacks | The key in `.claude/craft.md` that names the stack profile of each path of the repo, such as `` `/` → `python-fastapi` ``, or `none`. |
 | Functional part | The part of a build review that checks the PR against its spec. |
 | Technical part | The part of a build review that checks the code against the engineering rules and the metric report. |
-| Finding label | The kind of a finding, next to its severity: `spec`, `rule`, `lens`, or `lesson` (`docs/adr/0012`). |
+| Finding label | The kind of a build review finding, next to its severity: `spec`, `rule`, `lens`, or `lesson` (`docs/adr/0012`). The spec review and the plan review have no labels. |
 | Lesson | A rule candidate from a blocking technical finding or from technical owner feedback at the merge gate, marked `project` or `stack`. A `lens` finding turned into feedback counts only the second time for the same kind of problem. The owner approves its wording at the merge gate. A stack lesson also becomes a Backlog ticket with the label `profile` in the Craft project, or adds its PR as evidence to an open `profile` ticket with the same rule. |
 | Metric report | The report that a project's verify skill and CI print for a PR: complexity, CRAP, duplication, and file length of what the PR touches, at the base and at the head. It adds no required check. |
 | Codebase review | A run of `craft:review scope=codebase`. It runs the technical part over the whole repo, module by module, writes the Linear document `Codebase review: <date>`, and files its findings as Backlog tickets with the label `cleanup`. |
