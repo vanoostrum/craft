@@ -52,7 +52,11 @@ It runs in a new session, never in the session that ran `craft:spec`. A hook den
 
 ## Fix
 
-**Fix.** A retry after a review FAIL from `craft:review`, or after owner feedback at the merge gate, fixes the PR on its branch. Fix each blocking finding of the review, or each item of the owner's feedback, and follow **Ripple check** in `findings.md` from `craft:rules`. Do not fix a non-blocking finding unless the owner turned it into feedback. Run steps 4 to 8 for what the fix changes, so tests, verify, app evidence, and CI cover it. Then post the fix summary as a PR comment, and continue with `craft:review`: its next review is a follow-up review.
+**Fix.** A retry after a review FAIL from `craft:review`, or after owner feedback at the merge gate, a polish fix included, fixes the PR on its branch. Before you change any file, load `craft:build` again with the Skill tool, with the ticket key in the arguments, such as `CRAFT-12`, so the fix runs in its own `build` segment of the transcript. Feedback that changes the design is the exception: it goes back to `craft:design`, as **UI feedback at the merge gate** in `craft:rules` says.
+
+A fix run skips steps 1 to 3: no claim, no ready checks, and no move to **Building**. The ticket keeps its state, so a fix never puts a second ticket in **Building**.
+
+Fix each blocking finding of the review, or each item of the owner's feedback, and follow **Ripple check** in `findings.md` from `craft:rules`. Do not fix a non-blocking finding unless the owner turned it into feedback. Run steps 4 to 8 for what the fix changes, so tests, verify, app evidence, and CI cover it. Then post the fix summary as a PR comment, and load `craft:review` again with the Skill tool, with the ticket key in the arguments: its next review is a follow-up review.
 
 ## Done when
 
@@ -64,4 +68,4 @@ After 5 failed attempts (app driver, CI, or a review FAIL from `craft:review`), 
 
 ## Next
 
-Continue with `craft:review`.
+Load `craft:review` with the Skill tool, with the ticket key in the arguments, such as `CRAFT-12`.
