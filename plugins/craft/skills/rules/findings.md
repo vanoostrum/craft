@@ -10,7 +10,7 @@ The first review of a spec, a plan, or a PR is a full review.
 
 - Make one complete pass. Check each acceptance criterion, each line under **Review focus**, each row of the **Paths** table, and each changed file or spec section. Do not stop at the first problem.
 - Report all findings at once, in one review. A problem that you see now and hold back costs the ticket a round.
-- List what you checked: each criterion, each Review focus line, and each Paths row, and for a PR each changed file, with the result of each one. The owner and the follow-up reviewer then see that the pass was complete.
+- List what you checked: each criterion, each Review focus line, and each Paths row, and for a PR each changed file, with the result of each one. For a PR in `craft:review`, list each changed file with whether you read it in full. The owner and the follow-up reviewer then see that the pass was complete.
 
 ## Blocking and non-blocking findings
 

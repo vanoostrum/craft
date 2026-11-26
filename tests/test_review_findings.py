@@ -360,3 +360,99 @@ def test_glossary_has_the_review_terms() -> None:
         "| Ripple check |",
     ):
         assert term in glossary
+
+
+# CRAFT-95: the reviewer reads each changed file in full.
+
+
+def reviewer_task() -> str:
+    """Return the quoted task that `craft:review` step 2 gives the fresh reviewer."""
+    text = step(skill("review"), "Review in a fresh agent.")
+    lines = (line.strip() for line in text.splitlines())
+    return " ".join(line[1:].strip() for line in lines if line.startswith(">"))
+
+
+def files_read_text() -> str:
+    """Return the part of the reviewer task that defines **Files read**."""
+    task = reviewer_task()
+    start = task.index("add a **Files read** list")
+    return task[start : task.index("End with the verdict line", start)]
+
+
+def test_reviewer_opens_each_changed_file_in_full() -> None:
+    """Criterion 1, Review focus 4: every changed file, test files too, in full."""
+    task = reviewer_task()
+    assert "open each changed file of the PR in full on the PR branch" in task
+    assert "test files too" in task
+    assert "do not rely on the diff alone" in task
+
+
+def test_review_lists_files_read_before_the_verdict() -> None:
+    """Criterion 2: **Files read** comes before the verdict line, each file marked."""
+    task = reviewer_task()
+    assert "Before the verdict line, add a **Files read** list" in task
+    assert task.index("**Files read**") < task.index("End with the verdict line")
+    text = files_read_text()
+    assert "read in full or skipped" in text
+    assert "in a full review, each changed file of the PR" in text
+
+
+def test_follow_up_files_read_holds_the_files_the_fix_changed() -> None:
+    """Criterion 2: a follow-up review lists the files that the fix changed."""
+    text = files_read_text()
+    assert (
+        "in a follow-up review, each file that the fix changed since the previous"
+        " review" in text
+    )
+
+
+def test_reviewer_may_skip_deleted_binary_lock_and_generated_files() -> None:
+    """Criterion 3, Review focus 1 and 2: the skips, each with its reason."""
+    task = reviewer_task()
+    assert (
+        "You may skip a deleted file, a binary file, a lock file, and a generated"
+        " file" in task
+    )
+    assert "with the reason for each skip" in files_read_text()
+
+
+def test_follow_up_review_opens_the_files_the_fix_changed() -> None:
+    """Criterion 4, Review focus 3: a follow-up opens the fix's files in full."""
+    assert (
+        "In a follow-up review, open in full each file that the fix changed since"
+        " the previous review" in reviewer_task()
+    )
+
+
+def test_findings_lists_each_changed_file_of_a_pr_in_craft_review() -> None:
+    """Criterion 5: the clause is scoped to `craft:review`, not the plan review."""
+    line = next(
+        line
+        for line in section(findings(), "Full review").splitlines()
+        if "List what you checked" in line
+    )
+    assert (
+        "For a PR in `craft:review`, list each changed file with whether you read"
+        " it in full" in line
+    )
+    assert "craft:plan" not in line
+
+
+def test_reviewer_task_keeps_the_spec_diff_and_verdict() -> None:
+    """Criterion 6: the task still reads the spec and diff, and ends the review."""
+    task = reviewer_task()
+    assert "Read the `## Spec` of the Linear ticket and the PR diff" in task
+    assert task.rstrip().endswith("such as `PASS — 0 blocking, 2 non-blocking`.")
+
+
+def test_reviewer_opens_and_lists_the_file_of_each_cited_test() -> None:
+    """Criterion 8, Review focus 5: a cited test's file is opened and listed."""
+    task = reviewer_task()
+    assert (
+        "open in full the file that holds each test that you cite as evidence for"
+        " a criterion or a Review focus line, also when the PR did not change that"
+        " file" in task
+    )
+    assert (
+        "name each file that holds a cited test and that the PR did not change" in task
+    )
