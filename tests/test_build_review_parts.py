@@ -365,3 +365,19 @@ def test_glossary_says_a_lesson_is_never_fixed() -> None:
         if line.startswith("| Non-blocking finding |")
     )
     assert "A `lesson` is never fixed" in line
+
+
+def test_functional_part_checks_the_paths_rows_everywhere() -> None:
+    """Each place that lists the Functional part's checks names the Paths rows."""
+    glossary = (ROOT / "GLOSSARY.md").read_text(encoding="utf-8")
+    places = {
+        "definition": build_review().split("- The **Functional part**", 1)[1],
+        "layout": build_review().split("1. `### Functional part`", 1)[1],
+        "glossary": next(
+            line
+            for line in glossary.splitlines()
+            if line.startswith("| Functional part |")
+        ),
+    }
+    for name, text in places.items():
+        assert "**Paths**" in text.split("\n", 1)[0], name

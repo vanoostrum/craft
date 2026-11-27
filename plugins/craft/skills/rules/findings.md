@@ -46,7 +46,7 @@ List the blocking findings under **Blocking**, then the non-blocking findings un
 
 The build review in `craft:review` has two parts: a **Functional part** and a **Technical part**. Each finding of the build review has exactly one label. The spec review and the plan review have no parts and no labels: their findings follow the lists above, and a broken engineering rule is no finding there.
 
-- The **Functional part** checks the PR against its spec: the criteria, **Review focus**, app evidence, the gallery, scope, and bugs. Its findings have the label `spec`.
+- The **Functional part** checks the PR against its spec: the criteria, **Review focus**, the **Paths** rows, app evidence, the gallery, scope, and bugs. Its findings have the label `spec`.
 - The **Technical part** checks the code against the engineering rules: the rule files, the exceptions in the spec, the search for duplicates, and the structure and fit of the change. Its findings have the label `rule`, `lens`, or `lesson`.
 
 ### Labels

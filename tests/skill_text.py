@@ -3,10 +3,14 @@
 
 import re
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "plugins" / "craft" / "skills"
 RULES = SKILLS / "rules"
+FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 
 def skill(name: str) -> str:
@@ -29,6 +33,25 @@ def step(text: str, name: str) -> str:
     rest = text.split(f"**{name}**", 1)[1].split("\n## ", 1)[0]
     end = re.search(r"\n\s*\d+\. \*\*", rest)
     return rest[: end.start()] if end else rest
+
+
+def numbered_step(text: str, name: str) -> str:
+    """Return the numbered step whose bold name is `name`, up to the next number."""
+    rest = text.split(f"**{name}**", 1)[1].split("\n## ", 1)[0]
+    end = re.search(r"\n\d+\. ", rest)
+    return rest[: end.start()] if end else rest
+
+
+def one_shot() -> str:
+    """Return the One-shot section of `craft:next`."""
+    return section(skill("next"), "One-shot")
+
+
+def frontmatter(path: Path) -> dict[str, Any]:
+    """Return the YAML frontmatter of a markdown file."""
+    match = FRONTMATTER.match(path.read_text(encoding="utf-8"))
+    assert match, f"{path} has no frontmatter"
+    return yaml.safe_load(match.group(1))
 
 
 def reviewer_task() -> str:

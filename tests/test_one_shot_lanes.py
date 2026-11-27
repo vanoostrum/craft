@@ -3,12 +3,7 @@
 
 import pytest
 
-from tests.skill_text import ROOT, SKILLS, section, skill
-
-
-def one_shot() -> str:
-    """Return the One-shot section of `craft:next`."""
-    return section(skill("next"), "One-shot")
+from tests.skill_text import ROOT, SKILLS, one_shot, section, skill
 
 
 def texts() -> dict[str, str]:

@@ -4,11 +4,8 @@
 import json
 import re
 from pathlib import Path
-from typing import Any
 
-import yaml
-
-from tests.skill_text import section
+from tests.skill_text import FRONTMATTER, frontmatter, section
 from tests.test_ci import check_steps
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,19 +13,11 @@ REPO_SKILLS = ROOT / ".claude" / "skills"
 EVALS = ROOT / "plugins" / "craft" / "evals"
 HOOKS = ROOT / "plugins" / "craft" / "hooks" / "hooks.json"
 CASES = sorted(p.parent.name for p in EVALS.glob("*/prompt.md"))
-FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 
 def repo_skill(name: str) -> str:
     """Return the text of a project skill in `.claude/skills/`."""
     return (REPO_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-
-
-def frontmatter(path: Path) -> dict[str, Any]:
-    """Return the YAML frontmatter of a markdown file."""
-    match = FRONTMATTER.match(path.read_text(encoding="utf-8"))
-    assert match, f"{path} has no frontmatter"
-    return yaml.safe_load(match.group(1))
 
 
 def test_project_verify_runs_the_checks_in_ci_order() -> None:
