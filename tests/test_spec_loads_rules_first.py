@@ -212,10 +212,13 @@ def test_fails_when_only_a_skill_names_the_shared_rules() -> None:
     assert not reads_rules_passes(text)
 
 
+READ_TURNS = 10
+
+
 def test_the_case_has_turns_for_the_read() -> None:
     """The case allows 10 turns, so the read fits after the two skills."""
     meta = frontmatter(GRADERS.parent / "prompt.md")
-    assert meta["max_turns"] == 10
+    assert meta["max_turns"] == READ_TURNS
 
 
 def test_feature_map_names_the_read() -> None:

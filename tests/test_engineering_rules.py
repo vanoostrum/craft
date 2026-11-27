@@ -163,6 +163,13 @@ def test_section_reads_the_files_with_the_read_tool() -> None:
     assert "absolute path" in read
 
 
+def test_section_reads_the_shared_rules_first() -> None:
+    """The shared rules come first, also in a repo without `.claude/craft.md`."""
+    read = step(engineering_rules(), "Read the rules.")
+    assert "First read `<rules>/engineering.md`" in read
+    assert "also when `.claude/craft.md` is missing" in read
+
+
 def test_section_skips_missing_files_without_asking() -> None:
     """No `Stacks`, a missing profile, or no project rules: skip and say so."""
     skips = step(engineering_rules(), "Skips.")
@@ -231,7 +238,7 @@ def test_grill_asks_every_conflict_with_three_options() -> None:
 
 
 def test_domain_docs_can_change_the_project_rules() -> None:
-    """Spec step 5 writes `docs/engineering.md` entries, and build step 3 writes them."""
+    """Spec step 5 holds `docs/engineering.md` entries, and build writes them."""
     steps = section(skill("spec"), "Steps")
     domain_docs = steps.split("**Domain docs:**", 1)[1].split("\n", 1)[0]
     assert "`docs/engineering.md`" in domain_docs
