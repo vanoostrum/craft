@@ -1,39 +1,14 @@
 # Copyright (C) 2026 Theo van Oostrum
 """The build review has a Functional and a Technical part, and labels findings."""
 
-import re
 from collections.abc import Callable
-from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "craft" / "skills"
-RULES = SKILLS / "rules"
+from tests.skill_text import ROOT, RULES, findings, section, skill, step
+
 LABELS = ("`spec`", "`rule`", "`lens`", "`lesson`")
 BLOCKING_RULE_LINES = 2
-
-
-def skill(name: str) -> str:
-    """Return the text of a skill's `SKILL.md`."""
-    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-
-
-def findings() -> str:
-    """Return the text of `rules/findings.md`."""
-    return (RULES / "findings.md").read_text(encoding="utf-8")
-
-
-def section(text: str, heading: str) -> str:
-    """Return the body of the `## <heading>` section of `text`."""
-    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
-
-
-def step(text: str, name: str) -> str:
-    """Return the numbered step or item whose bold name is `name`."""
-    rest = text.split(f"**{name}**", 1)[1].split("\n## ", 1)[0]
-    end = re.search(r"\n\s*\d+\. \*\*", rest)
-    return rest[: end.start()] if end else rest
 
 
 def build_review() -> str:
