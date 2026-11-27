@@ -22,6 +22,7 @@ The first review of a spec, a plan, or a PR is a full review.
 - a name that a later ticket consumes that is missing or different;
 - a security issue;
 - a change outside the scope;
+- a broken engineering rule, unless the spec has an exception for it;
 - missing or wrong app evidence;
 - for a `ui` ticket, a platform without screenshots, or a difference from the gallery;
 - a change to `design/` that is not a polish fix asked at the merge gate.
