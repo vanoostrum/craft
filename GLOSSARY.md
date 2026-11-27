@@ -51,7 +51,9 @@
 | Shared rules | The engineering rules for every project: `plugins/craft/skills/rules/engineering.md`. |
 | Stack profile | The engineering rules for one stack, such as `python-fastapi`: `plugins/craft/skills/rules/profiles/<stack>.md`. It names the structure, the naming, the libraries, the error handling, and the metric tools with their thresholds. |
 | Project rules | A project's own engineering rules: `docs/engineering.md` in its repo. Each rule links the ADR, the `CLAUDE.md` line, or the code behind it. |
-| Stacks | The key in `.claude/craft.md` that names the stack profile of each path of the repo, such as `` `/` → `python-fastapi` ``, or `none`. |
+| Stacks | The key in `.claude/craft.md` that names the stack profile of each path of the repo, such as `` `/` → `python-fastapi` ``, or `none`. A missing key reads as `none`. A file follows the profile of the longest path that holds it. |
+| Rule exception | A spec decision `(exception: <rule name>)` that lets one ticket break one engineering rule. The owner picks it in the grill, and the review accepts the break. |
+| Rule change ticket | A Backlog ticket in the Craft Linear project that `craft:spec` files when the owner picks a change to a shared or profile rule in the grill. Its title is `Change <file> rule **<name>**`, and a profile rule's ticket has the label `profile`. Like every ticket about a shared or profile rule, it lives in the Craft Linear project, whatever project raised it. |
 | Functional part | The part of a build review that checks the PR against its spec. |
 | Technical part | The part of a build review that checks the code against the engineering rules and the metric report. |
 | Finding label | The kind of a build review finding, next to its severity: `spec`, `rule`, `lens`, or `lesson` (`docs/adr/0012`). The spec review and the plan review have no labels. |

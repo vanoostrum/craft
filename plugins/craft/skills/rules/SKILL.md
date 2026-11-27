@@ -48,7 +48,7 @@ These paths and names are fixed in every project:
 | ADRs | `docs/adr/` |
 | Design gallery | `design/`: `design/README.md` holds `Current stage` and `Platforms`; `design/gallery.css` and `design/pages/` hold the pages. |
 | UI label | The Linear label `ui`, on tickets that add or change a screen. |
-| Engineering rules | `CLAUDE.md`, including the test seam rule: where tests connect to the code. |
+| Engineering rules | Three layers, as **Engineering rules** below says: `<rules>/engineering.md`, `<rules>/profiles/<stack>.md` for each profile that `Stacks` names, and `docs/engineering.md`. `CLAUDE.md` keeps the commands and the test seam rule: where tests connect to the code. |
 
 Craft's own files sit next to this skill, in its base directory. The steps write that directory as `<rules>`:
 
@@ -59,12 +59,38 @@ Craft's own files sit next to this skill, in its base directory. The steps write
 | `findings.md` | The rules of every fresh review and every fix: the full review, blocking and non-blocking findings, the follow-up review, and the ripple check. |
 | `gallery.md` | The gallery rules: platforms, page rules, who changes the gallery, and the rollout stages. |
 | `scripts/gallery-shot` | Takes a screenshot of a gallery page for one platform. |
+| `engineering.md` | The shared rules: the engineering rules for every project. |
+| `profiles/` | The stack profiles, one `<stack>.md` per stack, and the template `_template.md`. |
 
 A project skill is a skill in the project's `.claude/skills/`, such as the verify skill. If the Skill tool does not know it, read `.claude/skills/<name>/SKILL.md` and follow it.
 
 ## pstack
 
 Load `craft:bstack` with the Skill tool before any `pstack:` skill. A hook blocks pstack skills until it is loaded. Where bstack differs from pstack, including pstack's session-start instruction to use `pstack:poteto-mode`, bstack wins. If no `pstack:` skill is available, stop and tell the owner to enable `pstack@craft`.
+
+## Engineering rules
+
+The engineering rules are the written rules that a project's code must follow. They come in three layers. The project rules win over the profile, and the profile wins over the shared rules (`docs/adr/0011`).
+
+| Layer | File |
+|---|---|
+| Shared rules | `<rules>/engineering.md`, for every project. |
+| Stack profile | `<rules>/profiles/<stack>.md`, for each profile that `Stacks` names. |
+| Project rules | `docs/engineering.md` in the project. |
+
+- **Stacks.** The key `Stacks` in `.claude/craft.md` names the profile of each path of the repo, as one table row `| Stacks | <list> |`. `<list>` is `none`, or comma-separated pairs `` `<path>` → `<profile>` ``, such as `` `/` → `python-fastapi`, `web/` → `nextjs` ``. A path is relative to the repo root and ends with `/`, and `/` is the whole repo. A missing key reads as `none`. A step reads every profile that `Stacks` names. A file follows the profile of the longest path that holds it. A file in `profiles/` whose name starts with `_` is a template, and `Stacks` never names it.
+- **Rule format.** Each rule in every layer is one bullet that starts with a bold name, such as `**Catch narrowly.**`. A finding names a rule by its file and its bold name, such as `engineering.md` **Catch narrowly.**
+- **`docs/engineering.md` format.** The file has, in this order:
+  - a `# Engineering rules` title;
+  - one line that says the project rules win over the profile and the shared rules;
+  - `## <topic>` sections of rule bullets. Each bullet ends with `Source:` and the ADR, the `CLAUDE.md` line, or the code path behind it. A rule that overrides a rule of another layer ends with `Replaces: <file> **<name>**`;
+  - last, a section `## In CLAUDE.md`: one bullet per rule that `CLAUDE.md` holds, such as the test seam rule, with its bold name and a link to its line in `CLAUDE.md`, and no copy of its text.
+- **Read the rules.** `craft:spec` and `craft:build` read the rules right after they load `craft:bstack`, before their first numbered step. Read each rule file with the Read tool, in full. First read `<rules>/engineering.md`: it holds for every project, so read it before anything else, also when `.claude/craft.md` is missing. Then read `Stacks` in `.claude/craft.md`, each profile that `Stacks` names, and `docs/engineering.md`. `craft:review` gives the fresh reviewer the absolute path of each of these files, with `<rules>` written out as the base directory of `craft:rules`, because the subagent does not know `<rules>`. A subagent of `craft:spec` gets the absolute paths in the same way.
+- **Skips.** Do not ask the owner about a missing rule file. Skip it, go on, and name each skip in the step comment:
+  - no `Stacks` key, `none`, or no `.claude/craft.md`: `Stacks: none`;
+  - a profile that `Stacks` names, without a file: `profile <stack> missing`;
+  - no `docs/engineering.md`: `no docs/engineering.md`.
+- **Rule exception.** A spec can let its ticket break one rule, with the decision `(exception: <rule name>)` under **Decisions**. The owner picks it in the grill of `craft:spec`. In a review, a break of that rule is not a blocking finding.
 
 ## Flow
 
@@ -105,7 +131,7 @@ Tickets that set up or change staging or production keep `mode=gated`. They skip
 
 ## Rules for every step
 
-- **One project's tickets.** The Linear project from the config is what separates this project's tickets from those of the owner's other projects in the shared team. Every ticket craft creates goes into it. Before a step acts on a ticket, check that the ticket is in that Linear project. If it is in another one, stop and tell the owner which project it belongs to: it is built from another repository. A ticket without a project is not picked up until the owner puts it in one.
+- **One project's tickets.** The Linear project from the config is what separates this project's tickets from those of the owner's other projects in the shared team. Every ticket craft creates goes into it. Before a step acts on a ticket, check that the ticket is in that Linear project. If it is in another one, stop and tell the owner which project it belongs to: it is built from another repository. A ticket without a project is not picked up until the owner puts it in one. One kind of ticket is the exception: a ticket about a shared or profile rule, such as a rule change ticket from `craft:spec`, lives in the Linear project `Craft`, whatever project raised it. A step in any project may file it there, or add evidence to it.
 - **Linear is the source of truth.** Read the ticket's current state and comments before acting. Do not rely on memory of earlier sessions.
 - **Craft comments.** Every comment craft writes in Linear starts with `🤖`. Comments without it are from the owner. Each step adds one comment when it ends: `🤖 <step>: <success|failed|escalated> — <one line>`.
 - **Dependencies.** A ticket with a Linear "blocked by" relation is not built until each ticket that blocks it is Done. `craft:next` and `craft:build` check this.
