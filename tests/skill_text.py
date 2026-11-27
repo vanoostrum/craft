@@ -29,3 +29,10 @@ def step(text: str, name: str) -> str:
     rest = text.split(f"**{name}**", 1)[1].split("\n## ", 1)[0]
     end = re.search(r"\n\s*\d+\. \*\*", rest)
     return rest[: end.start()] if end else rest
+
+
+def reviewer_task() -> str:
+    """Return the quoted task that `craft:review` step 2 gives the fresh reviewer."""
+    text = step(skill("review"), "Review in a fresh agent.")
+    lines = (line.strip() for line in text.splitlines())
+    return " ".join(line[1:].strip() for line in lines if line.startswith(">"))

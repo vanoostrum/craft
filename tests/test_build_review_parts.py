@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 import pytest
 
-from tests.skill_text import ROOT, RULES, findings, section, skill, step
+from tests.skill_text import ROOT, RULES, findings, reviewer_task, section, skill, step
 
 LABELS = ("`spec`", "`rule`", "`lens`", "`lesson`")
 BLOCKING_RULE_LINES = 2
@@ -14,11 +14,6 @@ BLOCKING_RULE_LINES = 2
 def build_review() -> str:
     """Return the `## Build review` section of `findings.md`."""
     return section(findings(), "Build review")
-
-
-def reviewer_task() -> str:
-    """Return the task that `craft:review` gives the fresh reviewer."""
-    return step(skill("review"), "Review in a fresh agent.").split("> ", 1)[1]
 
 
 def item(text: str, name: str) -> str:

@@ -6,7 +6,16 @@ from pathlib import Path
 
 import pytest
 
-from tests.skill_text import ROOT, RULES, SKILLS, findings, section, skill, step
+from tests.skill_text import (
+    ROOT,
+    RULES,
+    SKILLS,
+    findings,
+    reviewer_task,
+    section,
+    skill,
+    step,
+)
 
 BUILD_REVIEW_BLOCKING_CHECKS = 5
 
@@ -339,13 +348,6 @@ def test_glossary_has_the_review_terms() -> None:
 
 
 # CRAFT-95: the reviewer reads each changed file in full.
-
-
-def reviewer_task() -> str:
-    """Return the quoted task that `craft:review` step 2 gives the fresh reviewer."""
-    text = step(skill("review"), "Review in a fresh agent.")
-    lines = (line.strip() for line in text.splitlines())
-    return " ".join(line[1:].strip() for line in lines if line.startswith(">"))
 
 
 def files_read_text() -> str:
