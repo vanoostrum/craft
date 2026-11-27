@@ -1,15 +1,7 @@
 # Copyright (C) 2026 Theo van Oostrum
 """Each ticket's spec runs in a fresh session that gets a brief of its blockers."""
 
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "craft" / "skills"
-
-
-def skill(name: str) -> str:
-    """Return the text of a skill's `SKILL.md`."""
-    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
+from tests.skill_text import skill
 
 
 def lane_row(lane: str) -> str:

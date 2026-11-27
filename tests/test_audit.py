@@ -7,21 +7,15 @@ scripts have their own tests.
 """
 
 import re
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "craft" / "skills"
+from tests.skill_text import ROOT, SKILLS, section
+
 AUDIT = SKILLS / "audit"
 
 
 def audit() -> str:
     """Return the text of the `craft:audit` skill."""
     return (AUDIT / "SKILL.md").read_text(encoding="utf-8")
-
-
-def section(text: str, heading: str) -> str:
-    """Return the body of the `## <heading>` section of `text`."""
-    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
 
 
 def step(name: str) -> str:

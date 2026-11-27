@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from tests.test_brainstorm import section
+from tests.skill_text import section
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"

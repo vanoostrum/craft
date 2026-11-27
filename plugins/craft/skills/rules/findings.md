@@ -67,7 +67,7 @@ A finding that fits two labels takes the first of `rule`, `spec`, `lens`: it is 
 
 ### Layout
 
-1. `### Functional part`: the criteria table, each **Review focus** line, the app evidence, and the gallery.
+1. `### Functional part`: the criteria table, each **Review focus** line, each **Paths** row, the app evidence, the gallery, the scope, and bugs.
 2. `### Technical part`: the rule files read, the exceptions of the spec that it applied, the duplicate search, and the structure and fit. With no technical findings, it says `No technical findings`.
 3. **Blocking**, then **Non-blocking**: one list each for the whole review, numbered across both lists.
 4. In a follow-up review, **Gone**: one line for each `gone` finding, with its label, its number and a link to the review that holds it, and the reason. A `gone` finding gets no number in the new review.
@@ -94,7 +94,7 @@ After a re-spec from a plan-scope FAIL, the ticket-scope review of that ticket i
 
 ## Ripple check
 
-Every fix step runs it: a fix after a blocking finding, and a fix after owner feedback at a gate. An item of owner feedback counts as a blocking finding here, and in the follow-up review.
+Every fix step runs it: a fix after a blocking finding, and a fix after owner feedback at a gate. An item of owner feedback counts as a blocking finding here, and in the follow-up review, except feedback on a `lesson`, which steps 1 and 3 note.
 
 1. Fix each blocking finding and each item of owner feedback. Never fix a non-blocking finding on your own. Fix one only when the owner turns it into feedback. Owner feedback on a `lesson` changes no file: a `lesson` is not code to fix.
 2. For each rule, name, or value that the fix changes, search every place that states it: the spec, the other specs, the skills, the code, the tests, and the docs. Search without case, and for each way the text can say it. Change each place in the same fix.
@@ -104,8 +104,8 @@ The follow-up reviewer reads the fix summary, but searches the changed rules its
 
 ## At the gate
 
-A gate lists the non-blocking findings of the latest review under **Non-blocking findings**, and says that the owner can turn any of them into feedback. With no non-blocking findings, write `**Non-blocking findings:** none`, or leave the list out.
+A plan gate or a spec gate lists the non-blocking findings of the latest review under **Non-blocking findings**, and says that the owner can turn any of them into feedback. With no non-blocking findings, write `**Non-blocking findings:** none`, or leave the list out.
 
-At the merge gate, the non-blocking findings of the build review go into three lists: **Lens findings**, then **Non-blocking findings** for the `spec` findings, then **Lessons**. The owner can turn any lens or non-blocking finding into feedback, which the build fixes. A `lesson` is not code to fix: the gate shows it for the owner's information, and owner feedback on it changes no code in the PR.
+At the merge gate, the non-blocking findings of the build review go into three lists: **Lens findings**, then **Non-blocking findings** for the `spec` findings, then **Lessons**. The owner can turn any lens or non-blocking finding into feedback, which the build fixes. A `lesson` is not code to fix: the gate shows it for the owner's information, and owner feedback on it changes no file. A list with no findings says `**Lens findings:** none`, `**Non-blocking findings:** none`, or `**Lessons:** none`, or is left out.
 
 In one-shot mode there is no gate. The non-blocking findings stay in the review comment, and the done report in `craft:next` counts them per ticket and lists each `lens` finding.

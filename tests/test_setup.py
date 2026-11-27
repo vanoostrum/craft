@@ -1,7 +1,8 @@
 # Copyright (C) 2026 Theo van Oostrum
 """Setup describes the environments in a brief, and plan turns it into tickets."""
 
-from tests.test_brainstorm import ROOT, SKILLS, section, skill, step
+from tests.skill_text import ROOT, SKILLS, section, skill
+from tests.test_brainstorm import step
 
 BRIEFS = ("Brief: Dev environment", "Brief: Staging and production")
 

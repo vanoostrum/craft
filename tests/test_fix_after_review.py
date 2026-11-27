@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from tests.test_one_shot_lanes import section, skill
+from tests.skill_text import section, skill
 from tests.test_one_step_per_session import run_hook as run_step_hook
 from tests.test_require_bstack import skill_call
 from tests.test_upload_transcripts import timed, typed, uploaded_segments

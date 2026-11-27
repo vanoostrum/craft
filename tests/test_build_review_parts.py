@@ -148,6 +148,7 @@ def test_layout_lists_the_parts_in_order() -> None:
     text = build_review().split("### Layout", 1)[1].split("\n### ", 1)[0]
     order = [
         "`### Functional part`",
+        "each **Paths** row",
         "`### Technical part`",
         "**Blocking**",
         "**Non-blocking**",
@@ -230,7 +231,9 @@ def test_at_the_gate_has_three_lists() -> None:
     ]
     positions = [text.index(part) for part in order]
     assert positions == sorted(positions)
-    assert "owner feedback on it changes no code in the PR" in text
+    assert "owner feedback on it changes no file" in text
+    assert "`**Lens findings:** none`" in text
+    assert "`**Lessons:** none`" in text
 
 
 def test_merge_gate_step_has_three_lists() -> None:
@@ -239,7 +242,7 @@ def test_merge_gate_step_has_three_lists() -> None:
     order = ["**Lens findings**", "**Non-blocking findings**", "**Lessons**"]
     positions = [text.index(part) for part in order]
     assert positions == sorted(positions)
-    assert "owner feedback on a `lesson` changes no code in the PR" in text
+    assert "owner feedback on a `lesson` changes no file" in text
 
 
 def test_one_shot_comment_counts_lens_findings() -> None:
@@ -329,6 +332,7 @@ def test_ripple_check_notes_feedback_on_a_lesson() -> None:
     """Feedback on a `lesson` changes no file, and the fix summary notes it."""
     text = section(findings(), "Ripple check")
     assert "Owner feedback on a `lesson` changes no file" in text
+    assert "except feedback on a `lesson`" in text.split("\n1. ", 1)[0]
     assert "as `noted`" in text
 
 
@@ -349,7 +353,7 @@ def test_merge_gate_feedback_on_a_lesson_is_noted() -> None:
     text = skill("rules")
     gate = text.split("Any other reply from the owner is feedback.", 1)[1]
     gate = gate.split("\n- **", 1)[0]
-    assert "feedback on a `lesson`" in gate
+    assert "except feedback on a `lesson`, which changes no file and is `noted`" in gate
 
 
 def test_glossary_says_a_lesson_is_never_fixed() -> None:

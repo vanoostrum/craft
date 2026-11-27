@@ -90,7 +90,7 @@ The engineering rules are the written rules that a project's code must follow. T
   - no `Stacks` key, `none`, or no `.claude/craft.md`: `Stacks: none`;
   - a profile that `Stacks` names, without a file: `profile <stack> missing`;
   - no `docs/engineering.md`: `no docs/engineering.md`.
-- **Rule exception.** A spec can let its ticket break one rule, with the decision `(exception: <rule name>)` under **Decisions**. The owner picks it in the grill of `craft:spec`. In a review, a break of that rule is not a blocking finding.
+- **Rule exception.** A spec can let its ticket break one rule, with the decision `(exception: <rule name>)` under **Decisions**. The owner picks it in the grill of `craft:spec`. In a review, a break of that rule is no finding.
 
 ## Flow
 

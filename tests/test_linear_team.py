@@ -18,7 +18,8 @@ from typing import Any, override
 
 import pytest
 
-from tests.test_brainstorm import SKILLS, skill, step
+from tests.skill_text import SKILLS, skill
+from tests.test_brainstorm import step
 
 SCRIPT = SKILLS / "setup" / "scripts" / "linear_team.py"
 ROOT = Path(__file__).resolve().parents[1]

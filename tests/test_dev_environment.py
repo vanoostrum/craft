@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from tests.test_brainstorm import section
+from tests.skill_text import section
 from tests.test_ci import check_steps
 
 ROOT = Path(__file__).resolve().parents[1]

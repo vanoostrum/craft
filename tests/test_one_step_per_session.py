@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from tests.test_one_shot_lanes import section, skill
+from tests.skill_text import section, skill
 from tests.test_require_bstack import skill_call, slash_command
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -1,22 +1,9 @@
 # Copyright (C) 2026 Theo van Oostrum
 """`mode=one-shot` specs every ticket up front, then builds and merges without gates."""
 
-from pathlib import Path
-
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "craft" / "skills"
-
-
-def skill(name: str) -> str:
-    """Return the text of a skill's `SKILL.md`."""
-    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-
-
-def section(text: str, heading: str) -> str:
-    """Return the body of the `## <heading>` section of `text`."""
-    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
+from tests.skill_text import SKILLS, section, skill
 
 
 def test_plan_takes_the_mode_argument() -> None:
