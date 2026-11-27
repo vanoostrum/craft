@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "plugins" / "craft" / "skills"
 RULES = SKILLS / "rules"
 LABELS = ("`spec`", "`rule`", "`lens`", "`lesson`")
+BLOCKING_RULE_LINES = 2
 
 
 def skill(name: str) -> str:
@@ -128,12 +129,12 @@ def test_new_duplicate_cites_the_right_rule() -> None:
     """A copy of repo code and a copy within the PR cite different rules."""
     text = item(build_review(), "New duplicate.")
     assert (
-        "A copy of code already in the repo is a `rule` finding against **Reuse before you write**"
-        in text
+        "A copy of code already in the repo is a `rule` finding against "
+        "**Reuse before you write**" in text
     )
     assert (
-        "A copy of other new code in the same PR is a `rule` finding against **Clean up what you touch**"
-        in text
+        "A copy of other new code in the same PR is a `rule` finding against "
+        "**Clean up what you touch**" in text
     )
     assert "Each names both places" in text
     assert "at most a `lens` finding" in text
@@ -159,8 +160,8 @@ def test_lesson_sits_next_to_a_blocking_rule_finding() -> None:
     text = item(build_review(), "`lesson`.")
     assert "next to a blocking `rule` finding" in text
     assert (
-        "only when a more specific rule for this project or stack would have stopped the problem"
-        in text
+        "only when a more specific rule for this project or stack "
+        "would have stopped the problem" in text
     )
     assert "`project` or `stack`" in text
     assert "a bold name and one sentence" in text
@@ -223,7 +224,7 @@ def test_blocking_list_has_build_review_rule_findings() -> None:
     )
     assert any("a new duplicate of existing code" in line for line in lines)
     assert all("in the build review only" in line for line in lines)
-    assert len(lines) == 2
+    assert len(lines) == BLOCKING_RULE_LINES
 
 
 # Criterion 12: follow-up review.
@@ -234,8 +235,8 @@ def test_follow_up_build_review_keeps_labels_and_copies_forward() -> None:
     text = section(findings(), "Follow-up review")
     assert "each earlier blocking finding keeps its label" in text
     assert (
-        "copies each earlier `lens` and `lesson` finding forward with its label, as still open"
-        in text
+        "copies each earlier `lens` and `lesson` finding forward "
+        "with its label, as still open" in text
     )
     assert "mark it `gone`, with a reason" in text
     assert "A copied `lesson` is never `gone`" in text
@@ -275,8 +276,8 @@ def test_one_shot_comment_counts_lens_findings() -> None:
     """The one-shot review comment names the number of `lens` findings."""
     text = step(skill("review"), "If PASS:")
     assert (
-        "`🤖 review: success — PASS — 0 blocking, <m> non-blocking (<k> lens), merging (one-shot)`"
-        in text
+        "`🤖 review: success — PASS — 0 blocking, <m> non-blocking (<k> lens), "
+        "merging (one-shot)`" in text
     )
 
 
@@ -287,8 +288,8 @@ def test_reviewer_writes_both_parts_with_labels() -> None:
     """The reviewer task asks for both parts as `findings.md` describes them."""
     task = reviewer_task()
     assert (
-        "the **Functional part** and the **Technical part** of `## Build review` in `findings.md`"
-        in task
+        "the **Functional part** and the **Technical part** "
+        "of `## Build review` in `findings.md`" in task
     )
     for label in LABELS:
         assert label in task

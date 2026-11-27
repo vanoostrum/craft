@@ -74,6 +74,7 @@ The lanes run at the same time, so each condition below reads the current state 
    - each ticket in **Needs human** or stuck behind one, and what blocks it;
    - every `(default)` decision of every spec, one line each, with its ticket;
    - the number of non-blocking findings per ticket, from its latest spec review and build review, with a link to each review;
+   - each `lens` finding of each ticket's latest build review, one line each with its smell or principle and a link to the review, without the `gone` findings;
    - the `🤖 replan: pending` proposals;
    - the **Owner after** items, with where to do each;
    - the gated tickets, if any.

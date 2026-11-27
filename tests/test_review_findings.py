@@ -196,10 +196,10 @@ def test_no_skill_lists_real_problems_only(path: Path) -> None:
 
 
 def test_build_review_marks_its_checks() -> None:
-    """Decision 14: the build review's checks are blocking, seam repeats are not."""
+    """The build review's checks are blocking, a seam repeat too (CRAFT-106)."""
     text = step(skill("review"), "Review in a fresh agent.")
     assert text.count("is a blocking finding") >= BUILD_REVIEW_BLOCKING_CHECKS
-    assert "only repeats a test at the seam is a non-blocking finding" in text
+    assert "only repeats a test at the seam is a blocking `rule` finding" in text
 
 
 @pytest.mark.parametrize(
