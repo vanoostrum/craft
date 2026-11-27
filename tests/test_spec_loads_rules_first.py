@@ -147,3 +147,83 @@ def test_ignores_partial_inputs_and_stream_events() -> None:
         skill_call("craft:rules"),
     )
     assert order_grader_passes(text)
+
+
+def read_call(path: str) -> dict[str, object]:
+    """Return an assistant message with one Read call, as the trace holds it."""
+    return {
+        "type": "assistant",
+        "message": {
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_read",
+                    "name": "Read",
+                    "input": {"file_path": path},
+                }
+            ]
+        },
+        "parent_tool_use_id": None,
+    }
+
+
+def reads_rules_passes(text: str) -> bool:
+    """Run the `reads-engineering-rules` grader: a Read call opens the shared rules."""
+    meta = frontmatter(GRADERS / "reads-engineering-rules.md")
+    assert meta["type"] == "tool_used"
+    calls = [
+        json.dumps(block["input"], separators=(",", ":"))
+        for line in text.splitlines()
+        if (message := json.loads(line)).get("type") == "assistant"
+        for block in message["message"]["content"]
+        if block["name"] == meta["tool"]
+    ]
+    return any(re.search(meta["input_match"], call) for call in calls)
+
+
+SHARED_RULES = "/plugins/craft/skills/rules/engineering.md"
+
+
+def test_passes_when_the_shared_rules_are_read() -> None:
+    """The agent reads `engineering.md` after the skills: the grader passes."""
+    text = trace(
+        skill_call("craft:spec", args="CRAFT-999"),
+        skill_call("craft:rules"),
+        skill_call("craft:bstack"),
+        read_call(SHARED_RULES),
+    )
+    assert reads_rules_passes(text)
+
+
+def test_fails_when_the_shared_rules_are_not_read() -> None:
+    """The agent loads the skills and reads another file: the grader fails."""
+    text = trace(
+        skill_call("craft:spec", args="CRAFT-999"),
+        skill_call("craft:rules"),
+        skill_call("craft:bstack"),
+        read_call("/plugins/craft/skills/rules/findings.md"),
+    )
+    assert not reads_rules_passes(text)
+
+
+def test_fails_when_only_a_skill_names_the_shared_rules() -> None:
+    """A Skill call whose input names the path is not a read."""
+    text = trace(skill_call("craft:rules", args=SHARED_RULES))
+    assert not reads_rules_passes(text)
+
+
+def test_the_case_has_turns_for_the_read() -> None:
+    """The case allows 10 turns, so the read fits after the two skills."""
+    meta = frontmatter(GRADERS.parent / "prompt.md")
+    assert meta["max_turns"] == 10
+
+
+def test_feature_map_names_the_read() -> None:
+    """The verify skill's feature map row says the case checks the read."""
+    verify = (
+        GRADERS.parents[4] / ".claude" / "skills" / "verify" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    row = next(
+        r for r in verify.splitlines() if r.startswith("| `spec-loads-rules-first` |")
+    )
+    assert "`engineering.md`" in row
