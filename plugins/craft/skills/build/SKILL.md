@@ -8,6 +8,8 @@ model: sonnet
 
 Load the `craft:rules` skill first, and follow it. Then load `craft:bstack` with the Skill tool, before any pstack skill.
 
+Then read the engineering rules, as **Engineering rules** in `craft:rules` says.
+
 ## Input
 
 A ticket in **Ready to build** whose spec gate is approved. For `mode=one-shot`, a ticket in **Ready to build** whose spec passed the spec review, as step 1 says. `craft:next` starts it from its build-lane prompt. A retry after a review FAIL, red CI, or a merge conflict starts it on a ticket that already has its PR. A retry after a review FAIL, or after owner feedback at the merge gate, runs **Fix** below.
@@ -25,7 +27,7 @@ It runs in a new session, never in the session that ran `craft:spec`. A hook den
    - If a check fails for another reason, stop and say so.
    Then move the ticket to **Building**.
 2. **Branch.** Create or check out the branch from the naming rule, based on the latest base branch.
-3. **Domain docs.** If the spec has **Domain docs**, write them to `GLOSSARY.md` and `docs/adr/` as the spec says. Commit them with the `Craft-Issue` trailer.
+3. **Domain docs.** If the spec has **Domain docs**, write them to `GLOSSARY.md`, `docs/adr/`, and `docs/engineering.md` as the spec says. Commit them with the `Craft-Issue` trailer.
 4. **Per task in the plan:**
    1. Write a failing test for it, at the test seam from the spec.
    2. Make it pass with the smallest change.
