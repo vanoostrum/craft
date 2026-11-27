@@ -10,7 +10,7 @@
 | Merge approval | The owner's own chat message at a one-shot plan gate that lets craft merge the plan PR and each ticket PR of that plan into its base branch of its repo once review passes and checks are green. Craft attaches it by message id to each one-shot build thread. |
 | Finding | One problem that a review reports. It is blocking or non-blocking. |
 | Blocking finding | A finding that makes the review FAIL, such as an unmet acceptance criterion or a contradiction between specs. `rules/findings.md` has the full list. |
-| Non-blocking finding | A finding that does not make the review FAIL. The gate lists it, and the owner decides whether to fix it. Not a note: a note is a `note=` argument. |
+| Non-blocking finding | A finding that does not make the review FAIL. The gate lists it, and the owner decides whether to fix it. A `lesson` is never fixed: the owner decides on it as a rule. Not a note: a note is a `note=` argument. |
 | Follow-up review | A review after a fix. It checks the earlier blocking findings, the changed text, and every place that states a changed rule. |
 | Ripple check | The search a fix step makes for every other place that states the rule it changed. |
 | Segment | The part of a session from one craft step call to the next, with its own ticket, tokens, and times. In a spec session, a change of the current ticket also starts a segment. `metadata.json` lists the segments of a session. |

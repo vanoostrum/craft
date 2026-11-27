@@ -80,7 +80,7 @@ Each finding is one line: its number, its label in backticks, what and where, th
 
 Each later review of the same spec, plan, or PR, in the same scope, is a follow-up review. Its inputs are the previous review and the fix summaries since it. It checks:
 
-- each blocking finding of the previous review, and each item of owner feedback in the fix summaries: fixed or not;
+- each blocking finding of the previous review, and each item of owner feedback in the fix summaries: fixed or not. Accept `noted` for an item on a `lesson`;
 - the changed text;
 - every place that states a changed rule, name, or value. Search for them yourself, in the spec, the other specs, the skills, the code, the tests, and the docs. The fix summary lists the places that the fix changed, but a place that it missed is what this check is for.
 
@@ -96,9 +96,9 @@ After a re-spec from a plan-scope FAIL, the ticket-scope review of that ticket i
 
 Every fix step runs it: a fix after a blocking finding, and a fix after owner feedback at a gate. An item of owner feedback counts as a blocking finding here, and in the follow-up review.
 
-1. Fix each blocking finding and each item of owner feedback. Never fix a non-blocking finding on your own. Fix one only when the owner turns it into feedback.
+1. Fix each blocking finding and each item of owner feedback. Never fix a non-blocking finding on your own. Fix one only when the owner turns it into feedback. Owner feedback on a `lesson` changes no file: a `lesson` is not code to fix.
 2. For each rule, name, or value that the fix changes, search every place that states it: the spec, the other specs, the skills, the code, the tests, and the docs. Search without case, and for each way the text can say it. Change each place in the same fix.
-3. Post a fix summary: each blocking finding and each item of owner feedback, as fixed, or as disputed, with a reason; and every place that the fix changed. A spec fix posts it on the ticket as `🤖 fix: <one line>`, with the list below it. A build fix or a plan fix posts it as a PR comment.
+3. Post a fix summary: each blocking finding and each item of owner feedback, as fixed, or as disputed, with a reason, and each item on a `lesson` as `noted`; and every place that the fix changed. A spec fix posts it on the ticket as `🤖 fix: <one line>`, with the list below it. A build fix or a plan fix posts it as a PR comment.
 
 The follow-up reviewer reads the fix summary, but searches the changed rules itself.
 

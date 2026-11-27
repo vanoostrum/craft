@@ -325,3 +325,44 @@ def test_adr_0012_lets_spec_findings_be_non_blocking() -> None:
     assert (
         "Blocking or non-blocking, as the blocking list in `findings.md` says" in line
     )
+
+
+# Owner feedback on a `lesson` (review 1, finding 1).
+
+
+def test_ripple_check_notes_feedback_on_a_lesson() -> None:
+    """Feedback on a `lesson` changes no file, and the fix summary notes it."""
+    text = section(findings(), "Ripple check")
+    assert "Owner feedback on a `lesson` changes no file" in text
+    assert "as `noted`" in text
+
+
+def test_follow_up_review_accepts_a_noted_lesson() -> None:
+    """The follow-up review accepts `noted` for feedback on a `lesson`."""
+    text = section(findings(), "Follow-up review")
+    assert "`noted` for an item on a `lesson`" in text
+
+
+def test_build_fix_changes_no_file_for_a_lesson() -> None:
+    """The Fix step of `craft:build` notes feedback on a `lesson`."""
+    text = section(skill("build"), "Fix")
+    assert "owner feedback on a `lesson` changes no file" in text
+
+
+def test_merge_gate_feedback_on_a_lesson_is_noted() -> None:
+    """The gate rule in `craft:rules` excepts feedback on a `lesson`."""
+    text = skill("rules")
+    gate = text.split("Any other reply from the owner is feedback.", 1)[1]
+    gate = gate.split("\n- **", 1)[0]
+    assert "feedback on a `lesson`" in gate
+
+
+def test_glossary_says_a_lesson_is_never_fixed() -> None:
+    """The glossary entry of a non-blocking finding names the `lesson`."""
+    glossary = (ROOT / "GLOSSARY.md").read_text(encoding="utf-8")
+    line = next(
+        line
+        for line in glossary.splitlines()
+        if line.startswith("| Non-blocking finding |")
+    )
+    assert "A `lesson` is never fixed" in line
