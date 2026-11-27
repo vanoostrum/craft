@@ -31,7 +31,6 @@ Read `.claude/craft.md` in the project first. It holds these keys:
 | Required CI checks | The checks that must be green before a merge. |
 | Verify skill | The project skill that installs, lints, type-checks, and tests, as the required checks do. |
 | App driver skill | The project skill that launches the app, drives each entry point, and saves evidence and screenshots. |
-| Stacks | The stack profile of each path of the repo, as **Engineering rules** says. Optional. |
 
 A project new to craft has no `.claude/craft.md` yet. `craft:setup` asks the owner for the Linear team, the Linear project, and the GitHub repo, and `craft:plan` takes all values from the **Craft wiring** of the `Brief: Dev environment` and writes the file in its PR.
 
