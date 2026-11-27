@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Theo van Oostrum
 """Setup describes the environments in a brief, and plan turns it into tickets."""
 
-from tests.test_brainstorm import ROOT, SKILLS, section, skill, step
+from tests.skill_text import ROOT, SKILLS, numbered_step, section, skill
 
 BRIEFS = ("Brief: Dev environment", "Brief: Staging and production")
 
@@ -17,7 +17,7 @@ def test_setup_has_a_dev_and_a_deploy_mode() -> None:
     for brief in BRIEFS:
         assert f"`{brief}`" in text
         assert brief in section(skill("plan"), "Input")
-    places = step(text, "Write the brief.")
+    places = numbered_step(text, "Write the brief.")
     for place in ("Local", "Cloud agents", "CI", "Staging", "Production", "Rollback"):
         assert f"**{place}**" in places
 
@@ -27,7 +27,7 @@ def test_setup_has_a_checklist_for_each_part() -> None:
     parts = setup_file("parts.md")
     for part in ("Web frontend", "Mobile app", "Backend API", "Storage"):
         assert f"\n## {part}\n" in parts
-    assert "parts.md" in step(skill("setup"), "Read what exists.")
+    assert "parts.md" in numbered_step(skill("setup"), "Read what exists.")
 
 
 def test_setup_prefers_vercel_within_the_hobby_plan() -> None:
@@ -36,21 +36,23 @@ def test_setup_prefers_vercel_within_the_hobby_plan() -> None:
     assert "Hobby" in preferences
     assert "https://vercel.com/docs/plans/hobby" in preferences
     assert "Preview protection" in preferences
-    assert "preferences.md" in step(skill("setup"), "The conversation.")
+    assert "preferences.md" in numbered_step(skill("setup"), "The conversation.")
 
 
 def test_setup_does_not_commit() -> None:
     """Setup has no ticket, so plan writes `.claude/craft.md` in its own PR."""
     assert "does not commit" in skill("setup")
-    assert ".claude/craft.md" in step(skill("plan"), "Commit")
+    assert ".claude/craft.md" in numbered_step(skill("plan"), "Commit")
 
 
 def test_owner_items_reach_the_owner_when_needed() -> None:
     """Owner items are sorted by when they are needed, and each step acts on them."""
-    assert "Before the plan" in step(skill("setup"), "Owner checklist.")
+    assert "Before the plan" in numbered_step(skill("setup"), "Owner checklist.")
     assert "Before the plan" in section(skill("setup"), "Approval")
     assert "Owner first" in section(skill("plan"), "After approval")
-    assert "Owner first" in step(skill("build"), "Check that the ticket is ready.")
+    assert "Owner first" in numbered_step(
+        skill("build"), "Check that the ticket is ready."
+    )
     assert "Owner after" in skill("merge")
 
 
@@ -71,11 +73,11 @@ def test_brainstorm_starts_setup_for_a_new_project() -> None:
 def test_plan_starts_an_environment_plan_with_a_skeleton() -> None:
     """Environment tickets serve the developer, and a skeleton ticket comes first."""
     text = skill("plan")
-    tickets = step(text, "Slice the work")
+    tickets = numbered_step(text, "Slice the work")
     assert "agents that build the project" in tickets
     for skeleton in ("walking skeleton", "deploy skeleton"):
         assert skeleton in tickets
-        assert skeleton in step(text, "Review in a fresh agent.")
+        assert skeleton in numbered_step(text, "Review in a fresh agent.")
 
 
 def test_the_walking_skeleton_proves_its_own_values() -> None:
@@ -83,12 +85,12 @@ def test_the_walking_skeleton_proves_its_own_values() -> None:
     rules = skill("rules")
     assert "`none yet`" in rules
     assert "its own branch" in rules
-    assert "its own branch" in step(skill("merge"), "Check CI.")
+    assert "its own branch" in numbered_step(skill("merge"), "Check CI.")
 
 
 def test_merging_the_walking_skeleton_plans_the_product() -> None:
     """The product brief gets its plan once the dev environment works."""
-    merge = step(skill("merge"), "Next.")
+    merge = numbered_step(skill("merge"), "Next.")
     assert "walking skeleton" in merge
     assert "Product brief" in merge
 
@@ -154,21 +156,21 @@ CRAFT_ONLY_RULE = (
 
 def test_setup_puts_the_craft_only_rule_in_the_brief() -> None:
     """The brief carries the rule word for word, so plan can write it to `CLAUDE.md`."""
-    wiring = step(skill("setup"), "Write the brief.")
+    wiring = numbered_step(skill("setup"), "Write the brief.")
     assert CRAFT_ONLY_RULE in wiring
     assert "`CLAUDE.md`" in wiring
 
 
 def test_setup_asks_the_owner_to_paste_the_rule_into_the_project_instructions() -> None:
     """Threads read the claude.ai project instructions, which only the owner sets."""
-    checklist = step(skill("setup"), "Owner checklist.")
+    checklist = numbered_step(skill("setup"), "Owner checklist.")
     assert "craft-only rule" in checklist
     assert "project instructions" in checklist
 
 
 def test_plan_writes_the_craft_only_rule_to_claude_md() -> None:
     """Plan writes the rule from the brief when it connects a new project."""
-    commit = step(skill("plan"), "Commit")
+    commit = numbered_step(skill("plan"), "Commit")
     assert "craft-only rule" in commit
     assert "if it is not there yet" not in commit
 

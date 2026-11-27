@@ -2,9 +2,9 @@
 """The gallery rules allow a page with no primary action."""
 
 import re
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+from tests.skill_text import ROOT, section
+
 PLUGIN = ROOT / "plugins" / "craft"
 GALLERY = PLUGIN / "skills" / "rules" / "gallery.md"
 
@@ -13,11 +13,6 @@ OLD_RULES = (
     "one primary action per page",
     "each page has one primary action",
 )
-
-
-def section(text: str, heading: str) -> str:
-    """Return the body of the `## heading` section of `gallery.md`."""
-    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
 
 
 def flat(text: str) -> str:

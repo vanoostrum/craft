@@ -9,7 +9,7 @@ round that asks about several tickets.
 import re
 from pathlib import Path
 
-from tests.test_dev_environment import FRONTMATTER, frontmatter
+from tests.skill_text import FRONTMATTER, frontmatter
 
 GRADERS = (
     Path(__file__).resolve().parents[1]

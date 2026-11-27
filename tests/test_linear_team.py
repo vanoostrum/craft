@@ -18,7 +18,7 @@ from typing import Any, override
 
 import pytest
 
-from tests.test_brainstorm import SKILLS, skill, step
+from tests.skill_text import SKILLS, numbered_step, skill
 
 SCRIPT = SKILLS / "setup" / "scripts" / "linear_team.py"
 ROOT = Path(__file__).resolve().parents[1]
@@ -331,9 +331,9 @@ def test_sends_linear_api_key_when_set(linear: tuple[FakeLinear, str]) -> None:
 
 def test_setup_creates_the_team_before_asking_the_owner() -> None:
     """Setup runs the script, and only an unmade team stays on the owner's list."""
-    where = step(skill("setup"), "Where craft works.")
+    where = numbered_step(skill("setup"), "Where craft works.")
     assert "scripts/linear_team.py" in where
-    assert "the Linear team" not in step(skill("setup"), "Owner checklist.")
+    assert "the Linear team" not in numbered_step(skill("setup"), "Owner checklist.")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "api.linear.app" in readme
 
@@ -342,10 +342,10 @@ def test_one_linear_project_per_project() -> None:
     """Briefs, plans, and tickets live in the Linear project from the config."""
     rules = skill("rules")
     assert "| Linear project |" in rules
-    assert "Linear project from the config" in step(
+    assert "Linear project from the config" in numbered_step(
         skill("brainstorm"), "Write the brief."
     )
-    assert "as a Linear document in the Linear project" in step(
+    assert "as a Linear document in the Linear project" in numbered_step(
         skill("plan"), "Write the plan"
     )
     assert "sub-issue of the plan ticket" in skill("plan")

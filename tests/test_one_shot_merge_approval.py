@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from tests.test_one_shot_lanes import one_shot, section, skill
+from tests.skill_text import one_shot, section, skill
 
 ROOT = Path(__file__).resolve().parents[1]
 

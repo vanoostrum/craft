@@ -4,7 +4,7 @@ The build review has two parts. The **functional** part checks that the PR does 
 
 Each finding of the build review keeps one of the two severities, blocking or non-blocking, and also gets one label:
 
-- `spec`: a functional finding. Blocking.
+- `spec`: a functional finding. Blocking or non-blocking, as the blocking list in `findings.md` says, such as an unmet criterion (blocking) or wording (non-blocking).
 - `rule`: a written rule is broken, a metric is over its threshold, or the PR adds a new duplicate of existing code. The finding names the rule. Blocking.
 - `lens`: a judgement call, named by a smell or a principle. Non-blocking.
 - `lesson`: a rule candidate, marked `project` or `stack`. It comes only from a blocking technical finding or from technical owner feedback at the merge gate. A `lens` finding that the owner turns into feedback becomes a lesson only the second time for the same kind of problem. The owner approves its wording at the merge gate before it is written.

@@ -2,10 +2,9 @@
 """Spec, build, and the fresh reviewer read the three layers of engineering rules."""
 
 import re
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "craft" / "skills"
+from tests.skill_text import SKILLS, reviewer_task, section, skill
+
 RULES_DIR = SKILLS / "rules"
 SHARED = RULES_DIR / "engineering.md"
 TEMPLATE = RULES_DIR / "profiles" / "_template.md"
@@ -33,16 +32,6 @@ PROFILE_SECTIONS = [
     "Sources",
 ]
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
-
-
-def skill(name: str) -> str:
-    """Return the text of a skill's `SKILL.md`."""
-    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-
-
-def section(text: str, heading: str) -> str:
-    """Return the body of the `## <heading>` section of `text`."""
-    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
 
 
 def step(text: str, name: str) -> str:
@@ -184,7 +173,7 @@ def test_section_names_the_exception_marker() -> None:
     """A spec decision `(exception: <rule name>)` lets the ticket break the rule."""
     exception = step(engineering_rules(), "Rule exception.")
     assert "`(exception: <rule name>)`" in exception
-    assert "is not a blocking finding" in exception
+    assert "a break of that rule is no finding" in exception
 
 
 # Criterion 4: the fixed-paths row and the `<rules>` table.
@@ -264,19 +253,18 @@ def test_one_shot_scout_and_writer_read_the_rules() -> None:
 def test_review_gives_the_reviewer_absolute_rule_paths() -> None:
     """The review step passes absolute paths, not `<rules>`, to the subagent."""
     fresh = step(skill("review"), "Review in a fresh agent.")
-    task = fresh.split("> ", 1)[1]
     assert "the absolute path of each engineering rule file" in fresh.split("> ", 1)[0]
-    assert "<rules>" not in task
+    assert "<rules>" not in reviewer_task()
 
 
 def test_reviewer_reads_each_rule_file_and_blocks_on_a_break() -> None:
     """The task reads each rule file, lists it, and blocks on a break."""
-    task = step(skill("review"), "Review in a fresh agent.").split("> ", 1)[1]
+    task = reviewer_task()
     assert "Read in full each engineering rule file whose path you got" in task
     assert "list it under **Files read**" in task
     assert "a blocking finding that names the file and the rule" in task
     assert "`(exception: <rule name>)`" in task
-    assert "not a blocking finding" in task
+    assert "its break is no finding" in task
 
 
 def test_review_names_each_skip_in_its_step_comment() -> None:

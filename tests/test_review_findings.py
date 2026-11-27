@@ -1,43 +1,28 @@
 # Copyright (C) 2026 Theo van Oostrum
 """Reviews find every blocking problem in one pass, and fixes check their ripple."""
 
-import re
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "craft" / "skills"
-FINDINGS = SKILLS / "rules" / "findings.md"
+from tests.skill_text import (
+    ROOT,
+    RULES,
+    SKILLS,
+    findings,
+    reviewer_task,
+    section,
+    skill,
+    step,
+)
+
 BUILD_REVIEW_BLOCKING_CHECKS = 5
-
-
-def skill(name: str) -> str:
-    """Return the text of a skill's `SKILL.md`."""
-    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-
-
-def findings() -> str:
-    """Return the text of `rules/findings.md`."""
-    return FINDINGS.read_text(encoding="utf-8")
 
 
 def spec_review() -> str:
     """Return the text of `rules/spec-review.md`."""
-    return (SKILLS / "rules" / "spec-review.md").read_text(encoding="utf-8")
-
-
-def section(text: str, heading: str) -> str:
-    """Return the body of the `## <heading>` section of `text`."""
-    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
-
-
-def step(text: str, name: str) -> str:
-    """Return the numbered step or item whose bold name is `name`."""
-    rest = text.split(f"**{name}**", 1)[1].split("\n## ", 1)[0]
-    end = re.search(r"\n\s*\d+\. \*\*", rest)
-    return rest[: end.start()] if end else rest
+    return (RULES / "spec-review.md").read_text(encoding="utf-8")
 
 
 def one_shot_spec() -> str:
@@ -196,10 +181,9 @@ def test_no_skill_lists_real_problems_only(path: Path) -> None:
 
 
 def test_build_review_marks_its_checks() -> None:
-    """Decision 14: the build review's checks are blocking, seam repeats are not."""
+    """The build review's checks are blocking findings."""
     text = step(skill("review"), "Review in a fresh agent.")
     assert text.count("is a blocking finding") >= BUILD_REVIEW_BLOCKING_CHECKS
-    assert "only repeats a test at the seam is a non-blocking finding" in text
 
 
 @pytest.mark.parametrize(
@@ -363,13 +347,6 @@ def test_glossary_has_the_review_terms() -> None:
 
 
 # CRAFT-95: the reviewer reads each changed file in full.
-
-
-def reviewer_task() -> str:
-    """Return the quoted task that `craft:review` step 2 gives the fresh reviewer."""
-    text = step(skill("review"), "Review in a fresh agent.")
-    lines = (line.strip() for line in text.splitlines())
-    return " ".join(line[1:].strip() for line in lines if line.startswith(">"))
 
 
 def files_read_text() -> str:

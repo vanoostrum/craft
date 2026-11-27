@@ -5,13 +5,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ROOT / "plugins" / "craft" / "skills"
-
-
-def skill(name: str) -> str:
-    """Return the text of a skill's `SKILL.md`."""
-    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
+from tests.skill_text import SKILLS, skill
 
 
 def test_rules_retries_allow_five_failed_attempts() -> None:
