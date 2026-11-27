@@ -279,6 +279,20 @@ def test_reviewer_reads_each_rule_file_and_blocks_on_a_break() -> None:
     assert "not a blocking finding" in task
 
 
+def test_review_names_each_skip_in_its_step_comment() -> None:
+    """A skipped rule file shows on every path: gate, one-shot, and FAIL."""
+    paths = step(skill("review"), "Review in a fresh agent.").split("> ", 1)[0]
+    assert "name each skip in the step comment" in paths
+    assert "**Skips** in `craft:rules`" in paths
+    for comment in (
+        "`🤖 Gate: merge`",
+        "`🤖 review: success`",
+        "review comment on the PR",
+    ):
+        assert comment in paths
+    assert "gate comment" not in paths
+
+
 # Criterion 10: the blocking list.
 
 
